@@ -63,7 +63,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
               role: u.role,
               // Handle potential different casing from DB
               storeId: u.store_id || u.storeId || u.storeid, 
-              status: u.status
+              status: u.status,
+              password: u.password // Map password if present
           }));
           
           setUsers(mappedUsers);
@@ -84,6 +85,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
   const [newUserName, setNewUserName] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>(UserRole.EMPLOYEE);
   const [newUserStore, setNewUserStore] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
 
   // --- Store Handlers ---
   const handleAddStore = (e: React.FormEvent) => {
@@ -102,6 +104,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     setNewUserUser(user.username);
     setNewUserRole(user.role);
     setNewUserStore(user.storeId || '');
+    setNewUserPassword(user.password || '');
   };
 
   const cancelEditUser = () => {
@@ -110,6 +113,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     setNewUserUser('');
     setNewUserRole(UserRole.EMPLOYEE);
     setNewUserStore('');
+    setNewUserPassword('');
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -164,7 +168,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
         username: newUserUser,
         name: newUserName,
         role: newUserRole,
-        status: 'active'
+        status: 'active',
+        password: newUserPassword // Send password to DB
     };
     
     // Assign store ID to the detected column
@@ -335,6 +340,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                   value={newUserUser}
                   onChange={e => setNewUserUser(e.target.value)}
                   required
+                />
+                <input 
+                  type="password"
+                  placeholder="Password" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500"
+                  value={newUserPassword}
+                  onChange={e => setNewUserPassword(e.target.value)}
                 />
                 <select 
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:ring-blue-500 focus:border-blue-500"

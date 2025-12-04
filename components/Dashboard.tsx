@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { User, UserRole, ReportData, Store } from '../types';
 import { storageService } from '../services/storageService';
@@ -60,14 +61,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard 
-          label="Total Net Profit" 
-          value={`$${stats.totalProfit.toLocaleString()}`} 
+          label="Total Net Sales" 
+          value={`₱${stats.totalProfit.toLocaleString()}`} 
           color="text-emerald-600" 
           icon={TrendingUp} 
         />
         <StatCard 
-          label="Cumulative Shortage" 
-          value={`$${Math.abs(stats.totalShortage).toLocaleString()}`} 
+          label="Total Shortage/Surplus" 
+          value={`₱${Math.abs(stats.totalShortage).toLocaleString()}`} 
           color="text-red-600" 
           icon={AlertOctagon} 
         />
@@ -81,15 +82,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       {/* Chart */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 h-64">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Profit vs Discrepancy (Last 7 Entries)</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">Net Sales vs Total EOD Sales (Last 7 Entries)</h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <XAxis dataKey="date" fontSize={12} stroke="#374151" />
             <YAxis fontSize={12} stroke="#374151" />
             <Tooltip contentStyle={{ backgroundColor: '#fff', borderColor: '#e5e7eb', color: '#111827' }} />
             <ReferenceLine y={0} stroke="#9ca3af" />
-            <Bar dataKey="profit" fill="#10b981" name="Profit" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="discrepancy" fill="#ef4444" name="Discrepancy" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="profit" fill="#10b981" name="Net Sales" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="discrepancy" fill="#ef4444" name="Total EOD Sales" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -105,8 +106,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <tr>
                 <th className="px-4 py-3">Date</th>
                 {user.role === UserRole.ADMIN && <th className="px-4 py-3">Store</th>}
-                <th className="px-4 py-3">Sales</th>
-                <th className="px-4 py-3">Disc.</th>
+                <th className="px-4 py-3">Net Sales</th>
+                <th className="px-4 py-3">Total EOD Sales</th>
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
@@ -119,7 +120,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       {stores.find(s => s.id === report.storeId)?.name || 'Unknown'}
                     </td>
                   )}
-                  <td className="px-4 py-3 font-medium">${report.recordedProfit.toFixed(0)}</td>
+                  <td className="px-4 py-3 font-medium">₱{report.recordedProfit.toFixed(0)}</td>
                   <td className={`px-4 py-3 font-bold ${report.discrepancy < 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {report.discrepancy.toFixed(0)}
                   </td>
@@ -129,7 +130,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' :
                       'bg-blue-100 text-blue-700'
                     }`}>
-                      {report.status}
+                      {report.status === 'OVERAGE' ? 'SURPLUS' : report.status}
                     </span>
                   </td>
                 </tr>

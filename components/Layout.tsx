@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, LayoutDashboard, PlusCircle, Store, Users, Menu, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { LogOut, LayoutDashboard, PlusCircle, Store, Users, Menu, ChevronLeft, ChevronRight, X, Package, ShoppingCart, FileText } from 'lucide-react';
 
 interface LayoutProps {
   user: User;
@@ -16,7 +16,10 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'entry', label: 'New Report', icon: PlusCircle },
+    { id: 'pos', label: 'POS', icon: ShoppingCart },
+    { id: 'inventory', label: 'Inventory', icon: Package },
     // Admin Only Tabs
     { id: 'manage-stores', label: 'Stores', icon: Store, role: UserRole.ADMIN },
     { id: 'manage-users', label: 'Users', icon: Users, role: UserRole.ADMIN },

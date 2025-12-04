@@ -6,12 +6,16 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { EntryForm } from './components/EntryForm';
 import { AdminSettings } from './components/AdminSettings';
+import { Inventory } from './components/Inventory';
+import { POS } from './components/POS';
+import { Reports } from './components/Reports';
 import { Lock, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<string>('dashboard');
   const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -43,8 +47,16 @@ const App: React.FC = () => {
           name: data.name,
           role: data.role,
           storeId: data.store_id || data.storeId || data.storeid,
-          status: data.status
+          status: data.status,
+          password: data.password
         };
+
+        // Check password if the user has one
+        if (appUser.password && appUser.password !== passwordInput) {
+            alert("Invalid password");
+            setIsLoading(false);
+            return;
+        }
 
         storageService.saveSessionUser(appUser);
         setUser(appUser);
@@ -53,12 +65,12 @@ const App: React.FC = () => {
       }
 
       // 2. Fallback to LocalStorage (Legacy/Offline Admin)
-      const localUser = storageService.login(usernameInput);
+      const localUser = storageService.login(usernameInput, passwordInput);
       if (localUser) {
         setUser(localUser);
         setView('dashboard');
       } else {
-        alert('User not found. If you created a new account, please check the username.');
+        alert('User not found. If you created a new account, please check the username and password.');
       }
 
     } catch (err) {
@@ -73,6 +85,7 @@ const App: React.FC = () => {
     storageService.logout();
     setUser(null);
     setUsernameInput('');
+    setPasswordInput('');
   };
 
   if (!user) {
@@ -97,6 +110,16 @@ const App: React.FC = () => {
                 placeholder="Enter username"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900"
+                placeholder="Enter password"
+              />
+            </div>
             <button 
               disabled={isLoading}
               className="w-full bg-slate-900 text-white py-3 rounded-lg font-semibold hover:bg-slate-800 transition-colors flex justify-center items-center"
@@ -108,10 +131,9 @@ const App: React.FC = () => {
           <div className="mt-8 pt-6 border-t border-gray-100 text-center">
             <p className="text-xs text-gray-400 mb-2">Demo Credentials:</p>
             <div className="flex justify-center gap-4 text-xs font-mono">
-              <span className="bg-slate-50 px-2 py-1 rounded border">admin</span>
-              <span className="bg-slate-50 px-2 py-1 rounded border">jane</span>
-              <span className="bg-slate-50 px-2 py-1 rounded border">john</span>
+              <span className="bg-slate-50 px-2 py-1 rounded border" title="Pass: 950421">admin</span>
             </div>
+            <p className="text-[10px] text-gray-400 mt-1">(Admin Pass: 950421)</p>
           </div>
         </div>
       </div>
@@ -121,7 +143,10 @@ const App: React.FC = () => {
   return (
     <Layout user={user} currentView={view} onNavigate={setView} onLogout={handleLogout}>
       {view === 'dashboard' && <Dashboard user={user} />}
+      {view === 'reports' && <Reports user={user} />}
       {view === 'entry' && <EntryForm user={user} onSuccess={() => setView('dashboard')} />}
+      {view === 'pos' && <POS user={user} />}
+      {view === 'inventory' && <Inventory user={user} />}
       {view === 'manage-stores' && <AdminSettings activeTab="stores" />}
       {view === 'manage-users' && <AdminSettings activeTab="users" />}
     </Layout>

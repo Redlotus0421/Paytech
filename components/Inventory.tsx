@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Store, InventoryItem, UserRole } from '../types';
 import { storageService } from '../services/storageService';
-import { Package, Plus, Search, X, Check, Loader2 } from 'lucide-react';
+import { Package, Plus, X, Check, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface InventoryProps {
@@ -200,7 +200,6 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                                 placeholder="0"
                             />
                         </div>
-                        {/* FIX: Set fixed height to match input fields */}
                         <button 
                             disabled={isLoading}
                             className={`text-white p-2 rounded h-[38px] w-[38px] flex items-center justify-center ${editingItem ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}

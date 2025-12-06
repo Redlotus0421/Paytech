@@ -15,18 +15,21 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
   const [selectedReport, setSelectedReport] = useState<ReportData | null>(null);
 
   useEffect(() => {
-    const allReports = storageService.getReports();
-    const allStores = storageService.getStores();
-    const allUsers = storageService.getUsers();
+    const loadData = async () => {
+        const allStores = await storageService.fetchStores();
+        setStores(allStores);
+        
+        const allReports = storageService.getReports();
+        const allUsers = storageService.getUsers();
+        setUsers(allUsers);
 
-    setStores(allStores);
-    setUsers(allUsers);
-
-    let filtered = allReports;
-    if (user.role === UserRole.EMPLOYEE) {
-      filtered = allReports.filter(r => r.storeId === user.storeId);
-    }
-    setReports(filtered.sort((a, b) => b.timestamp - a.timestamp));
+        let filtered = allReports;
+        if (user.role === UserRole.EMPLOYEE) {
+            filtered = allReports.filter(r => r.storeId === user.storeId);
+        }
+        setReports(filtered.sort((a, b) => b.timestamp - a.timestamp));
+    };
+    loadData();
   }, [user]);
 
   const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || 'Unknown Store';
@@ -206,7 +209,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                         </div>
                     </section>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                         
                         {/* LEFT COLUMN: SALES & NET SALES */}
                         <div className="flex flex-col gap-6 h-full">

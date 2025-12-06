@@ -84,14 +84,14 @@ const ExpensesInputSection: React.FC<ExpensesInputSectionProps> = ({
 );
 
 export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
-  const stores = storageService.getStores();
+  const [stores, setStores] = useState<Store[]>([]);
   
   // Tab State
   const [activeTab, setActiveTab] = useState<'sod' | 'eod'>('sod');
   const [isSodSaved, setIsSodSaved] = useState(false);
 
   // Basic State
-  const [selectedStoreId, setSelectedStoreId] = useState<string>(user.storeId || (stores[0]?.id || ''));
+  const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Section 1: Start of Day
@@ -118,6 +118,18 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   
   // Section 5: Manual Override
   const [gcashNotebook, setGcashNotebook] = useState<string>('');
+
+  // Load stores asynchronously
+  useEffect(() => {
+    storageService.fetchStores().then(data => {
+        setStores(data);
+        if (user.storeId) {
+            setSelectedStoreId(user.storeId);
+        } else if (data.length > 0) {
+            setSelectedStoreId(data[0].id);
+        }
+    });
+  }, [user.storeId]);
 
   // --- AUTO LOAD POS DATA ---
   useEffect(() => {
@@ -563,17 +575,21 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
             {/* Sticky Footer */}
             <div className="fixed bottom-0 left-0 md:left-64 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
                  <div className="max-w-6xl mx-auto flex flex-col gap-4">
+                    {/* Row 1: 4 Cards */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                         {/* Card 1 */}
                          <div className="bg-gray-50 p-2 rounded border border-gray-100">
-                             <div className="text-gray-900 text-xs font-bold uppercase">Total Gcash NET</div>
+                             <div className="text-gray-900 text-xs font-bold uppercase">TOTAL EOD SALES</div>
                              <div className="text-gray-900 font-bold">₱{calculations.actualCashSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                          </div>
+                         {/* Card 2 */}
                          <div className={`bg-gray-50 p-2 rounded border border-gray-100 ${calculations.hasNotebookEntry ? 'opacity-50' : ''}`}>
-                             <div className="text-gray-500 text-xs font-bold uppercase">GCash Net (Derived)</div>
-                             <div className={`font-bold ${calculations.derivedGcashNet < 0 ? 'text-red-700' : 'text-green-700'}`}>
+                             <div className="text-green-700 text-xs font-bold uppercase">GCash Net (Derived)</div>
+                             <div className="text-green-700 font-bold">
                                  ₱{calculations.derivedGcashNet.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                              </div>
                          </div>
+                         {/* Card 3 */}
                          <div className={`p-2 rounded border ${calculations.hasNotebookEntry ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-100'}`}>
                              <div className={`text-xs font-bold uppercase ${calculations.hasNotebookEntry ? 'text-purple-700' : 'text-gray-500'}`}>GCash Notebook</div>
                              <div className={`font-bold ${calculations.hasNotebookEntry ? 'text-purple-900' : 'text-gray-400'}`}>
@@ -582,36 +598,47 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                                     : '---'}
                              </div>
                          </div>
+                         {/* Card 4 */}
                          <div className="bg-blue-50 border-blue-100 border p-2 rounded">
                              <div className="text-blue-600 text-xs font-bold uppercase">EOD Net Sales</div>
                              <div className="text-blue-900 font-bold">₱{calculations.eodNetSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                          </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-4 items-center">
-                        <div className={`flex-1 w-full p-3 rounded-lg border flex justify-between items-center ${
-                            Math.abs(calculations.effectiveGcashNet) < 1 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                    {/* Row 2: Main Status & Actions */}
+                    <div className="flex flex-col md:flex-row gap-4 items-stretch">
+                        {/* Big Status Card */}
+                        <div className={`flex-1 w-full p-4 rounded-lg border flex justify-between items-center ${
+                            Math.abs(calculations.effectiveGcashNet) < 1 
+                            ? 'bg-green-50 border-green-200' 
+                            : 'bg-red-50 border-red-200' 
                         }`}>
-                            <div>
-                                <div className="text-xs font-bold uppercase text-gray-900">Total Gcash NET</div>
-                                <div className={`text-xl font-bold ${Math.abs(calculations.effectiveGcashNet) < 1 ? 'text-green-700' : 'text-red-700'}`}>
-                                    {calculations.effectiveGcashNet < 0 ? '-' : (calculations.effectiveGcashNet > 0 ? '+' : '')}₱{Math.abs(calculations.effectiveGcashNet).toFixed(2)}
+                            <div className="flex flex-col justify-center">
+                                {/* Label for Total GCash Net */}
+                                <div className={`text-xs font-bold uppercase mb-1 ${
+                                     Math.abs(calculations.effectiveGcashNet) < 1 ? 'text-green-600' : 'text-red-400'
+                                }`}>Total Gcash NET</div> 
+                                
+                                <div className={`text-3xl font-extrabold ${
+                                    Math.abs(calculations.effectiveGcashNet) < 1 ? 'text-green-700' : 'text-red-600'
+                                }`}>
+                                    {calculations.effectiveGcashNet > 0 ? '+' : ''}₱{calculations.effectiveGcashNet.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                 </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right flex items-center h-full">
                                 {Math.abs(calculations.effectiveGcashNet) < 1 ? (
-                                    <span className="text-green-700 font-bold flex items-center gap-1"><CheckCircle size={16}/> BALANCED</span>
+                                    <span className="text-green-700 font-bold flex items-center gap-2 text-lg"><CheckCircle size={24}/> BALANCED</span>
                                 ) : (
-                                    <span className="text-red-700 font-bold flex items-center gap-1"><AlertTriangle size={16}/> {calculations.effectiveGcashNet < 0 ? 'SHORTAGE' : 'SURPLUS'}</span>
+                                    <span className="text-red-600 font-bold flex items-center gap-2 text-lg"><AlertTriangle size={24}/> {calculations.effectiveGcashNet < 0 ? 'SHORTAGE' : 'SURPLUS'}</span>
                                 )}
                             </div>
                         </div>
 
-                        {/* Difference Card */}
+                        {/* Difference Card (Only if Notebook used) */}
                         {calculations.hasNotebookEntry && (
-                            <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg flex flex-col justify-center min-w-[140px] shadow-sm">
+                            <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg flex flex-col justify-center min-w-[160px] shadow-sm">
                                 <div className="text-xs font-bold uppercase text-purple-700 mb-1">Difference</div>
-                                <div className={`text-lg font-bold ${calculations.notebookDifference > 0 ? 'text-green-600' : (calculations.notebookDifference < 0 ? 'text-red-600' : 'text-gray-600')}`}>
+                                <div className={`text-2xl font-bold ${calculations.notebookDifference > 0 ? 'text-green-600' : (calculations.notebookDifference < 0 ? 'text-red-600' : 'text-gray-600')}`}>
                                     {calculations.notebookDifference > 0 ? '+' : ''}₱{calculations.notebookDifference.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                 </div>
                             </div>
@@ -619,7 +646,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
                         <button
                             type="submit"
-                            className="w-full md:w-auto bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition-colors whitespace-nowrap"
+                            className="w-full md:w-auto bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition-colors whitespace-nowrap flex items-center justify-center"
                         >
                             Submit Final Report
                         </button>

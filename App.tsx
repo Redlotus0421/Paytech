@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User } from './types';
 import { storageService } from './services/storageService';
@@ -10,6 +11,7 @@ import { Inventory } from './components/Inventory';
 import { POS } from './components/POS';
 import { Reports } from './components/Reports';
 import { Lock, Loader2 } from 'lucide-react';
+import { PaytechLogo } from './components/PaytechLogo';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -90,15 +92,16 @@ const App: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-xl shadow-xl max-w-md w-full">
-          <div className="text-center mb-8">
-            <div className="bg-slate-900 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="text-white" size={32} />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-800">PAYTECH</h1>
-            <p className="text-gray-500 mt-2">Sign in to start your shift</p>
+      <div className="min-h-screen bg-gradient-to-br from-[#153968] to-[#58A6DF] flex items-center justify-center p-4">
+        {/* Login Card - White Background with minimal top padding to allow logo to sit high */}
+        <div className="bg-white px-8 pb-8 pt-2 rounded-xl shadow-2xl max-w-md w-full">
+          {/* Header Section */}
+          <div className="text-center mb-1 flex flex-col items-center w-full">
+            {/* Logo: h-64 (Double size). Negative margins (-mt-10, -mb-6) prevent pushing form down */}
+            <PaytechLogo className="h-64 w-auto -mt-10 -mb-6" />
+            <p className="text-gray-500 text-sm font-medium">Sign in to start your shift</p>
           </div>
+          
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
@@ -106,7 +109,7 @@ const App: React.FC = () => {
                 type="text"
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#58A6DF] focus:border-[#58A6DF] focus:outline-none bg-white text-gray-900 placeholder-gray-400 transition-all"
                 placeholder="Enter username"
               />
             </div>
@@ -116,25 +119,18 @@ const App: React.FC = () => {
                 type="password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#58A6DF] focus:border-[#58A6DF] focus:outline-none bg-white text-gray-900 placeholder-gray-400 transition-all"
                 placeholder="Enter password"
               />
             </div>
             <button 
               disabled={isLoading}
-              className="w-full bg-slate-900 text-white py-3 rounded-lg font-semibold hover:bg-slate-800 transition-colors flex justify-center items-center"
+              className="w-full bg-[#58A6DF] text-white py-3 rounded-lg font-bold hover:bg-[#4a90c5] transition-colors flex justify-center items-center shadow-lg mt-2"
             >
               {isLoading ? <Loader2 className="animate-spin mr-2" size={20}/> : null}
               {isLoading ? 'Checking...' : 'Sign In'}
             </button>
           </form>
-          <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-            <p className="text-xs text-gray-400 mb-2">Demo Credentials:</p>
-            <div className="flex justify-center gap-4 text-xs font-mono">
-              <span className="bg-slate-50 px-2 py-1 rounded border" title="Pass: 950421">admin</span>
-            </div>
-            <p className="text-[10px] text-gray-400 mt-1">(Admin Pass: 950421)</p>
-          </div>
         </div>
       </div>
     );

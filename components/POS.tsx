@@ -21,15 +21,18 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   const [receiptData, setReceiptData] = useState<any>(null);
 
   useEffect(() => {
-    const allStores = storageService.getStores();
-    setStores(allStores);
+    const loadData = async () => {
+        const allStores = await storageService.fetchStores();
+        setStores(allStores);
 
-    // Initial setup based on role
-    if (user.role === UserRole.EMPLOYEE && user.storeId) {
-        setActiveStoreId(user.storeId);
-    } else if (allStores.length > 0) {
-        setActiveStoreId(allStores[0].id);
-    }
+        // Initial setup based on role
+        if (user.role === UserRole.EMPLOYEE && user.storeId) {
+            setActiveStoreId(user.storeId);
+        } else if (allStores.length > 0) {
+            setActiveStoreId(allStores[0].id);
+        }
+    };
+    loadData();
   }, [user]);
 
   // Load items when active store changes

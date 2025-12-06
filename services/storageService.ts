@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 
 const KEYS = {
   USERS: 'cfs_users',
-  STORES: 'cfs_stores',
+  // STORES key removed as we now use Supabase 'stores' table
   REPORTS: 'cfs_reports',
   CURRENT_USER: 'cfs_current_user',
   INVENTORY: 'cfs_inventory',
@@ -13,19 +13,12 @@ const KEYS = {
 
 // Seed Data
 const seedData = () => {
-  if (!localStorage.getItem(KEYS.STORES)) {
-    const stores: Store[] = [
-      { id: 'store_1', name: 'Food Court Main', location: 'Downtown' },
-      { id: 'store_2', name: 'La Carlota Branch', location: 'La Carlota' },
-    ];
-    localStorage.setItem(KEYS.STORES, JSON.stringify(stores));
-  }
-
+  // Store seeding removed as it is now handled by backend/SQL
+  
   if (!localStorage.getItem(KEYS.USERS)) {
     const users: User[] = [
       { id: 'u_admin', username: 'admin', password: '950421', name: 'Boss Manager', role: UserRole.ADMIN },
-      { id: 'u_emp1', username: 'jane', name: 'Jane Doe', role: UserRole.EMPLOYEE, storeId: 'store_1' },
-      { id: 'u_emp2', username: 'john', name: 'John Smith', role: UserRole.EMPLOYEE, storeId: 'store_2' },
+      // Employee seeds removed from local storage as they should be managed via Admin Settings -> Supabase
     ];
     localStorage.setItem(KEYS.USERS, JSON.stringify(users));
   }
@@ -63,15 +56,39 @@ export const storageService = {
     return u ? JSON.parse(u) : null;
   },
 
-  // Stores
-  getStores: (): Store[] => {
-    return JSON.parse(localStorage.getItem(KEYS.STORES) || '[]');
+  // Stores (Supabase Connected)
+  fetchStores: async (): Promise<Store[]> => {
+    const { data, error } = await supabase.from('stores').select('*');
+    if (error) {
+      console.error('Error fetching stores:', error);
+      return [];
+    }
+    return (data || []).map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      location: s.location
+    }));
   },
 
-  addStore: (store: Store) => {
-    const stores = storageService.getStores();
-    stores.push(store);
-    localStorage.setItem(KEYS.STORES, JSON.stringify(stores));
+  // Kept for backward compatibility if needed, but should be avoided
+  getStores: (): Store[] => {
+    return []; 
+  },
+
+  addStore: async (store: Store) => {
+    // We don't need to generate ID here if DB does it, but keeping UUID logic is fine
+    const { error } = await supabase.from('stores').insert([{
+      id: store.id,
+      name: store.name,
+      location: store.location
+    }]);
+    
+    if (error) throw error;
+  },
+
+  deleteStore: async (storeId: string) => {
+    const { error } = await supabase.from('stores').delete().eq('id', storeId);
+    if (error) throw error;
   },
 
   // Users
@@ -120,13 +137,13 @@ export const storageService = {
   getInventory: async (): Promise<InventoryItem[]> => {
     const { data, error } = await supabase.from('inventory').select('*');
     if (error) {
-        console.error('Error fetching inventory:', error);
+        console.error('Error fetching inventory:', error.message || JSON.stringify(error));
         return [];
     }
     // Map DB columns (snake_case) to Types (camelCase)
     return (data || []).map((i: any) => ({
         id: i.id,
-        storeId: i.store_id,
+        storeId: i.store_id || i.storeId, // Handle both just in case
         name: i.name,
         cost: i.cost,
         price: i.price,
@@ -134,7 +151,7 @@ export const storageService = {
     }));
   },
 
-  addInventoryItem: async (item: InventoryItem) => {
+  addInventoryItem: async (item: InventoryItem): Promise<{ success: boolean; error?: any }> => {
     const { error } = await supabase.from('inventory').insert([{
         id: item.id,
         store_id: item.storeId,
@@ -143,10 +160,14 @@ export const storageService = {
         price: item.price,
         stock: item.stock
     }]);
-    if (error) console.error('Error adding inventory item:', error);
+    if (error) {
+        console.error('Error adding inventory item:', error.message || JSON.stringify(error));
+        return { success: false, error };
+    }
+    return { success: true };
   },
 
-  updateInventoryItem: async (item: InventoryItem) => {
+  updateInventoryItem: async (item: InventoryItem): Promise<{ success: boolean; error?: any }> => {
     const { error } = await supabase.from('inventory').update({
         store_id: item.storeId,
         name: item.name,
@@ -154,16 +175,29 @@ export const storageService = {
         price: item.price,
         stock: item.stock
     }).eq('id', item.id);
-    if (error) console.error('Error updating inventory item:', error);
+    if (error) {
+        console.error('Error updating inventory item:', error.message || JSON.stringify(error));
+        return { success: false, error };
+    }
+    return { success: true };
   },
 
   updateInventoryStock: async (itemId: string, quantityChange: number) => {
     // Optimistic update via read-modify-write
     // In production, use an RPC function like 'increment_stock' to be atomic
-    const { data: current } = await supabase.from('inventory').select('stock').eq('id', itemId).single();
+    const { data: current, error: fetchError } = await supabase.from('inventory').select('stock').eq('id', itemId).single();
+    
+    if (fetchError) {
+        console.error('Error fetching item for stock update:', fetchError.message || JSON.stringify(fetchError));
+        return;
+    }
+
     if (current) {
         const newStock = current.stock + quantityChange;
-        await supabase.from('inventory').update({ stock: newStock }).eq('id', itemId);
+        const { error: updateError } = await supabase.from('inventory').update({ stock: newStock }).eq('id', itemId);
+        if (updateError) {
+            console.error('Error updating stock:', updateError.message || JSON.stringify(updateError));
+        }
     }
   },
 

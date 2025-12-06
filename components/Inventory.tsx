@@ -26,19 +26,22 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   const [filterStoreId, setFilterStoreId] = useState('');
 
   useEffect(() => {
-    const allStores = storageService.getStores();
-    setStores(allStores);
+    const loadData = async () => {
+        const allStores = await storageService.fetchStores();
+        setStores(allStores);
 
-    // Initial setup based on role
-    if (user.role === UserRole.EMPLOYEE && user.storeId) {
-        setNewItemStoreId(user.storeId);
-        setFilterStoreId(user.storeId);
-    } else if (allStores.length > 0) {
-        setNewItemStoreId(allStores[0].id);
-        setFilterStoreId(allStores[0].id);
-    }
+        // Initial setup based on role
+        if (user.role === UserRole.EMPLOYEE && user.storeId) {
+            setNewItemStoreId(user.storeId);
+            setFilterStoreId(user.storeId);
+        } else if (allStores.length > 0) {
+            setNewItemStoreId(allStores[0].id);
+            setFilterStoreId(allStores[0].id);
+        }
 
-    refreshInventory();
+        refreshInventory();
+    };
+    loadData();
   }, [user]);
 
   const refreshInventory = async () => {
@@ -53,6 +56,8 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
     if (!newItemStoreId) return alert("Select a store");
     setIsLoading(true);
 
+    let result;
+
     if (editingItem) {
         // Update existing item
         const updatedItem: InventoryItem = {
@@ -63,7 +68,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             price: parseFloat(newItemPrice),
             stock: parseInt(newItemStock)
         };
-        await storageService.updateInventoryItem(updatedItem);
+        result = await storageService.updateInventoryItem(updatedItem);
     } else {
         // Add new item
         const item: InventoryItem = {
@@ -74,7 +79,14 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             price: parseFloat(newItemPrice),
             stock: parseInt(newItemStock)
         };
-        await storageService.addInventoryItem(item);
+        result = await storageService.addInventoryItem(item);
+    }
+
+    if (!result.success) {
+        const msg = result.error?.message || JSON.stringify(result.error) || "Unknown error";
+        alert(`Failed to save item: ${msg}`);
+        setIsLoading(false);
+        return; // Do NOT clear form or refresh if failed
     }
 
     await refreshInventory();

@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { User, UserRole, ReportData, Store } from '../types';
 import { storageService } from '../services/storageService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -11,7 +11,11 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const reports = storageService.getReports();
-  const stores = storageService.getStores();
+  const [stores, setStores] = useState<Store[]>([]);
+
+  useEffect(() => {
+    storageService.fetchStores().then(setStores);
+  }, []);
 
   const filteredReports = useMemo(() => {
     let data = reports;

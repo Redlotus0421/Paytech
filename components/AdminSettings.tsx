@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { supabase } from '../services/supabaseClient';
 import { Store, User, UserRole } from '../types';
-import { Store as StoreIcon, User as UserIcon, Pencil, Trash2, X, RefreshCw } from 'lucide-react';
+import { Store as StoreIcon, User as UserIcon, Pencil, Trash2, X, RefreshCw, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface AdminSettingsProps {
@@ -10,28 +11,38 @@ interface AdminSettingsProps {
 }
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
-  const [stores, setStores] = useState<Store[]>(storageService.getStores());
+  const [stores, setStores] = useState<Store[]>([]);
   // Start with empty, will fetch from Supabase
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStoreLoading, setIsStoreLoading] = useState(false);
   
-  // Track the actual DB column name for store ID (e.g., 'store_id' vs 'storeId')
-  // Defaulting to 'storeId' since 'store_id' was reported as missing previously.
-  const [dbStoreColumn, setDbStoreColumn] = useState<string>('storeId');
+  const [dbStoreColumn, setDbStoreColumn] = useState<string>('store_id');
 
   useEffect(() => {
     setCurrentUser(storageService.getCurrentUser());
-    setStores(storageService.getStores());
+    loadStores();
     if (activeTab === 'users') {
         fetchSupabaseUsers();
     }
   }, [activeTab]);
 
+  const loadStores = async () => {
+    setIsStoreLoading(true);
+    try {
+      const data = await storageService.fetchStores();
+      setStores(data);
+    } catch (e) {
+      console.error("Failed to load stores", e);
+    } finally {
+      setIsStoreLoading(false);
+    }
+  };
+
   const fetchSupabaseUsers = async () => {
       setIsLoading(true);
       try {
-          // Fetch users where status is active
           const { data, error } = await supabase
             .from('users')
             .select('*')
@@ -40,31 +51,24 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
           if (error) throw error;
 
           if (data && data.length > 0) {
-            console.log('Fetched users schema sample:', Object.keys(data[0]));
-            // Auto-detect the store column name from the first row
             const firstRow = data[0];
             if (Object.prototype.hasOwnProperty.call(firstRow, 'store_id')) {
                 setDbStoreColumn('store_id');
-                console.log('Detected DB Column: store_id');
             } else if (Object.prototype.hasOwnProperty.call(firstRow, 'storeId')) {
                 setDbStoreColumn('storeId');
-                console.log('Detected DB Column: storeId');
             } else if (Object.prototype.hasOwnProperty.call(firstRow, 'storeid')) {
                 setDbStoreColumn('storeid');
-                console.log('Detected DB Column: storeid');
             }
           }
 
-          // Map snake_case from DB to camelCase for app
           const mappedUsers: User[] = (data || []).map((u: any) => ({
               id: u.id,
               username: u.username,
               name: u.name,
               role: u.role,
-              // Handle potential different casing from DB
               storeId: u.store_id || u.storeId || u.storeid, 
               status: u.status,
-              password: u.password // Map password if present
+              password: u.password 
           }));
           
           setUsers(mappedUsers);
@@ -88,13 +92,36 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
   const [newUserPassword, setNewUserPassword] = useState('');
 
   // --- Store Handlers ---
-  const handleAddStore = (e: React.FormEvent) => {
+  const handleAddStore = async (e: React.FormEvent) => {
     e.preventDefault();
-    const store: Store = { id: `store_${uuidv4().slice(0,8)}`, name: newStoreName, location: newStoreLoc };
-    storageService.addStore(store);
-    setStores(storageService.getStores());
-    setNewStoreName('');
-    setNewStoreLoc('');
+    if (!newStoreName) return;
+    setIsStoreLoading(true);
+    try {
+        const store: Store = { id: uuidv4(), name: newStoreName, location: newStoreLoc };
+        await storageService.addStore(store);
+        await loadStores(); // Refresh list
+        setNewStoreName('');
+        setNewStoreLoc('');
+    } catch (e) {
+        alert("Error saving store");
+        console.error(e);
+    } finally {
+        setIsStoreLoading(false);
+    }
+  };
+
+  const handleDeleteStore = async (storeId: string) => {
+    if (!window.confirm("Are you sure you want to delete this store?")) return;
+    setIsStoreLoading(true);
+    try {
+        await storageService.deleteStore(storeId);
+        await loadStores();
+    } catch (e) {
+        alert("Error deleting store");
+        console.error(e);
+    } finally {
+        setIsStoreLoading(false);
+    }
   };
 
   // --- User Handlers ---
@@ -118,19 +145,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
 
   const handleDeleteUser = async (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user? (Soft Delete)')) {
-        // Optimistic update
         setUsers(prev => prev.filter(u => u.id !== userId));
 
         try {
-            // Soft delete in Supabase
             const { error } = await supabase
                 .from('users')
                 .update({ status: 'inactive' })
                 .eq('id', userId);
 
             if (error) throw error;
-            
-            // Re-fetch to ensure consistency
             await fetchSupabaseUsers();
 
             if (editingUser?.id === userId) {
@@ -140,61 +163,56 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
             console.error('Error deleting user:', err);
             const msg = formatError(err);
             alert(`Failed to delete user: ${msg}`);
-            fetchSupabaseUsers(); // Revert on error
+            fetchSupabaseUsers();
         }
     }
   };
 
   const formatError = (err: any): string => {
+    if (!err) return 'Unknown error';
     if (typeof err === 'string') return err;
     if (err instanceof Error) return err.message;
-    if (err?.message) return err.message;
-    if (err?.error_description) return err.error_description;
-    return JSON.stringify(err, null, 2);
+    if (err.message) return err.message;
+    if (err.error_description) return err.error_description;
+    if (err.details) return err.details;
+    try {
+        return JSON.stringify(err, null, 2);
+    } catch (e) {
+        return 'Error object could not be stringified';
+    }
   };
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Prepare data
-    // IMPORTANT: Convert empty strings to null for UUID/Int columns to avoid database errors
     const storeIdValue = (newUserRole === UserRole.EMPLOYEE && newUserStore && newUserStore.trim() !== '') 
         ? newUserStore 
         : null;
 
-    // Construct payload dynamically using the detected column name
     const userData: any = {
         username: newUserUser,
         name: newUserName,
         role: newUserRole,
         status: 'active',
-        password: newUserPassword // Send password to DB
+        password: newUserPassword 
     };
     
-    // Assign store ID to the detected column
     userData[dbStoreColumn] = storeIdValue;
     
-    console.log('Saving user with payload:', userData);
-
     try {
         if (editingUser) {
-            // Update Supabase
             const { error } = await supabase
                 .from('users')
                 .update(userData)
                 .eq('id', editingUser.id);
-            
             if (error) throw error;
         } else {
-            // Create in Supabase
             const { error } = await supabase
                 .from('users')
                 .insert([{ ...userData, id: uuidv4() }]);
-
             if (error) throw error;
         }
-        
         await fetchSupabaseUsers();
         cancelEditUser();
 
@@ -218,17 +236,28 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Existing Stores</h3>
-              <ul className="space-y-2">
-                {stores.map(s => (
-                  <li key={s.id} className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-100">
-                    <div>
-                      <div className="font-medium text-gray-900">{s.name}</div>
-                      <div className="text-xs text-gray-500">{s.location}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2 flex justify-between">
+                  Existing Stores
+                  <button onClick={loadStores} className="text-blue-500" title="Refresh"><RefreshCw size={14}/></button>
+              </h3>
+              {isStoreLoading ? (
+                  <div className="text-center py-4"><Loader2 className="animate-spin inline"/> Loading...</div>
+              ) : (
+                <ul className="space-y-2 max-h-96 overflow-y-auto">
+                    {stores.map(s => (
+                    <li key={s.id} className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-100">
+                        <div>
+                        <div className="font-medium text-gray-900">{s.name}</div>
+                        <div className="text-xs text-gray-500">{s.location}</div>
+                        </div>
+                        <button onClick={() => handleDeleteStore(s.id)} className="text-red-400 hover:text-red-600 p-1">
+                            <Trash2 size={16} />
+                        </button>
+                    </li>
+                    ))}
+                    {stores.length === 0 && <li className="text-sm text-gray-400 p-2">No stores found.</li>}
+                </ul>
+              )}
             </div>
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Add New Store</h3>
@@ -247,7 +276,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                   onChange={e => setNewStoreLoc(e.target.value)}
                   required
                 />
-                <button className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 font-medium">Add Store</button>
+                <button disabled={isStoreLoading} className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 font-medium disabled:opacity-50">
+                    {isStoreLoading ? 'Adding...' : 'Add Store'}
+                </button>
               </form>
             </div>
           </div>

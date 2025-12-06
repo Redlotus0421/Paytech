@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 import { LogOut, LayoutDashboard, PlusCircle, Store, Users, Menu, ChevronLeft, ChevronRight, X, Package, ShoppingCart, FileText } from 'lucide-react';
+import { PaytechLogo } from './PaytechLogo';
 
 interface LayoutProps {
   user: User;
@@ -27,6 +28,10 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
 
   const visibleNavItems = navItems.filter(item => !item.role || item.role === user.role);
 
+  // BRAND COLORS:
+  // Dark Navy: #153968
+  // Sky Blue: #58A6DF
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       
@@ -42,20 +47,29 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
       <aside 
         className={`
           fixed md:static inset-y-0 left-0 z-50
-          bg-slate-900 text-white
+          bg-[#153968] text-white
           transition-all duration-300 ease-in-out
           flex flex-col
           ${isMobileOpen ? 'translate-x-0 w-64 shadow-xl' : '-translate-x-full md:translate-x-0'}
           ${isCollapsed ? 'md:w-20' : 'md:w-64'}
         `}
       >
-        {/* Sidebar Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800 shrink-0">
-          {!isCollapsed && <span className="font-bold text-lg tracking-tight whitespace-nowrap">PAYTECH</span>}
-          {isCollapsed && <span className="font-bold text-lg mx-auto">PT</span>}
+        {/* Sidebar Header - Aligned to h-16 to match dashboard header */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-[#2a558c] shrink-0 relative">
+          {!isCollapsed && (
+            <div className="flex items-center justify-center w-full">
+               <PaytechLogo className="w-full h-auto max-w-[200px]" />
+            </div>
+          )}
+          {isCollapsed && (
+            <div className="flex items-center font-extrabold text-xl mx-auto">
+                <span className="text-white">P</span>
+                <span className="text-[#58A6DF]">T</span>
+            </div>
+          )}
           
           {/* Mobile Close Button */}
-          <button onClick={() => setIsMobileOpen(false)} className="md:hidden text-slate-400 hover:text-white">
+          <button onClick={() => setIsMobileOpen(false)} className="md:hidden text-slate-300 hover:text-white absolute right-4 top-1/2 -translate-y-1/2">
             <X size={20} />
           </button>
         </div>
@@ -73,7 +87,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
                 }}
                 className={`
                   w-full flex items-center p-3 rounded-lg transition-all duration-200
-                  ${isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+                  ${isActive ? 'bg-[#58A6DF] text-white shadow-md' : 'text-slate-300 hover:bg-[#2a558c] hover:text-white'}
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
                 title={isCollapsed ? item.label : ''}
@@ -86,10 +100,10 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
         </nav>
 
         {/* Sidebar Footer (Collapse Toggle) */}
-        <div className="p-4 border-t border-slate-800 hidden md:flex justify-end shrink-0">
+        <div className="p-4 border-t border-[#2a558c] hidden md:flex justify-end shrink-0">
           <button 
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-lg bg-[#2a558c] text-slate-300 hover:text-white transition-colors"
           >
             {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
@@ -107,7 +121,11 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
             >
               <Menu size={24} />
             </button>
-            <h2 className="text-xl font-bold text-gray-800 md:hidden">PAYTECH</h2>
+            {/* Mobile Logo */}
+            <div className="flex items-center md:hidden">
+                 <PaytechLogo className="h-10 w-auto" />
+            </div>
+            {/* Desktop View Title */}
             <h2 className="text-lg font-semibold text-gray-700 hidden md:block">
               {visibleNavItems.find(i => i.id === currentView)?.label || 'Dashboard'}
             </h2>

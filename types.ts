@@ -1,4 +1,3 @@
-
 export enum UserRole {
   ADMIN = 'ADMIN',
   EMPLOYEE = 'EMPLOYEE',
@@ -7,11 +6,12 @@ export enum UserRole {
 export interface User {
   id: string;
   username: string;
-  password?: string; // Added for auth
+  password?: string;
   role: UserRole;
-  storeId?: string; // If employee, which store they belong to
+  storeId?: string;
   name: string;
   status?: 'active' | 'inactive';
+  permissions?: string[]; // Added permissions array
 }
 
 export interface Store {
@@ -20,71 +20,53 @@ export interface Store {
   location: string;
 }
 
-// Generic Sales Transaction (Manual Entry)
+// ... rest of the file remains the same
 export interface SalesTransaction {
   id: string;
   name: string;
   amount: number;
-  cost?: number; // Added for Net calculation
+  cost?: number;
 }
-
-// POS Transaction Record
 export interface PosTransaction {
   id: string;
   storeId: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   timestamp: number;
   items: CartItem[];
   totalAmount: number;
   paymentAmount: number;
   cashierName: string;
-  reportId?: string; // Links transaction to a specific EOD report
+  reportId?: string;
 }
-
 export interface ReportData {
   id: string;
   storeId: string;
   userId: string;
   date: string;
   timestamp: number;
-
-  // Start of Day (SOD)
   sodGpo: number;
   sodGcash: number;
   sodPettyCash: number;
   fundIns: number;
-
-  // Sales Operations
-  customSales: SalesTransaction[]; // Manual entries
-  posSalesDetails?: CartItem[]; // Aggregated POS items (Snapshot)
-  
-  // Expenses
+  customSales: SalesTransaction[];
+  posSalesDetails?: CartItem[];
   bankTransferFees: number;
-  operationalExpenses: number; // Food, supplies
-  operationalExpensesNote?: string; // Description of expenses
-
-  // End of Day (EOD) Assets
+  operationalExpenses: number;
+  operationalExpensesNote?: string;
   eodGpo: number;
   eodGcash: number;
   eodActualCash: number;
-
-  // Manual Override
-  gcashNotebook?: number; // User entered GCash Net from notebook
-
-  // Calculated Fields (Saved for historical integrity)
+  gcashNotebook?: number;
   totalStartFund: number;
   totalEndAssets: number;
   totalNetSales: number;
   totalExpenses: number;
-  theoreticalGrowth: number; // Actual Cash Sales
-  recordedProfit: number; // EOD Net Sales
-  discrepancy: number; // Total EOD Sales (Variance or Notebook Value)
-  
+  theoreticalGrowth: number;
+  recordedProfit: number;
+  discrepancy: number;
   status: 'BALANCED' | 'SHORTAGE' | 'OVERAGE' | 'SURPLUS';
   notes?: string;
 }
-
-// Inventory & POS
 export interface InventoryItem {
   id: string;
   storeId: string;
@@ -93,7 +75,6 @@ export interface InventoryItem {
   price: number;
   stock: number;
 }
-
 export interface CartItem extends InventoryItem {
   quantity: number;
 }

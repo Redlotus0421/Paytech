@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Store, InventoryItem, UserRole } from '../types';
 import { storageService } from '../services/storageService';
@@ -148,7 +147,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             
             <form onSubmit={handleSaveItem} className={`p-4 rounded border ${editingItem ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
                 <h4 className="text-sm font-medium text-gray-700 mb-3">{editingItem ? 'Update Item Details' : 'Add New Item'}</h4>
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                     <div className="md:col-span-2">
                         <label className="text-xs text-gray-500 block mb-1">Item Name</label>
                         <input 
@@ -190,7 +189,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                             placeholder="0.00"
                         />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-end">
                         <div className="flex-1">
                             <label className="text-xs text-gray-500 block mb-1">Qty</label>
                             <input 
@@ -201,6 +200,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                                 placeholder="0"
                             />
                         </div>
+                        {/* FIX: Set fixed height to match input fields */}
                         <button 
                             disabled={isLoading}
                             className={`text-white p-2 rounded h-[38px] w-[38px] flex items-center justify-center ${editingItem ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}

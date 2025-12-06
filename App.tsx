@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { User } from './types';
 import { storageService } from './services/storageService';
@@ -10,6 +9,7 @@ import { AdminSettings } from './components/AdminSettings';
 import { Inventory } from './components/Inventory';
 import { POS } from './components/POS';
 import { Reports } from './components/Reports';
+import { Analytics } from './components/Analytics';
 import { Lock, Loader2 } from 'lucide-react';
 import { PaytechLogo } from './components/PaytechLogo';
 
@@ -32,17 +32,14 @@ const App: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // 1. Try to login via Supabase first
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('username', usernameInput)
-        .eq('status', 'active') // Only allow active users
-        .maybeSingle(); // Use maybeSingle to avoid 406 error if not found
+        .eq('status', 'active')
+        .maybeSingle();
 
       if (data) {
-        // Map the Supabase user to our App User type
-        // Handling dynamic column names for store_id
         const appUser: User = {
           id: data.id,
           username: data.username,
@@ -50,10 +47,11 @@ const App: React.FC = () => {
           role: data.role,
           storeId: data.store_id || data.storeId || data.storeid,
           status: data.status,
-          password: data.password
+          password: data.password,
+          // FIX: Load permissions into the user session
+          permissions: data.permissions || [], 
         };
 
-        // Check password if the user has one
         if (appUser.password && appUser.password !== passwordInput) {
             alert("Invalid password");
             setIsLoading(false);
@@ -66,7 +64,6 @@ const App: React.FC = () => {
         return;
       }
 
-      // 2. Fallback to LocalStorage (Legacy/Offline Admin)
       const localUser = storageService.login(usernameInput, passwordInput);
       if (localUser) {
         setUser(localUser);
@@ -93,11 +90,8 @@ const App: React.FC = () => {
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#153968] to-[#58A6DF] flex items-center justify-center p-4">
-        {/* Login Card - White Background with minimal top padding to allow logo to sit high */}
         <div className="bg-white px-8 pb-8 pt-2 rounded-xl shadow-2xl max-w-md w-full">
-          {/* Header Section */}
           <div className="text-center mb-1 flex flex-col items-center w-full">
-            {/* Logo: h-64 (Double size). Negative margins (-mt-10, -mb-6) prevent pushing form down */}
             <PaytechLogo className="h-64 w-auto -mt-10 -mb-6" />
             <p className="text-gray-500 text-sm font-medium">Sign in to start your shift</p>
           </div>
@@ -139,6 +133,7 @@ const App: React.FC = () => {
   return (
     <Layout user={user} currentView={view} onNavigate={setView} onLogout={handleLogout}>
       {view === 'dashboard' && <Dashboard user={user} />}
+      {view === 'analytics' && <Analytics />}
       {view === 'reports' && <Reports user={user} />}
       {view === 'entry' && <EntryForm user={user} onSuccess={() => setView('dashboard')} />}
       {view === 'pos' && <POS user={user} />}

@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { supabase } from '../services/supabaseClient';
 import { Store, User, UserRole } from '../types';
-import { Store as StoreIcon, User as UserIcon, Pencil, Trash2, X, RefreshCw, Loader2 } from 'lucide-react';
+import { Store as StoreIcon, User as UserIcon, Pencil, Trash2, X, RefreshCw, Loader2, Lock } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface AdminSettingsProps {
@@ -19,6 +18,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
   const [isStoreLoading, setIsStoreLoading] = useState(false);
   
   const [dbStoreColumn, setDbStoreColumn] = useState<string>('store_id');
+
+  // --- Security / Auth Modal State ---
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authPassword, setAuthPassword] = useState('');
+  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
+  const [authError, setAuthError] = useState('');
 
   useEffect(() => {
     setCurrentUser(storageService.getCurrentUser());
@@ -110,8 +115,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     }
   };
 
-  const handleDeleteStore = async (storeId: string) => {
-    if (!window.confirm("Are you sure you want to delete this store?")) return;
+  // Security Wrapper for Store Deletion
+  const initiateDeleteStore = (storeId: string) => {
+      console.log('Initiating delete for store:', storeId);
+      setPendingAction(() => async () => executeDeleteStore(storeId));
+      setIsAuthModalOpen(true);
+  };
+
+  const executeDeleteStore = async (storeId: string) => {
     setIsStoreLoading(true);
     try {
         await storageService.deleteStore(storeId);
@@ -124,8 +135,43 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     }
   };
 
+  // --- Security Logic ---
+  const confirmAuthAction = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      // Verify password against current logged in admin
+      if (authPassword !== currentUser?.password) {
+          setAuthError('Incorrect Admin Password');
+          return;
+      }
+
+      setAuthError('');
+      setIsAuthModalOpen(false);
+      setAuthPassword('');
+      
+      if (pendingAction) {
+          console.log('Executing pending action...');
+          await pendingAction();
+          setPendingAction(null);
+      }
+  };
+
+  const closeAuthModal = () => {
+      setIsAuthModalOpen(false);
+      setAuthPassword('');
+      setAuthError('');
+      setPendingAction(null);
+  }
+
   // --- User Handlers ---
-  const startEditUser = (user: User) => {
+  
+  // EDIT: Require password to start editing
+  const initiateEditUser = (user: User) => {
+      setPendingAction(() => async () => startEditUser(user));
+      setIsAuthModalOpen(true);
+  };
+
+  const startEditUser = async (user: User) => {
     setEditingUser(user);
     setNewUserName(user.name);
     setNewUserUser(user.username);
@@ -143,28 +189,36 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     setNewUserPassword('');
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (window.confirm('Are you sure you want to delete this user? (Soft Delete)')) {
-        setUsers(prev => prev.filter(u => u.id !== userId));
+  // DELETE: Require password to delete
+  const initiateDeleteUser = (userId: string) => {
+      console.log('Initiating delete for user:', userId);
+      // Removed window.confirm to avoid double confirmation issues
+      setPendingAction(() => async () => executeDeleteUser(userId));
+      setIsAuthModalOpen(true);
+  };
 
-        try {
-            const { error } = await supabase
-                .from('users')
-                .update({ status: 'inactive' })
-                .eq('id', userId);
+  const executeDeleteUser = async (userId: string) => {
+    console.log('Executing delete for user:', userId);
+    // Optimistic update
+    setUsers(prev => prev.filter(u => u.id !== userId));
 
-            if (error) throw error;
-            await fetchSupabaseUsers();
+    try {
+        const { error } = await supabase
+            .from('users')
+            .update({ status: 'inactive' })
+            .eq('id', userId);
 
-            if (editingUser?.id === userId) {
-                cancelEditUser();
-            }
-        } catch (err: any) {
-            console.error('Error deleting user:', err);
-            const msg = formatError(err);
-            alert(`Failed to delete user: ${msg}`);
-            fetchSupabaseUsers();
+        if (error) throw error;
+        await fetchSupabaseUsers();
+
+        if (editingUser?.id === userId) {
+            cancelEditUser();
         }
+    } catch (err: any) {
+        console.error('Error deleting user:', err);
+        const msg = formatError(err);
+        alert(`Failed to delete user: ${msg}`);
+        fetchSupabaseUsers();
     }
   };
 
@@ -175,15 +229,27 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     if (err.message) return err.message;
     if (err.error_description) return err.error_description;
     if (err.details) return err.details;
+    if (err.hint) return `${err.message || 'Error'} (${err.hint})`;
     try {
-        return JSON.stringify(err, null, 2);
+        const json = JSON.stringify(err, null, 2);
+        if (json === '{}') return String(err);
+        return json;
     } catch (e) {
-        return 'Error object could not be stringified';
+        return String(err);
     }
   };
 
-  const handleSaveUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // SAVE: Require password to save (Add or Update)
+  const initiateSaveUser = (e: React.FormEvent) => {
+      e.preventDefault();
+      // Basic validation
+      if(!newUserName || !newUserUser) return;
+      
+      setPendingAction(() => async () => handleSaveUser());
+      setIsAuthModalOpen(true);
+  }
+
+  const handleSaveUser = async () => {
     setIsLoading(true);
 
     const storeIdValue = (newUserRole === UserRole.EMPLOYEE && newUserStore && newUserStore.trim() !== '') 
@@ -217,7 +283,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
         cancelEditUser();
 
     } catch (err: any) {
-        console.error('Error saving user (Full details):', err);
+        console.error('Error saving user (Full details):', JSON.stringify(err, null, 2));
         const message = formatError(err);
         alert(`Error saving user:\n${message}`);
     } finally {
@@ -226,8 +292,56 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
       
+      {/* Password Confirmation Modal */}
+      {isAuthModalOpen && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 animate-in fade-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                          <Lock size={20} className="text-red-600"/> Security Check
+                      </h3>
+                      <button onClick={closeAuthModal} className="text-gray-400 hover:text-gray-600">
+                          <X size={20}/>
+                      </button>
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 mb-4">
+                      Please enter your <strong>Admin Password</strong> to confirm this action.
+                  </p>
+
+                  <form onSubmit={confirmAuthAction}>
+                      <input 
+                          type="password"
+                          autoFocus
+                          placeholder="Enter Admin Password"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md mb-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                          value={authPassword}
+                          onChange={(e) => setAuthPassword(e.target.value)}
+                      />
+                      {authError && <p className="text-xs text-red-600 font-semibold mb-3">{authError}</p>}
+                      
+                      <div className="flex gap-2 justify-end mt-4">
+                          <button 
+                              type="button" 
+                              onClick={closeAuthModal}
+                              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded"
+                          >
+                              Cancel
+                          </button>
+                          <button 
+                              type="submit"
+                              className="px-4 py-2 text-sm bg-red-600 text-white font-bold rounded hover:bg-red-700"
+                          >
+                              Confirm
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+
       {/* Stores */}
       {activeTab === 'stores' && (
         <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -250,7 +364,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                         <div className="font-medium text-gray-900">{s.name}</div>
                         <div className="text-xs text-gray-500">{s.location}</div>
                         </div>
-                        <button onClick={() => handleDeleteStore(s.id)} className="text-red-400 hover:text-red-600 p-1">
+                        <button onClick={() => initiateDeleteStore(s.id)} className="text-red-400 hover:text-red-600 p-1">
                             <Trash2 size={16} />
                         </button>
                     </li>
@@ -320,7 +434,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                         <div className="flex items-center gap-2">
                             <button 
                                 type="button"
-                                onClick={() => startEditUser(u)} 
+                                onClick={() => initiateEditUser(u)} 
                                 className="p-1.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
                                 title="Edit User"
                             >
@@ -330,7 +444,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                             {(u.id !== 'u_admin' && u.id !== currentUser?.id) && (
                                 <button 
                                     type="button"
-                                    onClick={() => handleDeleteUser(u.id)}
+                                    onClick={() => initiateDeleteUser(u.id)}
                                     className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
                                     title="Delete User (Soft Delete)"
                                 >
@@ -357,7 +471,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                     </button>
                 )}
               </div>
-              <form onSubmit={handleSaveUser} className="space-y-3">
+              <form onSubmit={initiateSaveUser} className="space-y-3">
                 <input 
                   placeholder="Full Name" 
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500"

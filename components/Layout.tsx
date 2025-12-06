@@ -54,11 +54,13 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
           ${isCollapsed ? 'md:w-20' : 'md:w-64'}
         `}
       >
-        {/* Sidebar Header - Aligned to h-16 to match dashboard header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-[#2a558c] shrink-0 relative">
+        {/* Sidebar Header - Strict h-16 height. overflow-hidden to clip content. */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-[#2a558c] shrink-0 overflow-hidden relative">
           {!isCollapsed && (
-            <div className="flex items-center justify-center w-full">
-               <PaytechLogo className="w-full h-auto max-w-[200px]" />
+            // Logo Wrapper: pointer-events-none makes it click-through. 
+            // Fixed height h-12 ensures it stays contained within the h-16 header area.
+            <div className="flex items-center justify-center w-full h-12 pointer-events-none">
+               <PaytechLogo className="h-full w-auto" />
             </div>
           )}
           {isCollapsed && (
@@ -69,13 +71,13 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
           )}
           
           {/* Mobile Close Button */}
-          <button onClick={() => setIsMobileOpen(false)} className="md:hidden text-slate-300 hover:text-white absolute right-4 top-1/2 -translate-y-1/2">
+          <button onClick={() => setIsMobileOpen(false)} className="md:hidden text-slate-300 hover:text-white absolute right-4 top-1/2 -translate-y-1/2 pointer-events-auto z-50">
             <X size={20} />
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {/* Navigation - Added pt-6 for extra top spacing to ensure no overlap with header */}
+        <nav className="flex-1 px-4 pt-6 pb-4 space-y-2 overflow-y-auto relative z-10">
           {visibleNavItems.map((item) => {
             const isActive = currentView === item.id;
             return (
@@ -86,7 +88,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
                   setIsMobileOpen(false);
                 }}
                 className={`
-                  w-full flex items-center p-3 rounded-lg transition-all duration-200
+                  w-full flex items-center p-3 rounded-lg transition-all duration-200 cursor-pointer relative
                   ${isActive ? 'bg-[#58A6DF] text-white shadow-md' : 'text-slate-300 hover:bg-[#2a558c] hover:text-white'}
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                 `}
@@ -100,7 +102,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
         </nav>
 
         {/* Sidebar Footer (Collapse Toggle) */}
-        <div className="p-4 border-t border-[#2a558c] hidden md:flex justify-end shrink-0">
+        <div className="p-4 border-t border-[#2a558c] hidden md:flex justify-end shrink-0 relative z-20">
           <button 
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="p-2 rounded-lg bg-[#2a558c] text-slate-300 hover:text-white transition-colors"

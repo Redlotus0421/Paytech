@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, ReportData, Store, UserRole, CartItem } from '../types';
 import { storageService } from '../services/storageService';
-import { AlertTriangle, CheckCircle, Trash2, Plus, Save, Lock, ShoppingBag, BookOpen } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Trash2, Plus, Save, Lock, ShoppingBag, BookOpen, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface EntryFormProps {
@@ -85,6 +85,7 @@ const ExpensesInputSection: React.FC<ExpensesInputSectionProps> = ({
 
 export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   const [stores, setStores] = useState<Store[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Tab State
   const [activeTab, setActiveTab] = useState<'sod' | 'eod'>('sod');
@@ -269,10 +270,12 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     setActiveTab('eod');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStoreId) return alert("Please select a store");
     if (!isSodSaved) return alert("Please save Start of Day first");
+
+    setIsSubmitting(true);
 
     const reportId = uuidv4();
 
@@ -318,16 +321,23 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       status: Math.abs(calculations.effectiveGcashNet) < 1 ? 'BALANCED' : (calculations.effectiveGcashNet < 0 ? 'SHORTAGE' : 'SURPLUS')
     };
 
-    storageService.saveReport(report);
-    
-    // Mark POS transactions as reported so they don't show up in next report
-    storageService.markPosTransactionsAsReported(selectedStoreId, date, reportId);
+    try {
+        await storageService.saveReport(report);
+        
+        // Mark POS transactions as reported so they don't show up in next report
+        storageService.markPosTransactionsAsReported(selectedStoreId, date, reportId);
 
-    // Clear draft
-    const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
-    localStorage.removeItem(draftKey);
+        // Clear draft
+        const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
+        localStorage.removeItem(draftKey);
 
-    onSuccess();
+        onSuccess();
+    } catch (error) {
+        console.error("Failed to save report:", error);
+        alert("Failed to save report to database. Please check your connection and try again.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   return (
@@ -646,9 +656,14 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
                         <button
                             type="submit"
-                            className="w-full md:w-auto bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition-colors whitespace-nowrap flex items-center justify-center"
+                            disabled={isSubmitting}
+                            className={`w-full md:w-auto bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition-colors whitespace-nowrap flex items-center justify-center ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
-                            Submit Final Report
+                            {isSubmitting ? (
+                                <><Loader2 className="animate-spin mr-2" size={20}/> Submitting...</>
+                            ) : (
+                                'Submit Final Report'
+                            )}
                         </button>
                     </div>
                  </div>

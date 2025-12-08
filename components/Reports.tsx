@@ -68,46 +68,62 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                 <th className="px-6 py-4">Report Date</th>
                 <th className="px-6 py-4">Store</th>
                 <th className="px-6 py-4">Submitted By</th>
+                <th className="px-6 py-4 text-right">GCash EOD</th>
+                <th className="px-6 py-4 text-right">Toys Net EOD</th>
+                <th className="px-6 py-4 text-right">Printers EOD</th>
+                <th className="px-6 py-4 text-right">Expenses</th>
+                <th className="px-6 py-4 text-right">Over/Negative</th>
                 <th className="px-6 py-4 text-right">EOD Net Sales</th>
-                <th className="px-6 py-4 text-right">Total EOD Sales</th>
-                <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
-                  <tr><td colSpan={7} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading reports...</td></tr>
-              ) : reports.map((report) => (
+                  <tr><td colSpan={9} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading reports...</td></tr>
+              ) : reports.map((report) => {
+                  // Calculate values for the spreadsheet view
+                  const startFund = Number(report.totalStartFund || 0);
+                  const endAssets = Number(report.totalEndAssets || 0);
+                  const growth = endAssets - startFund;
+                  
+                  let legacyManualRevenue = 0;
+                  if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
+                  if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
+                  if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
+                  if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
+
+                  const manualRevenue = (report.customSales || []).reduce((a, b) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
+                  const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
+                  const totalSalesRevenue = manualRevenue + posRevenue;
+                  const derivedGcashNet = growth - totalSalesRevenue;
+                  const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
+                  const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
+                  
+                  const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
+                  const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
+                  const totalItemsNet = manualNet + posNet;
+                  const totalExpenses = Number(report.bankTransferFees || 0) + Number(report.operationalExpenses || 0);
+                  const grossSalesIncome = usedGcashNet + totalItemsNet;
+                  const finalEodNet = grossSalesIncome - totalExpenses;
+                  
+                  return (
                 <tr key={report.id} className="hover:bg-gray-50 transition-colors text-gray-900">
                   <td className="px-6 py-4 whitespace-nowrap">{report.date}</td>
                   <td className="px-6 py-4">{getStoreName(report.storeId)}</td>
                   <td className="px-6 py-4">{getUserName(report.userId)}</td>
-                  <td className="px-6 py-4 text-right font-medium">{formatMoney(report.recordedProfit || 0)}</td>
+                  <td className="px-6 py-4 text-right font-medium">{formatMoney(usedGcashNet)}</td>
+                  <td className="px-6 py-4 text-right">{formatMoney(posNet)}</td>
+                  <td className="px-6 py-4 text-right">{formatMoney(manualNet)}</td>
+                  <td className="px-6 py-4 text-right">{formatMoney(totalExpenses)}</td>
                   <td className={`px-6 py-4 text-right font-bold ${report.discrepancy < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {report.discrepancy < 0 ? '-' : (report.discrepancy > 0 ? '+' : '')}{formatMoney(Math.abs(report.discrepancy))}
+                    {report.discrepancy < 0 ? '' : (report.discrepancy > 0 ? '+' : '')}{formatMoney(report.discrepancy)}
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      report.status === 'BALANCED' ? 'bg-green-100 text-green-700' :
-                      report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>
-                      {report.status === 'OVERAGE' ? 'SURPLUS' : report.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <button 
-                      onClick={() => setSelectedReport(report)}
-                      className="text-blue-600 hover:text-blue-800 flex items-center justify-center mx-auto gap-1 text-xs font-bold uppercase"
-                    >
-                      <Eye size={16}/> View
-                    </button>
-                  </td>
+                  <td className="px-6 py-4 text-right font-bold text-green-700">{formatMoney(finalEodNet)}</td>
                 </tr>
-              ))}
+              );
+              })}
               {!isLoading && reports.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-gray-400">No reports found.</td>
+                  <td colSpan={9} className="p-8 text-center text-gray-400">No reports found.</td>
                 </tr>
               )}
             </tbody>

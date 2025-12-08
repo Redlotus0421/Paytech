@@ -74,11 +74,12 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                 <th className="px-6 py-4 text-right">Expenses</th>
                 <th className="px-6 py-4 text-right">Over/Negative</th>
                 <th className="px-6 py-4 text-right">EOD Net Sales</th>
+                <th className="px-6 py-4 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
-                  <tr><td colSpan={9} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading reports...</td></tr>
+                  <tr><td colSpan={10} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading reports...</td></tr>
               ) : reports.map((report) => {
                   // Calculate values for the spreadsheet view
                   const startFund = Number(report.totalStartFund || 0);
@@ -118,12 +119,20 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                     {report.discrepancy < 0 ? '' : (report.discrepancy > 0 ? '+' : '')}{formatMoney(report.discrepancy)}
                   </td>
                   <td className="px-6 py-4 text-right font-bold text-green-700">{formatMoney(finalEodNet)}</td>
+                  <td className="px-6 py-4 text-center">
+                    <button 
+                      onClick={() => setSelectedReport(report)}
+                      className="text-blue-600 hover:text-blue-800 flex items-center justify-center mx-auto gap-1 text-xs font-bold uppercase"
+                    >
+                      <Eye size={16}/> View
+                    </button>
+                  </td>
                 </tr>
               );
               })}
               {!isLoading && reports.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-gray-400">No reports found.</td>
+                  <td colSpan={10} className="p-8 text-center text-gray-400">No reports found.</td>
                 </tr>
               )}
             </tbody>

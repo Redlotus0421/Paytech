@@ -1,3 +1,4 @@
+// HELLO TEST
 import React, { useState, useEffect } from 'react';
 import { User, Store, PosTransaction, UserRole } from '../types';
 import { storageService } from '../services/storageService';
@@ -39,6 +40,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
         // Admins start with NO filter (filterStoreId = '') so they see everything
 
         // Sort by timestamp desc
+        console.log("Fetched transactions:", allTxs);
         setTransactions(allTxs.sort((a: any, b: any) => b.timestamp - a.timestamp));
 
     } catch (e: any) {
@@ -63,6 +65,34 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
           alert("Failed to void transaction: " + e.message);
       } finally {
           setVoidingId(null);
+      }
+  };
+
+  const handleCreateTestTransaction = async () => {
+      if (stores.length === 0) {
+          alert("No stores available. Please add a store first.");
+          return;
+      }
+      try {
+          const testTx = {
+              id: `test_${Date.now()}`,
+              storeId: stores[0].id,
+              date: new Date().toISOString().split('T')[0],
+              timestamp: Date.now(),
+              items: [{ id: '1', name: 'Test Item', quantity: 1, price: 100, cost: 50, stock: 10, storeId: stores[0].id }],
+              totalAmount: 100,
+              paymentAmount: 100,
+              cashierName: user.name
+          };
+          console.log("📝 Creating test transaction:", testTx);
+          await storageService.savePosTransaction(testTx);
+          console.log("✅ Test transaction created successfully!");
+          alert("Test transaction created! Refreshing...");
+          await loadData();
+      } catch (e: any) {
+          console.error("❌ Error creating test transaction:", e);
+          console.error("Full error:", e.message, e);
+          alert("Failed to create test transaction:\n" + (e.message || JSON.stringify(e)));
       }
   };
 
@@ -91,9 +121,15 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                 <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex items-center gap-1">
                     <Database size={10}/> Total: {transactions.length}
                 </span>
+                {/* Admin Debug Badge */}
+                {user.role === UserRole.ADMIN && (
+                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                        ADMIN MODE
+                    </span>
+                )}
             </h2>
             
-            <div className="flex flex-wrap gap-2 relative z-50">
+            <div className="flex flex-wrap gap-3 relative z-50 w-full md:w-auto">
                 {user.role === UserRole.ADMIN && (
                     <select 
                         value={filterStoreId} 
@@ -120,10 +156,18 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                 )}
                 <button 
                     onClick={loadData}
-                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center ml-2 border border-blue-200 px-3 py-1 rounded hover:bg-blue-50 transition-colors"
+                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 border border-blue-200 px-3 py-2 rounded hover:bg-blue-50 transition-colors"
                 >
                     Refresh
                 </button>
+                {user.role === UserRole.ADMIN && (
+                    <button 
+                        onClick={handleCreateTestTransaction}
+                        className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold flex items-center gap-1 px-4 py-2 rounded transition-colors shadow-md"
+                    >
+                        + Test Tx
+                    </button>
+                )}
             </div>
         </div>
 
@@ -143,11 +187,11 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                     <tbody className="divide-y divide-gray-100">
                         {isLoading ? (
                             <tr><td colSpan={6} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading...</td></tr>
-                        ) : filteredTransactions.map((tx) => (
+                        ) : filteredTransactions.length > 0 ? filteredTransactions.map((tx) => (
                             <tr key={tx.id} className={`hover:bg-gray-50 transition-colors ${tx.status === 'VOIDED' ? 'bg-red-50 opacity-75' : ''}`}>
                                 <td className="px-6 py-4">
                                     <div className="font-medium text-gray-900">{tx.date}</div>
-                                    <div className="text-xs text-gray-500">{new Date(tx.timestamp).toLocaleTimeString()}</div>
+                                    <div className="text-xs text-gray-500">{tx.timestamp ? new Date(tx.timestamp).toLocaleTimeString() : 'N/A'}</div>
                                 </td>
                                 <td className="px-6 py-4">{getStoreName(tx.storeId)}</td>
                                 <td className="px-6 py-4">
@@ -188,8 +232,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                     )}
                                 </td>
                             </tr>
-                        ))}
-                        {!isLoading && filteredTransactions.length === 0 && (
+                        )) : (
                             <tr><td colSpan={6} className="p-8 text-center text-gray-400">No transactions found.</td></tr>
                         )}
                     </tbody>

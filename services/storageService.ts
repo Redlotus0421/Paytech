@@ -139,23 +139,36 @@ export const storageService = {
     }
   },
   savePosTransaction: async (transaction: PosTransaction) => {
-      console.log("Saving POS Transaction to DB:", transaction);
+      console.log("💾 Saving POS Transaction to DB:", transaction);
       const dbTx = {
           id: transaction.id, store_id: transaction.storeId, date: transaction.date, timestamp: transaction.timestamp,
           items: transaction.items, total_amount: transaction.totalAmount, payment_amount: transaction.paymentAmount,
           cashier_name: transaction.cashierName, report_id: transaction.reportId || null, status: 'COMPLETED'
       };
+      console.log("📤 Sending to Supabase:", dbTx);
       const { error } = await supabase.from('transactions').insert([dbTx]);
-      if(error) { console.error("Error saving transaction to Supabase:", error); alert("CRITICAL ERROR: Failed to save transaction to database. " + error.message); } 
-      else { console.log("Transaction saved successfully!"); }
+      if(error) { 
+          console.error("❌ Error saving transaction to Supabase:", error); 
+          console.error("Error details:", error.message, error.code, error.details);
+          alert("CRITICAL ERROR: Failed to save transaction to database. " + error.message); 
+      } 
+      else { 
+          console.log("✅ Transaction saved successfully!"); 
+      }
   },
-  fetchTransactions: async (): Promise<PosTransaction[]> => {
+  fetchTransactions: async (): Promise<any[]> => {
+      console.log("🔍 Attempting to fetch transactions...");
       const { data, error } = await supabase.from('transactions').select('*');
-      if (error) { console.error("Error fetching transactions:", error); return []; }
+      if (error) { 
+          console.error("❌ Error fetching transactions:", error); 
+          console.error("Error details:", error.message, error.code, error.details);
+          return []; 
+      }
+      console.log("✅ Successfully fetched transactions:", data);
       return (data || []).map((t: any) => ({
-          id: t.id, storeId: t.store_id, date: t.date, timestamp: t.timestamp, items: t.items,
+          id: t.id, storeId: t.store_id, date: t.date, timestamp: t.timestamp, items: t.items || [],
           totalAmount: Number(t.total_amount), paymentAmount: Number(t.payment_amount), cashierName: t.cashier_name,
-          reportId: t.report_id, status: t.status 
+          reportId: t.report_id, status: t.status || 'COMPLETED'
       }));
   },
   getPosTransactions: async (storeId: string, date: string): Promise<PosTransaction[]> => {

@@ -1,0 +1,5 @@
+{
+  "name": "PAYTECH Main",
+  "description": "A centralized End-of-Day cash reconciliation system for multi-store management. Features double-entry verification, real-time discrepancy alerts, and role-based analytics.",
+  "requestFramePermissions": []
+}

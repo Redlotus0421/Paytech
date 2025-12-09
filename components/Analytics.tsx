@@ -11,6 +11,7 @@ export const Analytics: React.FC = () => {
   const [reports, setReports] = useState<ReportData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Month Filter State (YYYY-MM format)
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -21,6 +22,7 @@ export const Analytics: React.FC = () => {
 
     const loadData = async () => {
       setIsLoading(true);
+      setError(null);
       try {
         const [allStores, allReports] = await Promise.all([
           storageService.fetchStores(),
@@ -34,7 +36,10 @@ export const Analytics: React.FC = () => {
         } else {
             setReports(allReports);
         }
-      } catch (error) { console.error("Failed to load analytics data:", error); }
+      } catch (error) { 
+        console.error("Failed to load analytics data:", error);
+        setError(`Failed to load analytics data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
       finally { setIsLoading(false); }
     };
     loadData();
@@ -133,6 +138,14 @@ export const Analytics: React.FC = () => {
 
   return (
     <div className="space-y-6 relative min-h-0 w-full min-w-0"> 
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          <p className="font-semibold">Error loading analytics</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">

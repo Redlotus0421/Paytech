@@ -88,9 +88,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         <StatCard label="Total Shortage/Surplus" value={`₱${Math.abs(stats.totalShortage).toLocaleString()}`} color="text-red-600" icon={AlertOctagon} />
         <StatCard label="Balanced Reports" value={stats.balanceCount} color="text-blue-600" icon={DollarSign} />
       </div>
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 min-h-[18rem] md:min-h-[20rem] flex flex-col">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col" style={{height: '380px'}}>
         <h3 className="text-sm font-semibold text-gray-700 mb-4">Net Sales vs Total EOD Sales (Last 7 Entries)</h3>
-        <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <XAxis dataKey="date" fontSize={12} stroke="#374151" />
@@ -101,7 +100,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <Bar dataKey="discrepancy" fill="#ef4444" name="Total EOD Sales" />
           </BarChart>
         </ResponsiveContainer>
-        </div>
       </div>
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full min-w-0">
         <div className="p-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Recent Submissions</h3></div>

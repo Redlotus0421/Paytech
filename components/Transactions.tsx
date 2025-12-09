@@ -19,6 +19,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
 
   // Voiding State
   const [voidingId, setVoidingId] = useState<string | null>(null);
+    const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
 
   useEffect(() => {
     loadData();
@@ -53,20 +54,41 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
   };
 
   const handleVoid = async (tx: any) => {
-      if (!window.confirm("Are you sure you want to VOID this transaction? This will return items to inventory.")) return;
-      
+      // ask for a void note first
+      const note = window.prompt('Enter a brief note/reason for voiding this transaction (required):');
+      if (note === null) return; // cancelled
+      if (!note.trim()) { alert('Void note is required.'); return; }
+
+      // Ask for admin credentials to authorize the void
+      const adminUser = window.prompt('Admin username to authorize void:');
+      if (!adminUser) { alert('Admin username required to authorize void.'); return; }
+      const adminPass = window.prompt('Admin password:');
+      if (adminPass === null) return;
+
       setVoidingId(tx.id);
       try {
-          await storageService.voidTransaction(tx.id);
-          alert("Transaction voided successfully. Stock has been returned.");
+          const auth = await storageService.login(adminUser, adminPass);
+          if (!auth || auth.role !== UserRole.ADMIN) {
+              alert('Admin authorization failed. Void aborted.');
+              return;
+          }
+
+          // final confirmation
+          if (!window.confirm('Confirm void. This will return items to inventory and cannot be undone.')) return;
+
+          await storageService.voidTransaction(tx.id, auth.id, note.trim());
+          alert('Transaction voided successfully. Stock has been returned.');
           await loadData(); // Refresh list
       } catch (e: any) {
           console.error(e);
-          alert("Failed to void transaction: " + e.message);
+          alert('Failed to void transaction: ' + (e?.message || e));
       } finally {
           setVoidingId(null);
       }
   };
+
+  const viewReceipt = (tx: any) => setSelectedReceipt(tx);
+  const closeReceipt = () => setSelectedReceipt(null);
 
   const handleCreateTestTransaction = async () => {
       if (stores.length === 0) {
@@ -220,7 +242,8 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                         </span>
                                     )}
                                 </td>
-                                <td className="px-6 py-4 text-center">
+                                <td className="px-6 py-4 text-center space-x-2">
+                                    <button onClick={() => viewReceipt(tx)} className="text-blue-600 hover:text-blue-800 text-xs font-bold uppercase border border-blue-200 hover:bg-blue-50 px-3 py-1 rounded transition-colors">VIEW</button>
                                     {tx.status !== 'VOIDED' && (
                                         <button 
                                             onClick={() => handleVoid(tx)}
@@ -239,6 +262,44 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                 </table>
             </div>
         </div>
+        {selectedReceipt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-white rounded-lg shadow-xl w-11/12 max-w-2xl p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold">Receipt</h3>
+                                <p className="text-sm text-gray-500">{getStoreName(selectedReceipt.storeId)} • {selectedReceipt.date} {selectedReceipt.timestamp ? new Date(selectedReceipt.timestamp).toLocaleTimeString() : ''}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => { navigator.clipboard?.writeText(JSON.stringify(selectedReceipt)); alert('Receipt copied'); }} className="text-sm text-gray-500">Copy</button>
+                                <button onClick={closeReceipt} className="bg-gray-100 px-3 py-1 rounded text-sm">Close</button>
+                            </div>
+                        </div>
+                        <div className="mb-4">
+                            <div className="text-sm text-gray-700 font-medium">Cashier: {selectedReceipt.cashierName || 'N/A'}</div>
+                            <div className="mt-2">
+                                {selectedReceipt.items && selectedReceipt.items.length > 0 ? (
+                                    <ul className="text-sm divide-y divide-gray-100">
+                                        {selectedReceipt.items.map((it: any, idx: number) => (
+                                            <li key={idx} className="py-2 flex justify-between">
+                                                <div>{it.quantity} x {it.name}</div>
+                                                <div className="font-mono">₱{(it.price * it.quantity).toFixed(2)}</div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <div className="text-sm text-gray-400">No items available</div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex justify-end">
+                            <div className="text-right">
+                                <div className="font-bold text-lg">Total: {formatMoney(selectedReceipt.totalAmount || 0)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        )}
     </div>
   );
 };

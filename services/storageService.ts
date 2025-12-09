@@ -218,15 +218,18 @@ export const storageService = {
       }));
   },
   markPosTransactionsAsReported: async (storeId: string, date: string, reportId: string) => {},
-  voidTransaction: async (transactionId: string) => {
+    voidTransaction: async (transactionId: string, voidedById?: string | null, note?: string | null) => {
       const { data: tx, error: fetchError } = await supabase.from('transactions').select('*').eq('id', transactionId).single();
       if (fetchError || !tx) throw new Error("Transaction not found");
       if (tx.status === 'VOIDED') throw new Error("Transaction already voided");
-      const { error: updateError } = await supabase.from('transactions').update({ status: 'VOIDED' }).eq('id', transactionId);
+      const updatePayload: any = { status: 'VOIDED', voided_at: new Date().toISOString() };
+      if (voidedById) updatePayload.voided_by = voidedById;
+      if (note) updatePayload.void_note = note;
+      const { error: updateError } = await supabase.from('transactions').update(updatePayload).eq('id', transactionId);
       if (updateError) throw updateError;
       const items = tx.items as any[];
       for (const item of items) { await storageService.updateInventoryStock(item.id, item.quantity); }
-  },
+    },
   resetSystem: async (currentAdminId: string) => {
     await supabase.from('reports').delete().neq('id', '00000000-0000-0000-0000-000000000000'); 
     await supabase.from('inventory').delete().neq('id', '00000000-0000-0000-0000-000000000000');

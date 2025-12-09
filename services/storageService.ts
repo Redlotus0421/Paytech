@@ -25,14 +25,47 @@ const seedData = () => {
 seedData();
 
 export const storageService = {
-  login: (username: string, password?: string): User | null => {
+  login: async (username: string, password?: string): Promise<User | null> => {
+    // Check seeded/local users first
     const users = JSON.parse(localStorage.getItem(KEYS.USERS) || '[]');
-    const user = users.find((u: User) => u.username === username);
-    if (user && (!user.password || user.password === password)) {
-      localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(user));
-      return user;
+    const localUser = users.find((u: User) => u.username === username);
+    if (localUser && (!localUser.password || localUser.password === password)) {
+      localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(localUser));
+      return localUser;
     }
-    return null;
+
+    // Fallback: check Supabase users table for active user
+    try {
+      const { data, error } = await supabase.from('users').select('*').eq('username', username).maybeSingle();
+      if (error) {
+        console.error('Error looking up user during login:', error);
+        return null;
+      }
+      if (!data) return null;
+
+      const appUser: User = {
+        id: data.id,
+        username: data.username,
+        name: data.name,
+        role: data.role,
+        storeId: data.store_id || data.storeId || data.storeid,
+        status: data.status,
+        password: data.password,
+        permissions: data.permissions || []
+      };
+
+      // If password is set in DB, validate it (plain-text comparison expected here)
+      if (appUser.password && password && appUser.password !== password) {
+        return null;
+      }
+
+      // Accept user (no password provided or matches)
+      localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(appUser));
+      return appUser;
+    } catch (e) {
+      console.error('Login fallback failed:', e);
+      return null;
+    }
   },
   saveSessionUser: (user: User) => localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(user)),
   logout: () => localStorage.removeItem(KEYS.CURRENT_USER),

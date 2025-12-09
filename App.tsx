@@ -64,7 +64,7 @@ const App: React.FC = () => {
         return;
       }
 
-      const localUser = storageService.login(usernameInput, passwordInput);
+      const localUser = await storageService.login(usernameInput, passwordInput);
       if (localUser) {
         setUser(localUser);
         setView('dashboard');

@@ -65,7 +65,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
         if (!adminTargetReportId || !adminAction) return;
         setIsAuthenticating(true);
         try {
-            const auth = storageService.login(adminUsername, adminPassword);
+            const auth = await storageService.login(adminUsername, adminPassword);
             if (!auth || auth.role !== UserRole.ADMIN) throw new Error('Invalid admin credentials');
             setShowAdminAuth(false);
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, ReportData, Store, UserRole } from '../types';
 import { storageService } from '../services/storageService';
-import { Eye, FileText, X, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Eye, FileText, X, CheckCircle, AlertTriangle, Loader2, Edit2, Trash2 } from 'lucide-react';
 
 interface ReportsProps {
   user: User;
@@ -270,24 +270,27 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                     {overNegative < 0 ? '' : (overNegative > 0 ? '+' : '')}{formatMoney(overNegative)}
                   </td>
                   <td className="px-6 py-4 text-right font-bold text-green-700">{formatMoney(finalEodNet)}</td>
-                                    <td className="px-6 py-4 text-center flex items-center justify-center gap-2">
+                                    <td className="px-6 py-4 text-center flex items-center justify-center gap-3">
                                         <button 
                                             onClick={() => { setSelectedReport(report); setIsEditing(false); setEditReportData(null); }}
-                                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-bold uppercase"
+                                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                                            title="View Report"
                                         >
-                                            <Eye size={16}/> View
+                                            <Eye size={18}/>
                                         </button>
                                         <button
                                             onClick={() => openAdminAuth(report.id, 'edit')}
-                                            className="text-yellow-600 hover:text-yellow-800 flex items-center gap-1 text-xs font-bold uppercase"
+                                            className="text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 p-2 rounded-lg transition-colors"
+                                            title="Edit Report"
                                         >
-                                            Edit
+                                            <Edit2 size={18}/>
                                         </button>
                                         <button
                                             onClick={() => openAdminAuth(report.id, 'delete')}
-                                            className="text-red-600 hover:text-red-800 flex items-center gap-1 text-xs font-bold uppercase"
+                                            className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                            title="Delete Report"
                                         >
-                                            Delete
+                                            <Trash2 size={18}/>
                                         </button>
                                     </td>
                 </tr>

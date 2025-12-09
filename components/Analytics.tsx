@@ -98,7 +98,7 @@ export const Analytics: React.FC = () => {
              const lastReport = thisStoreReports.sort((a,b) => b.timestamp - a.timestamp)[0];
              const totalSales = thisStoreReports.reduce((acc, r) => acc + r.recordedProfit, 0);
              return (
-              <button key={store.id} onClick={() => handleStoreClick(store)} className="bg-white p-6 rounded-xl shadow-sm border text-left group hover:shadow-md hover:border-blue-300 transition-all">
+              <button key={store.id} onClick={() => handleStoreClick(store)} className="bg-white p-6 rounded-xl shadow-sm border text-left group hover:shadow-md hover:border-blue-300 transition-all h-full flex flex-col justify-between">
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-3 bg-blue-50 rounded-lg"><StoreIcon size={24} className="text-blue-600" /></div>
                   <div className="text-xs font-semibold px-2 py-1 bg-gray-100 text-gray-600 rounded-full">{thisStoreReports.length} Reports</div>
@@ -120,7 +120,7 @@ export const Analytics: React.FC = () => {
   const displayStore = selectedStore || (currentUser?.storeId ? stores.find(s => s.id === currentUser.storeId) : null);
 
   return (
-    <div className="space-y-6 relative"> 
+    <div className="space-y-6 relative min-h-0 w-full min-w-0"> 
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
@@ -154,23 +154,23 @@ export const Analytics: React.FC = () => {
       <div className="h-8 md:hidden"></div> 
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
-        <div className="bg-white p-4 rounded-lg shadow-sm border"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.totalProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Net Sales</p></div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border"><h3 className="text-2xl font-bold text-red-600">₱{Math.abs(stats.totalShortage).toLocaleString()}</h3><p className="text-sm text-gray-500">Total Shortage</p></div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalSurplus.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Surplus</p></div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border"><h3 className="text-2xl font-bold text-indigo-600">{stats.balanceCount} <span className="text-sm">/ {stats.reportCount}</span></h3><p className="text-sm text-gray-500">Perfect Reports</p></div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.totalProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Net Sales</p></div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{Math.abs(stats.totalShortage).toLocaleString()}</h3><p className="text-sm text-gray-500">Total Shortage</p></div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalSurplus.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Surplus</p></div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">{stats.balanceCount} <span className="text-sm">/ {stats.reportCount}</span></h3><p className="text-sm text-gray-500">Perfect Reports</p></div>
       </div>
       
-      <div className="bg-white p-6 rounded-lg shadow-sm border h-80 relative z-0">
+      <div className="bg-white p-6 rounded-lg shadow-sm border min-h-[20rem] md:min-h-[24rem] relative z-0 flex flex-col">
         <h3 className="text-lg font-bold text-gray-900 mb-6">Performance ({selectedMonth})</h3>
         {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /><Line type="monotone" dataKey="discrepancy" name="Variance" stroke="#ef4444" strokeWidth={2} /></LineChart></ResponsiveContainer>
+            <div className="flex-1 min-h-0"><ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /><Line type="monotone" dataKey="discrepancy" name="Variance" stroke="#ef4444" strokeWidth={2} /></LineChart></ResponsiveContainer></div>
         ) : (
-            <div className="h-full flex items-center justify-center text-gray-400">No data for this month</div>
+            <div className="flex-1 min-h-0 flex items-center justify-center text-gray-400">No data for this month</div>
         )}
       </div>
 
       {/* Recent Activity Table (Filtered by Month) */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0">
         <div className="p-4 border-b border-gray-100 flex justify-between items-center">
           <h3 className="font-bold text-gray-900">Reports History ({selectedMonth})</h3>
           <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.length} records found</span>

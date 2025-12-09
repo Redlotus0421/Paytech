@@ -112,9 +112,9 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
   const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || 'Unknown Store';
   const formatMoney = (amount: number) => `₱${amount.toFixed(2)}`;
 
-  return (
-    <div className="space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-lg shadow-sm gap-4 relative z-30">
+    return (
+        <div className="space-y-6 min-h-0 w-full min-w-0">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-lg shadow-sm gap-4 relative z-30 w-full min-w-0">
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <Receipt size={24} className="text-blue-600"/> Transaction History
                 {/* Debug Indicator: Shows raw count from DB to verify data exists */}
@@ -171,9 +171,9 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
             </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0">
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0">
+            <div className="overflow-x-auto min-w-0">
+                <table className="w-full min-w-full text-sm text-left">
                     <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
                         <tr>
                             <th className="px-6 py-4">Time</th>

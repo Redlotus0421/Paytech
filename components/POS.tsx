@@ -152,9 +152,9 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   };
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6">
+    <div className="min-h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6">
        {/* Left: Item Grid */}
-       <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+    <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden min-h-0">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <div className="font-bold text-gray-700">Available Items</div>
                 {user.role === UserRole.ADMIN && (
@@ -168,7 +168,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                 )}
             </div>
             
-            <div className="p-4">
+            <div className="p-4 flex flex-col flex-1 min-h-0">
                 <div className="mb-3 flex items-center gap-2">
                     <input
                         type="text"
@@ -179,7 +179,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                     />
                     <div className="text-sm text-gray-500">Category: <span className="font-medium">All</span></div>
                 </div>
-                <div className="overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start flex-1">
+                <div className="overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start flex-1 min-h-0">
                 {isLoading ? (
                     <div className="col-span-full flex justify-center py-10"><Loader2 className="animate-spin text-blue-600" size={32}/></div>
                 ) : (
@@ -213,7 +213,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
        </div>
 
        {/* Right: Cart & Checkout */}
-       <div className="w-full md:w-96 bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col h-full">
+    <div className="w-full md:w-96 bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col h-full min-w-0">
             <div className="p-4 bg-slate-900 text-white font-bold flex items-center gap-2 rounded-t-lg">
                 <ShoppingCart size={20}/> Current Order
             </div>

@@ -125,7 +125,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
     }).sort((a,b)=> b.timestamp - a.timestamp);
 
     return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-0 w-full min-w-0">
       <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <FileText size={24} className="text-blue-600"/> Reports History
@@ -159,7 +159,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                 </div>
             )}
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
                 <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div className="flex items-center gap-3">
                         {user.role === UserRole.ADMIN && (
@@ -191,7 +191,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                         <button onClick={loadData} className="text-sm text-blue-600 border border-blue-100 px-3 py-1 rounded">Refresh</button>
                     </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto min-w-0">
                     {/** compute filteredReports */}
                     {(() => {
                         const start = startDate ? new Date(startDate) : null;
@@ -210,7 +210,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                         // expose filteredReports by closure for JSX below
                         (window as any).__filteredReports = filtered;
                     })()}
-          <table className="w-full text-sm text-left">
+          <table className="w-full min-w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4">Report Date</th>

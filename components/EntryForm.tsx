@@ -294,8 +294,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     }
   };
 
-  return (
-    <div className="space-y-6">
+    return (
+        <div className="space-y-6 min-h-0 w-full min-w-0">
       {/* TABS HEADER */}
       <div className="flex rounded-lg bg-gray-200 p-1 mb-6">
           <button onClick={() => setActiveTab('sod')} className={`flex-1 py-3 text-sm font-bold rounded-md transition-all ${activeTab === 'sod' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>1. Start of Day (SOD)</button>
@@ -385,7 +385,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
             {/* Sticky Footer */}
             <div className="fixed bottom-0 left-0 md:left-64 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
-                 <div className="max-w-6xl mx-auto flex flex-col gap-4">
+                 <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                          <div className="bg-gray-50 p-2 rounded border border-gray-100"><div className="text-gray-900 text-xs font-bold uppercase">TOTAL EOD SALES</div><div className="text-gray-900 font-bold">₱{calculations.actualCashSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div></div>
                          <div className={`bg-gray-50 p-2 rounded border border-gray-100 ${calculations.hasNotebookEntry ? 'opacity-50' : ''}`}><div className="text-green-700 text-xs font-bold uppercase">GCash Net (Derived)</div><div className="text-green-700 font-bold">₱{calculations.derivedGcashNet.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div></div>

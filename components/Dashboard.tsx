@@ -55,7 +55,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, [filteredReports]);
 
   const StatCard = ({ label, value, color, icon: Icon }: any) => (
-    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 h-full flex flex-col justify-between">
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm text-gray-500 mb-1">{label}</p>
@@ -71,7 +71,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-0 w-full min-w-0">
       <h2 className="text-xl font-bold text-gray-900">
         {user.role === UserRole.ADMIN ? 'Global Overview' : 'Store Performance'}
       </h2>
@@ -80,8 +80,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         <StatCard label="Total Shortage/Surplus" value={`₱${Math.abs(stats.totalShortage).toLocaleString()}`} color="text-red-600" icon={AlertOctagon} />
         <StatCard label="Balanced Reports" value={stats.balanceCount} color="text-blue-600" icon={DollarSign} />
       </div>
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 h-64">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 min-h-[18rem] md:min-h-[20rem] flex flex-col">
         <h3 className="text-sm font-semibold text-gray-700 mb-4">Net Sales vs Total EOD Sales (Last 7 Entries)</h3>
+        <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <XAxis dataKey="date" fontSize={12} stroke="#374151" />
@@ -92,11 +93,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <Bar dataKey="discrepancy" fill="#ef4444" name="Total EOD Sales" />
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full min-w-0">
         <div className="p-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Recent Submissions</h3></div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+        <div className="overflow-x-auto min-w-0">
+          <table className="w-full min-w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-4 py-3">Date</th>

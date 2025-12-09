@@ -110,8 +110,8 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
       (!filterStoreId || i.storeId === filterStoreId)
   );
 
-  return (
-    <div className="space-y-6">
+    return (
+        <div className="space-y-6 min-h-0 w-full min-w-0">
         <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
             <h2 className="text-xl font-bold text-gray-900">Inventory</h2>
             <div className="text-sm text-gray-500 text-right">
@@ -121,7 +121,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         </div>
 
         {/* Add/Edit Item Form */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 w-full min-w-0">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-blue-700 font-semibold">
                     <Package size={20}/>
@@ -201,7 +201,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         </div>
 
         {/* Inventory List */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
              {/* Filter Bar */}
             {user.role === UserRole.ADMIN && (
                 <div className="p-4 border-b border-gray-100 flex items-center gap-4">
@@ -216,8 +216,8 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                 </div>
             )}
 
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
+            <div className="overflow-x-auto min-w-0">
+                <table className="w-full min-w-full text-sm text-left">
                     <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-xs">
                         <tr>
                             <th className="px-6 py-4">Item</th>

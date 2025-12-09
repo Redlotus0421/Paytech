@@ -72,17 +72,6 @@ export const Analytics: React.FC = () => {
       .sort((a, b) => a.timestamp - b.timestamp);
   }, [reports, selectedStore, currentUser, selectedMonth]);
 
-  // Debug: log storeReports and chartData to help diagnose missing chart
-  useEffect(() => {
-    try {
-      console.log('Analytics: storeReports count', storeReports.length);
-      const data = chartData;
-      console.log('Analytics: chartData sample', data.slice(0, 10));
-    } catch (e) {
-      console.error('Analytics debug failed', e);
-    }
-  }, [storeReports, chartData]);
-
   const stats = useMemo(() => {
     // Use the filtered storeReports directly for stats
     const totalProfit = storeReports.reduce((acc, r) => acc + r.recordedProfit, 0);
@@ -101,6 +90,16 @@ export const Analytics: React.FC = () => {
       sales: r.totalNetSales
     }));
   }, [storeReports]);
+
+  // Debug: log storeReports and chartData to help diagnose missing chart
+  useEffect(() => {
+    try {
+      console.log('Analytics: storeReports count', storeReports.length);
+      console.log('Analytics: chartData sample', chartData.slice(0, 10));
+    } catch (e) {
+      console.error('Analytics debug failed', e);
+    }
+  }, [storeReports, chartData]);
 
   if (isLoading) return <div className="flex justify-center items-center h-96"><Loader2 className="animate-spin text-blue-600" size={48} /></div>;
 

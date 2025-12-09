@@ -18,6 +18,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -167,12 +168,23 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                 )}
             </div>
             
-            <div className="p-4 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start flex-1">
+            <div className="p-4">
+                <div className="mb-3 flex items-center gap-2">
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        placeholder="Search items..."
+                        className="w-full md:w-1/2 border border-gray-300 rounded px-3 py-2 text-sm"
+                    />
+                    <div className="text-sm text-gray-500">Category: <span className="font-medium">All</span></div>
+                </div>
+                <div className="overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start flex-1">
                 {isLoading ? (
                     <div className="col-span-full flex justify-center py-10"><Loader2 className="animate-spin text-blue-600" size={32}/></div>
                 ) : (
                     <>
-                        {items.map(item => (
+                        {items.filter(it => it.name.toLowerCase().includes(searchTerm.toLowerCase())).map(item => (
                             <button 
                                 key={item.id} 
                                 onClick={() => addToCart(item)}
@@ -184,6 +196,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                                 }`}
                             >
                                 <div className="font-semibold text-gray-800 truncate">{item.name}</div>
+                                {item.category && <div className="text-xs text-gray-400 mt-1">{item.category}</div>}
                                 <div className="text-blue-600 font-bold mt-1">₱{item.price.toFixed(2)}</div>
                                 <div className={`text-xs mt-2 ${item.stock < 5 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
                                     {item.stock === 0 ? 'Out of Stock' : `${item.stock} in stock`}
@@ -195,6 +208,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                         )}
                     </>
                 )}
+                </div>
             </div>
        </div>
 

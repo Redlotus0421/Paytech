@@ -13,33 +13,96 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedReport, setSelectedReport] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+    const [filterStoreId, setFilterStoreId] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [monthFilter, setMonthFilter] = useState('');
 
-  useEffect(() => {
-    const loadData = async () => {
-        setIsLoading(true);
+    // Admin auth & edit/delete flow
+    const [showAdminAuth, setShowAdminAuth] = useState(false);
+    const [adminUsername, setAdminUsername] = useState('admin');
+    const [adminPassword, setAdminPassword] = useState('');
+    const [adminAction, setAdminAction] = useState<'delete'|'edit'|null>(null);
+    const [adminTargetReportId, setAdminTargetReportId] = useState<string | null>(null);
+    const [isAuthenticating, setIsAuthenticating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editReportData, setEditReportData] = useState<Partial<ReportData> | null>(null);
+
+  const loadData = async () => {
+      setIsLoading(true);
+      try {
+          const [allStores, allReports, allUsers] = await Promise.all([
+              storageService.fetchStores(),
+              storageService.fetchReports(),
+              storageService.fetchUsers()
+          ]);
+          setStores(allStores);
+          setUsers(allUsers);
+
+          let filtered = allReports;
+          if (user.role === UserRole.EMPLOYEE) {
+              filtered = allReports.filter(r => r.storeId === user.storeId);
+          }
+          setReports(filtered.sort((a, b) => b.timestamp - a.timestamp));
+      } catch (error) {
+          console.error("Failed to load reports:", error);
+      } finally {
+          setIsLoading(false);
+      }
+  };
+
+  useEffect(() => { loadData(); }, [user]);
+
+    const openAdminAuth = (reportId: string, action: 'delete'|'edit') => {
+        setAdminTargetReportId(reportId);
+        setAdminAction(action);
+        setShowAdminAuth(true);
+        setAdminPassword('');
+        setAdminUsername('admin');
+    };
+
+    const confirmAdminAuth = async () => {
+        if (!adminTargetReportId || !adminAction) return;
+        setIsAuthenticating(true);
         try {
-            const [allStores, allReports, allUsers] = await Promise.all([
-                storageService.fetchStores(),
-                storageService.fetchReports(),
-                storageService.fetchUsers()
-            ]);
-            
-            setStores(allStores);
-            setUsers(allUsers);
+            const auth = storageService.login(adminUsername, adminPassword);
+            if (!auth || auth.role !== UserRole.ADMIN) throw new Error('Invalid admin credentials');
+            setShowAdminAuth(false);
 
-            let filtered = allReports;
-            if (user.role === UserRole.EMPLOYEE) {
-                filtered = allReports.filter(r => r.storeId === user.storeId);
+            if (adminAction === 'delete') {
+                await storageService.deleteReport(adminTargetReportId);
+                alert('Report deleted');
+                await loadData();
+            } else if (adminAction === 'edit') {
+                const r = reports.find(rr => rr.id === adminTargetReportId) || null;
+                if (r) {
+                    setSelectedReport(r);
+                    setIsEditing(true);
+                    setEditReportData({ ...r });
+                }
             }
-            setReports(filtered.sort((a, b) => b.timestamp - a.timestamp));
-        } catch (error) {
-            console.error("Failed to load reports:", error);
+        } catch (e: any) {
+            alert(e.message || 'Authentication failed');
         } finally {
-            setIsLoading(false);
+            setIsAuthenticating(false);
         }
     };
-    loadData();
-  }, [user]);
+
+    const saveEditedReport = async () => {
+        if (!selectedReport || !editReportData) return;
+        try {
+            const merged: ReportData = { ...selectedReport, ...(editReportData as ReportData) } as ReportData;
+            await storageService.saveReport(merged);
+            alert('Report updated');
+            setIsEditing(false);
+            setSelectedReport(null);
+            setEditReportData(null);
+            await loadData();
+        } catch (e: any) {
+            console.error('Failed to save report', e);
+            alert('Failed to save report: ' + (e.message || e));
+        }
+    };
 
   const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || 'Unknown Store';
   const getUserName = (id: string) => {
@@ -49,7 +112,19 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
 
   const formatMoney = (amount: number) => `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
-  return (
+    // Apply UI filters to reports
+    const filteredReports = reports.filter(r => {
+        if (filterStoreId && r.storeId !== filterStoreId) return false;
+        if (monthFilter) {
+            const m = new Date(r.date).getMonth() + 1;
+            if (m !== Number(monthFilter)) return false;
+        }
+        if (startDate && new Date(r.date) < new Date(startDate)) return false;
+        if (endDate && new Date(r.date) > new Date(endDate)) return false;
+        return true;
+    }).sort((a,b)=> b.timestamp - a.timestamp);
+
+    return (
     <div className="space-y-6">
       <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -60,8 +135,81 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+            {/* ADMIN AUTH MODAL for Edit/Delete */}
+            {showAdminAuth && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                        <h3 className="text-lg font-bold mb-2">Admin Authentication</h3>
+                        <p className="text-sm text-gray-500 mb-4">Enter admin credentials to proceed with this action.</p>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-xs text-gray-600">Username</label>
+                                <input value={adminUsername} onChange={e => setAdminUsername(e.target.value)} className="w-full border rounded px-3 py-2" />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-600">Password</label>
+                                <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} className="w-full border rounded px-3 py-2" />
+                            </div>
+                        </div>
+                        <div className="mt-4 flex justify-end gap-2">
+                            <button onClick={() => setShowAdminAuth(false)} className="px-3 py-1 bg-gray-100 rounded">Cancel</button>
+                            <button onClick={confirmAdminAuth} disabled={isAuthenticating} className="px-3 py-1 bg-blue-600 text-white rounded">{isAuthenticating ? 'Checking...' : 'Confirm'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        {user.role === UserRole.ADMIN && (
+                            <select value={filterStoreId} onChange={e => setFilterStoreId(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900">
+                                <option value="">All Branches</option>
+                                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        )}
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
+                        <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
+                            <option value="">Month</option>
+                            <option value="01">January</option>
+                            <option value="02">February</option>
+                            <option value="03">March</option>
+                            <option value="04">April</option>
+                            <option value="05">May</option>
+                            <option value="06">June</option>
+                            <option value="07">July</option>
+                            <option value="08">August</option>
+                            <option value="09">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                        <button onClick={() => { setStartDate(''); setEndDate(''); setMonthFilter(''); setFilterStoreId(''); }} className="text-sm text-gray-500">Clear</button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button onClick={loadData} className="text-sm text-blue-600 border border-blue-100 px-3 py-1 rounded">Refresh</button>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    {/** compute filteredReports */}
+                    {(() => {
+                        const start = startDate ? new Date(startDate) : null;
+                        const end = endDate ? new Date(endDate) : null;
+                        const filtered = reports.filter(r => {
+                            if (filterStoreId && r.storeId !== filterStoreId) return false;
+                            if (monthFilter) {
+                                const m = new Date(r.date).getMonth() + 1;
+                                if (m !== Number(monthFilter)) return false;
+                            }
+                            if (start && new Date(r.date) < start) return false;
+                            if (end && new Date(r.date) > end) return false;
+                            return true;
+                        });
+                        (filtered as ReportData[]).sort((a,b)=> b.timestamp - a.timestamp);
+                        // expose filteredReports by closure for JSX below
+                        (window as any).__filteredReports = filtered;
+                    })()}
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
               <tr>
@@ -80,7 +228,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                   <tr><td colSpan={10} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading reports...</td></tr>
-              ) : reports.map((report) => {
+              ) : filteredReports.map((report) => {
                   // Calculate values for the spreadsheet view
                   const startFund = Number(report.totalStartFund || 0);
                   const endAssets = Number(report.totalEndAssets || 0);
@@ -122,14 +270,26 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                     {overNegative < 0 ? '' : (overNegative > 0 ? '+' : '')}{formatMoney(overNegative)}
                   </td>
                   <td className="px-6 py-4 text-right font-bold text-green-700">{formatMoney(finalEodNet)}</td>
-                  <td className="px-6 py-4 text-center">
-                    <button 
-                      onClick={() => setSelectedReport(report)}
-                      className="text-blue-600 hover:text-blue-800 flex items-center justify-center mx-auto gap-1 text-xs font-bold uppercase"
-                    >
-                      <Eye size={16}/> View
-                    </button>
-                  </td>
+                                    <td className="px-6 py-4 text-center flex items-center justify-center gap-2">
+                                        <button 
+                                            onClick={() => { setSelectedReport(report); setIsEditing(false); setEditReportData(null); }}
+                                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-bold uppercase"
+                                        >
+                                            <Eye size={16}/> View
+                                        </button>
+                                        <button
+                                            onClick={() => openAdminAuth(report.id, 'edit')}
+                                            className="text-yellow-600 hover:text-yellow-800 flex items-center gap-1 text-xs font-bold uppercase"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => openAdminAuth(report.id, 'delete')}
+                                            className="text-red-600 hover:text-red-800 flex items-center gap-1 text-xs font-bold uppercase"
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
                 </tr>
               );
               })}
@@ -157,14 +317,16 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
 
           const manualRevenue = (selectedReport.customSales || []).reduce((a, b) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
           const posRevenue = (selectedReport.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
-          const totalSalesRevenue = manualRevenue + posRevenue;
-          const derivedGcashNet = growth - totalSalesRevenue;
-          const notebookGcash = selectedReport.gcashNotebook !== undefined ? Number(selectedReport.gcashNotebook) : undefined;
-          const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
+                    const totalSalesRevenue = manualRevenue + posRevenue;
+                    const derivedGcashNet = growth - totalSalesRevenue;
+                    const notebookGcash = (isEditing && editReportData && (editReportData as any).gcashNotebook !== undefined)
+                        ? Number((editReportData as any).gcashNotebook)
+                        : (selectedReport.gcashNotebook !== undefined ? Number(selectedReport.gcashNotebook) : undefined);
+                    const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
           const manualNet = (selectedReport.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
           const posNet = (selectedReport.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
           const totalItemsNet = manualNet + posNet;
-          const totalExpenses = Number(selectedReport.bankTransferFees || 0) + Number(selectedReport.operationalExpenses || 0);
+          const totalExpenses = Number((isEditing && editReportData && (editReportData as any).bankTransferFees !== undefined) ? (editReportData as any).bankTransferFees : (selectedReport.bankTransferFees || 0)) + Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
           const grossSalesIncome = usedGcashNet + totalItemsNet;
           const finalEodNet = grossSalesIncome - totalExpenses;
           const actualEodSales = usedGcashNet + totalSalesRevenue;
@@ -182,9 +344,17 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                         {selectedReport.date} • {getStoreName(selectedReport.storeId)} • <span className="font-medium text-gray-700">{getUserName(selectedReport.userId)}</span>
                     </p>
                 </div>
-                <button onClick={() => setSelectedReport(null)} className="text-gray-400 hover:text-gray-700">
-                    <X size={24} />
-                </button>
+                <div className="flex items-center gap-3">
+                    {isEditing ? (
+                        <>
+                            <button onClick={() => { setIsEditing(false); setEditReportData(null); }} className="px-3 py-1 bg-gray-100 rounded">Cancel</button>
+                            <button onClick={saveEditedReport} className="px-3 py-1 bg-blue-600 text-white rounded">Save</button>
+                        </>
+                    ) : null}
+                    <button onClick={() => { setSelectedReport(null); setIsEditing(false); setEditReportData(null); }} className="text-gray-400 hover:text-gray-700">
+                        <X size={24} />
+                    </button>
+                </div>
                 </div>
 
                 <div className="p-6 overflow-y-auto space-y-8">
@@ -241,7 +411,11 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                                              <tr className="bg-purple-50">
                                                 <td className="p-2 pl-3 text-purple-900 font-bold">GCash Net <span className="text-xs font-normal text-purple-600">(Notebook)</span></td>
                                                 <td className="p-2 pr-3 text-right font-mono font-bold text-purple-900">
-                                                    {formatMoney(notebookGcash)}
+                                                    {isEditing ? (
+                                                        <input type="number" value={(editReportData as any)?.gcashNotebook ?? notebookGcash} onChange={e => setEditReportData(prev => ({ ...(prev||{}), gcashNotebook: Number(e.target.value) }))} className="w-28 text-right" />
+                                                    ) : (
+                                                        formatMoney(notebookGcash)
+                                                    )}
                                                 </td>
                                             </tr>
                                         )}
@@ -315,7 +489,13 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                                     <tbody className="divide-y divide-gray-100">
                                         <tr className="bg-white">
                                             <td className="p-2 pl-3 text-gray-700">Bank Transfer Fees</td>
-                                            <td className="p-2 pr-3 text-right font-mono text-gray-900">{formatMoney(Number(selectedReport.bankTransferFees) || 0)}</td>
+                                            <td className="p-2 pr-3 text-right font-mono text-gray-900">
+                                                {isEditing ? (
+                                                    <input type="number" value={(editReportData as any)?.bankTransferFees ?? selectedReport.bankTransferFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), bankTransferFees: Number(e.target.value) }))} className="w-24 text-right" />
+                                                ) : (
+                                                    formatMoney(Number(selectedReport.bankTransferFees) || 0)
+                                                )}
+                                            </td>
                                         </tr>
                                         <tr className="bg-white">
                                             <td className="p-2 pl-3 text-gray-700">
@@ -326,7 +506,13 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="p-2 pr-3 text-right font-mono text-gray-900">{formatMoney(Number(selectedReport.operationalExpenses) || 0)}</td>
+                                            <td className="p-2 pr-3 text-right font-mono text-gray-900">
+                                                {isEditing ? (
+                                                    <input type="number" value={(editReportData as any)?.operationalExpenses ?? selectedReport.operationalExpenses ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), operationalExpenses: Number(e.target.value) }))} className="w-24 text-right" />
+                                                ) : (
+                                                    formatMoney(Number(selectedReport.operationalExpenses) || 0)
+                                                )}
+                                            </td>
                                         </tr>
                                         <tr className="bg-gray-50 border-t border-gray-200">
                                             <td className="p-2 pl-3 font-bold text-gray-700">Total Expenses</td>

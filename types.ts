@@ -75,6 +75,7 @@ export interface InventoryItem {
   cost: number;
   price: number;
   stock: number;
+  category?: string;
 }
 export interface CartItem extends InventoryItem {
   quantity: number;

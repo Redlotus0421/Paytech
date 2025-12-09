@@ -83,6 +83,7 @@ export const storageService = {
   },
   saveReport: async (report: ReportData) => {
     const dbReport = {
+      id: report.id,
       store_id: report.storeId, user_id: report.userId, date: report.date, timestamp: report.timestamp,
       sod_gpo: report.sodGpo, sod_gcash: report.sodGcash, sod_petty_cash: report.sodPettyCash,
       // Save new fields
@@ -96,7 +97,8 @@ export const storageService = {
       total_net_sales: report.totalNetSales, total_expenses: report.totalExpenses, theoretical_growth: report.theoreticalGrowth,
       recorded_profit: report.recordedProfit, discrepancy: report.discrepancy, status: report.status, notes: report.notes
     };
-    const { error } = await supabase.from('reports').insert([dbReport]);
+    // Use upsert so saving an existing report updates it, while new reports are inserted
+    const { error } = await supabase.from('reports').upsert([dbReport], { onConflict: 'id' });
     if (error) { console.error('Error saving report:', error); throw error; }
 
     const { error: txError } = await supabase.from('transactions')
@@ -114,19 +116,20 @@ export const storageService = {
     const { data, error } = await supabase.from('inventory').select('*');
     if (error) { console.error('Error fetching inventory:', error.message); return []; }
     return (data || []).map((i: any) => ({
-        id: i.id, storeId: i.store_id, name: i.name, cost: Number(i.cost), price: Number(i.price), stock: Number(i.stock)
+        id: i.id, storeId: i.store_id, name: i.name, cost: Number(i.cost), price: Number(i.price), stock: Number(i.stock),
+        category: i.category || ''
     }));
   },
   addInventoryItem: async (item: InventoryItem): Promise<{ success: boolean; error?: any }> => {
     const { error } = await supabase.from('inventory').insert([{
-        id: item.id, store_id: item.storeId, name: item.name, cost: item.cost, price: item.price, stock: item.stock
+        id: item.id, store_id: item.storeId, name: item.name, cost: item.cost, price: item.price, stock: item.stock, category: item.category || ''
     }]);
     if (error) { console.error('Error adding item:', error); return { success: false, error }; }
     return { success: true };
   },
   updateInventoryItem: async (item: InventoryItem): Promise<{ success: boolean; error?: any }> => {
     const { error } = await supabase.from('inventory').update({
-        store_id: item.storeId, name: item.name, cost: item.cost, price: item.price, stock: item.stock
+        store_id: item.storeId, name: item.name, cost: item.cost, price: item.price, stock: item.stock, category: item.category || ''
     }).eq('id', item.id);
     if (error) { console.error('Error updating item:', error); return { success: false, error }; }
     return { success: true };

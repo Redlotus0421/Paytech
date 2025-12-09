@@ -168,47 +168,62 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                 )}
             </div>
             
-            <div className="p-4 flex flex-col flex-1 min-h-0">
-                <div className="mb-3 flex items-center gap-2">
-                    <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        placeholder="Search items..."
-                        className="w-full md:w-1/2 border border-gray-300 rounded px-3 py-2 text-sm"
-                    />
-                    <div className="text-sm text-gray-500">Category: <span className="font-medium">All</span></div>
-                </div>
-                <div className="overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 content-start flex-1 min-h-0">
-                {isLoading ? (
-                    <div className="col-span-full flex justify-center py-10"><Loader2 className="animate-spin text-blue-600" size={32}/></div>
-                ) : (
-                    <>
-                        {items.filter(it => it.name.toLowerCase().includes(searchTerm.toLowerCase())).map(item => (
-                            <button 
-                                key={item.id} 
-                                onClick={() => addToCart(item)}
-                                disabled={item.stock === 0}
-                                className={`p-4 rounded-lg border text-left transition-all relative ${
-                                    item.stock === 0 
-                                    ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed' 
-                                    : 'bg-white border-gray-200 hover:border-blue-500 hover:shadow-md'
-                                }`}
-                            >
-                                <div className="font-semibold text-gray-800 truncate">{item.name}</div>
-                                {item.category && <div className="text-xs text-gray-400 mt-1">{item.category}</div>}
-                                <div className="text-blue-600 font-bold mt-1">₱{item.price.toFixed(2)}</div>
-                                <div className={`text-xs mt-2 ${item.stock < 5 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
-                                    {item.stock === 0 ? 'Out of Stock' : `${item.stock} in stock`}
-                                </div>
-                            </button>
-                        ))}
-                        {items.length === 0 && (
-                            <div className="col-span-full text-center text-gray-400 py-10">No items available in this store.</div>
+            <div className="p-4 flex flex-col gap-2 border-b border-gray-100">
+                <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="Search items by name or category..."
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+                
+                {/* Search Results */}
+                {searchTerm.trim() && (
+                    <div className="flex-1 overflow-y-auto max-h-64 border border-gray-200 rounded bg-gray-50">
+                        {isLoading ? (
+                            <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-blue-600" size={20}/></div>
+                        ) : items.filter(item => 
+                            item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
+                        ).length > 0 ? (
+                            <div className="space-y-2 p-2">
+                                {items.filter(item => 
+                                    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
+                                ).map(item => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => {
+                                            addToCart(item);
+                                            setSearchTerm('');
+                                        }}
+                                        disabled={item.stock === 0}
+                                        className={`w-full text-left p-2 rounded border transition-all ${
+                                            item.stock === 0
+                                                ? 'bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed'
+                                                : 'bg-white border-gray-200 hover:bg-blue-50 hover:border-blue-400'
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-medium text-gray-900 text-sm">{item.name}</div>
+                                                {item.category && <div className="text-xs text-gray-500">{item.category}</div>}
+                                            </div>
+                                            <div className="text-right ml-2">
+                                                <div className="font-bold text-blue-600 text-sm">₱{item.price.toFixed(2)}</div>
+                                                <div className={`text-xs ${item.stock < 5 ? 'text-red-500' : 'text-gray-500'}`}>
+                                                    {item.stock === 0 ? 'Out of Stock' : `${item.stock} in stock`}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="p-4 text-center text-gray-400 text-sm">No items found</div>
                         )}
-                    </>
+                    </div>
                 )}
-                </div>
             </div>
        </div>
 

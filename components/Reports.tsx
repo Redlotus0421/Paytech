@@ -362,12 +362,47 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                     <section>
                         <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 border-b pb-2">1. Start of Day (SOD)</h4>
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-gray-50 p-4 rounded-lg">
-                            <div><span className="block text-xs text-gray-600 mb-1">GPO Start</span><span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodGpo))}</span></div>
-                            <div><span className="block text-xs text-gray-600 mb-1">GCash Start</span><span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodGcash))}</span></div>
-                            <div><span className="block text-xs text-gray-600 mb-1">Petty Cash</span><span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodPettyCash))}</span></div>
+                            <div>
+                                <span className="block text-xs text-gray-600 mb-1">GPO Start</span>
+                                {isEditing ? (
+                                    <input type="number" value={(editReportData as any)?.sodGpo ?? Number(selectedReport.sodGpo || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodGpo: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                ) : (
+                                    <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodGpo))}</span>
+                                )}
+                            </div>
+                            <div>
+                                <span className="block text-xs text-gray-600 mb-1">GCash Start</span>
+                                {isEditing ? (
+                                    <input type="number" value={(editReportData as any)?.sodGcash ?? Number(selectedReport.sodGcash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodGcash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                ) : (
+                                    <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodGcash))}</span>
+                                )}
+                            </div>
+                            <div>
+                                <span className="block text-xs text-gray-600 mb-1">Petty Cash</span>
+                                {isEditing ? (
+                                    <input type="number" value={(editReportData as any)?.sodPettyCash ?? Number(selectedReport.sodPettyCash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodPettyCash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                ) : (
+                                    <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodPettyCash))}</span>
+                                )}
+                            </div>
                             {/* New Fields */}
-                            <div><span className="block text-xs text-gray-600 mb-1">Add. Fund-in</span><span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.fundIn || 0))}</span></div>
-                            <div><span className="block text-xs text-gray-600 mb-1">Add. Cash (ATM)</span><span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.cashAtm || 0))}</span></div>
+                            <div>
+                                <span className="block text-xs text-gray-600 mb-1">Add. Fund-in</span>
+                                {isEditing ? (
+                                    <input type="number" value={(editReportData as any)?.fundIn ?? Number(selectedReport.fundIn || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), fundIn: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                ) : (
+                                    <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.fundIn || 0))}</span>
+                                )}
+                            </div>
+                            <div>
+                                <span className="block text-xs text-gray-600 mb-1">Add. Cash (ATM)</span>
+                                {isEditing ? (
+                                    <input type="number" value={(editReportData as any)?.cashAtm ?? Number(selectedReport.cashAtm || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), cashAtm: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                ) : (
+                                    <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.cashAtm || 0))}</span>
+                                )}
+                            </div>
 
                             <div className="col-span-2 md:col-span-5 text-right pt-2 border-t border-gray-200">
                                 <span className="text-sm text-gray-600 mr-2">Total Start Fund:</span>
@@ -380,9 +415,30 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                     <section>
                         <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 border-b pb-2">2. End of Day (Assets)</h4>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-blue-50 p-4 rounded-lg">
-                            <div><span className="block text-xs text-gray-600 mb-1">GPO End</span><span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.eodGpo))}</span></div>
-                            <div><span className="block text-xs text-gray-600 mb-1">GCash End</span><span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.eodGcash))}</span></div>
-                            <div><span className="block text-xs text-gray-600 mb-1">Actual Cash Count</span><span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.eodActualCash))}</span></div>
+                            <div>
+                                <span className="block text-xs text-gray-600 mb-1">GPO End</span>
+                                {isEditing ? (
+                                    <input type="number" value={(editReportData as any)?.eodGpo ?? Number(selectedReport.eodGpo || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), eodGpo: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                ) : (
+                                    <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.eodGpo))}</span>
+                                )}
+                            </div>
+                            <div>
+                                <span className="block text-xs text-gray-600 mb-1">GCash End</span>
+                                {isEditing ? (
+                                    <input type="number" value={(editReportData as any)?.eodGcash ?? Number(selectedReport.eodGcash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), eodGcash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                ) : (
+                                    <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.eodGcash))}</span>
+                                )}
+                            </div>
+                            <div>
+                                <span className="block text-xs text-gray-600 mb-1">Actual Cash Count</span>
+                                {isEditing ? (
+                                    <input type="number" value={(editReportData as any)?.eodActualCash ?? Number(selectedReport.eodActualCash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), eodActualCash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                ) : (
+                                    <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.eodActualCash))}</span>
+                                )}
+                            </div>
                             <div className="col-span-2 md:col-span-3 text-right pt-2 border-t border-blue-200">
                                 <span className="text-sm text-gray-600 mr-2">Total End Assets:</span>
                                 <span className="font-bold text-lg text-gray-900">{formatMoney(endAssets)}</span>

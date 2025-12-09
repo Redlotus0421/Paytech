@@ -26,6 +26,7 @@ export const Analytics: React.FC = () => {
           storageService.fetchStores(),
           storageService.fetchReports()
         ]);
+        console.log('Analytics: fetched reports count', (allReports || []).length);
         setStores(allStores);
         
         if (user && user.role === UserRole.EMPLOYEE && user.storeId) {

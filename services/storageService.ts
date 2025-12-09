@@ -98,6 +98,7 @@ export const storageService = {
   fetchReports: async (): Promise<ReportData[]> => {
     const { data, error } = await supabase.from('reports').select('*');
     if (error) { console.error('Error fetching reports:', error); return []; }
+    console.log('storageService.fetchReports returned', (data || []).length, 'rows');
     return (data || []).map((r: any) => ({
       id: r.id, storeId: r.store_id, userId: r.user_id, date: r.date, timestamp: r.timestamp,
       sodGpo: Number(r.sod_gpo), sodGcash: Number(r.sod_gcash), sodPettyCash: Number(r.sod_petty_cash),

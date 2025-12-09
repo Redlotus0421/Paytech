@@ -20,6 +20,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             const allStores = await storageService.fetchStores();
             setStores(allStores);
             const allReports = await storageService.fetchReports();
+        console.log('Dashboard: fetched reports count', (allReports || []).length);
             setReports(allReports);
         } catch (error) {
             console.error("Failed to load dashboard data:", error);

@@ -99,6 +99,9 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                   const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
                   const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
                   
+                  // Over/Negative: Difference between System Derived GCash and Notebook Record
+                  const overNegative = notebookGcash !== undefined ? (derivedGcashNet - notebookGcash) : 0;
+                  
                   const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
                   const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
                   const totalItemsNet = manualNet + posNet;
@@ -115,8 +118,8 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                   <td className="px-6 py-4 text-right">{formatMoney(posNet)}</td>
                   <td className="px-6 py-4 text-right">{formatMoney(manualNet)}</td>
                   <td className="px-6 py-4 text-right">{formatMoney(totalExpenses)}</td>
-                  <td className={`px-6 py-4 text-right font-bold ${report.discrepancy < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {report.discrepancy < 0 ? '' : (report.discrepancy > 0 ? '+' : '')}{formatMoney(report.discrepancy)}
+                  <td className={`px-6 py-4 text-right font-bold ${overNegative < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {overNegative < 0 ? '' : (overNegative > 0 ? '+' : '')}{formatMoney(overNegative)}
                   </td>
                   <td className="px-6 py-4 text-right font-bold text-green-700">{formatMoney(finalEodNet)}</td>
                   <td className="px-6 py-4 text-center">

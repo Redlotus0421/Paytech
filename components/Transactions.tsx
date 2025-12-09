@@ -11,7 +11,8 @@ interface TransactionsProps {
 export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
   const [transactions, setTransactions] = useState<any[]>([]); // Using any for status ext
   const [stores, setStores] = useState<Store[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
+    const [users, setUsers] = useState<any[]>([]);
   
   // Filters
   const [filterStoreId, setFilterStoreId] = useState('');
@@ -28,11 +29,13 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-        const [allStores, allTxs] = await Promise.all([
+        const [allStores, allTxs, allUsers] = await Promise.all([
             storageService.fetchStores(),
-            storageService.fetchTransactions()
+            storageService.fetchTransactions(),
+            storageService.fetchUsers()
         ]);
         setStores(allStores);
+        setUsers(allUsers || []);
         
         // Initial filter setup: Only set default filter if user is an employee
         if (user.role === UserRole.EMPLOYEE && user.storeId) {
@@ -132,7 +135,13 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
   });
 
   const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || 'Unknown Store';
-  const formatMoney = (amount: number) => `₱${amount.toFixed(2)}`;
+    const getUserName = (id?: string | null) => {
+        if (!id) return null;
+        const u = users.find((x: any) => x.id === id);
+        return u ? (u.name || u.username || id) : id;
+    };
+
+    const formatMoney = (amount: number) => `₱${amount.toFixed(2)}`;
 
     return (
         <div className="space-y-6 min-h-0 w-full min-w-0">
@@ -229,9 +238,13 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                 </td>
                                 <td className="px-6 py-4 text-center">
                                     {tx.status === 'VOIDED' ? (
-                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
-                                            <AlertTriangle size={12}/> VOIDED
-                                        </span>
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                              <AlertTriangle size={12}/> VOIDED
+                                          </span>
+                                                                                    {tx.voidNote && <div className="text-xs text-gray-500">Note: {tx.voidNote}</div>}
+                                                                                    {tx.voidedBy && <div className="text-xs text-gray-500">By: {getUserName(tx.voidedBy)}</div>}
+                                        </div>
                                     ) : tx.reportId ? (
                                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
                                             <CheckCircle size={12}/> REPORTED
@@ -291,6 +304,14 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                     <div className="text-sm text-gray-400">No items available</div>
                                 )}
                             </div>
+                            {selectedReceipt.status === 'VOIDED' && (
+                                <div className="mt-3 text-xs text-red-600">
+                                    <div className="font-semibold">VOIDED</div>
+                                    {selectedReceipt.voidNote && <div>Note: {selectedReceipt.voidNote}</div>}
+                                    {selectedReceipt.voidedBy && <div>Voided by: {getUserName(selectedReceipt.voidedBy)}</div>}
+                                    {selectedReceipt.voidedAt && <div>At: {new Date(selectedReceipt.voidedAt).toLocaleString()}</div>}
+                                </div>
+                            )}
                         </div>
                         <div className="flex justify-end">
                             <div className="text-right">

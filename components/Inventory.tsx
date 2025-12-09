@@ -20,9 +20,11 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemStock, setNewItemStock] = useState('');
   const [newItemStoreId, setNewItemStoreId] = useState('');
+    const [newItemCategory, setNewItemCategory] = useState('');
 
   // Filtering
   const [filterStoreId, setFilterStoreId] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -60,7 +62,8 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             name: newItemName,
             cost: parseFloat(newItemCost),
             price: parseFloat(newItemPrice),
-            stock: parseInt(newItemStock)
+            stock: parseInt(newItemStock),
+            category: newItemCategory
         };
         result = await storageService.updateInventoryItem(updatedItem);
     } else {
@@ -70,14 +73,16 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             name: newItemName,
             cost: parseFloat(newItemCost),
             price: parseFloat(newItemPrice),
-            stock: parseInt(newItemStock)
+            stock: parseInt(newItemStock),
+            category: newItemCategory
         };
         result = await storageService.addInventoryItem(item);
     }
 
     if (!result.success) {
-        const msg = result.error?.message || JSON.stringify(result.error) || "Unknown error";
-        alert(`Failed to save item: ${msg}`);
+        const errorMsg = result.error?.message || result.error?.details || JSON.stringify(result.error) || "Unknown error";
+        console.error('❌ Save failed:', result.error);
+        alert(`Failed to save item:\n${errorMsg}`);
     } else {
         await refreshInventory();
         handleCancelEdit();
@@ -92,6 +97,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
       setNewItemPrice(item.price.toString());
       setNewItemStock(item.stock.toString());
       setNewItemStoreId(item.storeId);
+      setNewItemCategory(item.category || '');
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -101,14 +107,18 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
       setNewItemCost('');
       setNewItemPrice('');
       setNewItemStock('');
+      setNewItemCategory('');
       if (user.role === UserRole.ADMIN && stores.length > 0) {
           setNewItemStoreId(stores[0].id);
       }
   };
 
   const filteredItems = items.filter(i => 
-      (!filterStoreId || i.storeId === filterStoreId)
+      (!filterStoreId || i.storeId === filterStoreId) &&
+      (!filterCategory || i.category === filterCategory)
   );
+
+  const uniqueCategories = Array.from(new Set(items.map(item => item.category).filter(Boolean))) as string[];
 
     return (
         <div className="space-y-6 min-h-0 w-full min-w-0">
@@ -136,7 +146,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             
             <form onSubmit={handleSaveItem} className={`p-4 rounded border ${editingItem ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
                 <h4 className="text-sm font-medium text-gray-700 mb-3">{editingItem ? 'Update Item Details' : 'Add New Item'}</h4>
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
                     <div className="md:col-span-2">
                         <label className="text-xs text-gray-500 block mb-1">Item Name</label>
                         <input 
@@ -157,6 +167,16 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                         >
                             {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
+                    </div>
+                    <div className="md:col-span-1">
+                        <label className="text-xs text-gray-500 block mb-1">Category</label>
+                        <input
+                            required
+                            value={newItemCategory}
+                            onChange={e => setNewItemCategory(e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                            placeholder="Category"
+                        />
                     </div>
                     <div>
                         <label className="text-xs text-gray-500 block mb-1">Cost</label>
@@ -203,18 +223,25 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         {/* Inventory List */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
              {/* Filter Bar */}
-            {user.role === UserRole.ADMIN && (
-                <div className="p-4 border-b border-gray-100 flex items-center gap-4">
-                    <span className="text-sm text-gray-500">View Store:</span>
-                    <select 
-                        value={filterStoreId}
-                        onChange={e => setFilterStoreId(e.target.value)}
-                        className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
-                    >
-                        {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                </div>
-            )}
+            <div className="p-4 border-b border-gray-100 flex items-center gap-4">
+                <span className="text-sm text-gray-500">View Store:</span>
+                <select 
+                    value={filterStoreId}
+                    onChange={e => setFilterStoreId(e.target.value)}
+                    className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                >
+                    {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <span className="text-sm text-gray-500">Category:</span>
+                <select 
+                    value={filterCategory}
+                    onChange={e => setFilterCategory(e.target.value)}
+                    className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                >
+                    <option value="">All Categories</option>
+                    {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+            </div>
 
             <div className="overflow-x-auto min-w-0">
                 <table className="w-full min-w-full text-sm text-left">
@@ -222,6 +249,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                         <tr>
                             <th className="px-6 py-4">Item</th>
                             <th className="px-6 py-4">Store</th>
+                            <th className="px-6 py-4">Category</th>
                             <th className="px-6 py-4">Cost</th>
                             <th className="px-6 py-4">Price</th>
                             <th className="px-6 py-4">Margin</th>
@@ -231,7 +259,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {isLoading && filteredItems.length === 0 ? (
-                            <tr><td colSpan={7} className="p-8 text-center text-gray-500">Loading inventory...</td></tr>
+                            <tr><td colSpan={8} className="p-8 text-center text-gray-500">Loading inventory...</td></tr>
                         ) : (
                             filteredItems.map(item => (
                                 <tr key={item.id} className={`hover:bg-gray-50 text-gray-900 ${editingItem?.id === item.id ? 'bg-blue-50' : ''}`}>
@@ -239,6 +267,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                                     <td className="px-6 py-4 text-gray-500">
                                         {stores.find(s => s.id === item.storeId)?.name}
                                     </td>
+                                    <td className="px-6 py-4 text-gray-500">{item.category || '-'}</td>
                                     <td className="px-6 py-4 text-gray-500">₱{item.cost.toFixed(2)}</td>
                                     <td className="px-6 py-4 font-semibold">₱{item.price.toFixed(2)}</td>
                                     <td className="px-6 py-4 text-green-600">₱{(item.price - item.cost).toFixed(2)}</td>
@@ -259,7 +288,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                             ))
                         )}
                         {!isLoading && filteredItems.length === 0 && (
-                            <tr><td colSpan={7} className="p-8 text-center text-gray-400">No items found for this store.</td></tr>
+                            <tr><td colSpan={8} className="p-8 text-center text-gray-400">No items found for this store.</td></tr>
                         )}
                     </tbody>
                 </table>

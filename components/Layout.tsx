@@ -154,12 +154,11 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-8 bg-gray-50 min-h-0">
-          <div className="w-full max-w-[1400px] mx-auto min-h-0">
-            <div className="flex flex-col gap-6 min-h-0">
-              {children}
-            </div>
+        {/* Main Content Area */}
+        <main className="flex-1 flex flex-col bg-gray-50 min-w-0">
+          {/* Content of the current view */}
+          <div className="flex-1 p-4 sm:p-6 overflow-auto custom-scrollbar">
+            {children}
           </div>
         </main>
       </div>

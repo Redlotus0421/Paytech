@@ -155,18 +155,65 @@ export const storageService = {
     }));
   },
   addInventoryItem: async (item: InventoryItem): Promise<{ success: boolean; error?: any }> => {
-    const { error } = await supabase.from('inventory').insert([{
-        id: item.id, store_id: item.storeId, name: item.name, cost: item.cost, price: item.price, stock: item.stock, category: item.category || ''
-    }]);
-    if (error) { console.error('Error adding item:', error); return { success: false, error }; }
-    return { success: true };
+    try {
+      console.log('📝 Adding inventory item:', item);
+      
+      // Verify store exists
+      const { data: storeExists, error: storeError } = await supabase.from('stores').select('id').eq('id', item.storeId).single();
+      if (storeError || !storeExists) {
+        console.error('❌ Store not found:', item.storeId);
+        return { success: false, error: { message: `Store ${item.storeId} does not exist` } };
+      }
+      
+      const insertPayload = {
+        id: item.id,
+        store_id: item.storeId,
+        name: item.name,
+        cost: item.cost,
+        price: item.price,
+        stock: item.stock,
+        category: item.category && item.category.trim() ? item.category : null
+      };
+      console.log('📤 Insert payload:', insertPayload);
+      const { error } = await supabase.from('inventory').insert([insertPayload]);
+      if (error) {
+        console.error('❌ Error adding item:', error.message, error.details, error.code);
+        const details = error.details ? ` (${error.details})` : '';
+        const msg = error.code === 'PGRST116' ? 'Permission denied. RLS policy blocks insert.' : error.message;
+        return { success: false, error: { message: msg + details } };
+      }
+      console.log('✅ Item added successfully');
+      return { success: true };
+    } catch (e: any) {
+      console.error('❌ Unexpected error adding item:', e.message);
+      return { success: false, error: { message: e.message } };
+    }
   },
   updateInventoryItem: async (item: InventoryItem): Promise<{ success: boolean; error?: any }> => {
-    const { error } = await supabase.from('inventory').update({
-        store_id: item.storeId, name: item.name, cost: item.cost, price: item.price, stock: item.stock, category: item.category || ''
-    }).eq('id', item.id);
-    if (error) { console.error('Error updating item:', error); return { success: false, error }; }
-    return { success: true };
+    try {
+      console.log('✏️ Updating inventory item:', item);
+      const updatePayload = {
+        store_id: item.storeId,
+        name: item.name,
+        cost: item.cost,
+        price: item.price,
+        stock: item.stock,
+        category: item.category && item.category.trim() ? item.category : null
+      };
+      console.log('📤 Update payload:', updatePayload);
+      const { error } = await supabase.from('inventory').update(updatePayload).eq('id', item.id);
+      if (error) {
+        console.error('❌ Error updating item:', error.message, error.details, error.code);
+        const details = error.details ? ` (${error.details})` : '';
+        const msg = error.code === 'PGRST116' ? 'Permission denied. RLS policy blocks update.' : error.message;
+        return { success: false, error: { message: msg + details } };
+      }
+      console.log('✅ Item updated successfully');
+      return { success: true };
+    } catch (e: any) {
+      console.error('❌ Unexpected error updating item:', e.message);
+      return { success: false, error: { message: e.message } };
+    }
   },
   updateInventoryStock: async (itemId: string, quantityChange: number) => {
     const { data: current } = await supabase.from('inventory').select('stock').eq('id', itemId).single();
@@ -201,12 +248,16 @@ export const storageService = {
           console.error("Error details:", error.message, error.code, error.details);
           return []; 
       }
-      console.log("✅ Successfully fetched transactions:", data);
-      return (data || []).map((t: any) => ({
+        console.log("✅ Successfully fetched transactions:", data);
+        return (data || []).map((t: any) => ({
           id: t.id, storeId: t.store_id, date: t.date, timestamp: t.timestamp, items: t.items || [],
           totalAmount: Number(t.total_amount), paymentAmount: Number(t.payment_amount), cashierName: t.cashier_name,
-          reportId: t.report_id, status: t.status || 'COMPLETED'
-      }));
+          reportId: t.report_id, status: t.status || 'COMPLETED',
+          // Audit/void metadata (may be null)
+          voidedBy: t.voided_by || null,
+          voidNote: t.void_note || null,
+          voidedAt: t.voided_at || null
+        }));
   },
   getPosTransactions: async (storeId: string, date: string): Promise<PosTransaction[]> => {
       const { data, error } = await supabase.from('transactions')
@@ -219,16 +270,33 @@ export const storageService = {
   },
   markPosTransactionsAsReported: async (storeId: string, date: string, reportId: string) => {},
     voidTransaction: async (transactionId: string, voidedById?: string | null, note?: string | null) => {
-      const { data: tx, error: fetchError } = await supabase.from('transactions').select('*').eq('id', transactionId).single();
-      if (fetchError || !tx) throw new Error("Transaction not found");
-      if (tx.status === 'VOIDED') throw new Error("Transaction already voided");
-      const updatePayload: any = { status: 'VOIDED', voided_at: new Date().toISOString() };
-      if (voidedById) updatePayload.voided_by = voidedById;
-      if (note) updatePayload.void_note = note;
-      const { error: updateError } = await supabase.from('transactions').update(updatePayload).eq('id', transactionId);
-      if (updateError) throw updateError;
-      const items = tx.items as any[];
-      for (const item of items) { await storageService.updateInventoryStock(item.id, item.quantity); }
+        const { data: tx, error: fetchError } = await supabase.from('transactions').select('*').eq('id', transactionId).single();
+        if (fetchError || !tx) throw new Error("Transaction not found");
+        if (tx.status === 'VOIDED') throw new Error("Transaction already voided");
+
+        // Try to update with audit fields. If the DB schema doesn't have those columns
+        // (common when schema differs), fall back to a minimal update so voiding still works.
+        const basePayload: any = { status: 'VOIDED' };
+        const auditPayload: any = { ...basePayload, voided_at: new Date().toISOString() };
+        if (voidedById) auditPayload.voided_by = voidedById;
+        if (note) auditPayload.void_note = note;
+
+        // First attempt: update including audit columns
+        let updateError: any = null;
+        try {
+          const res = await supabase.from('transactions').update(auditPayload).eq('id', transactionId);
+          updateError = (res as any).error;
+          if (updateError) throw updateError;
+        } catch (err: any) {
+          console.warn('voidTransaction: audit update failed, retrying minimal update', err?.message || err);
+          // Retry with minimal payload (status only)
+          const { error: minimalErr } = await supabase.from('transactions').update(basePayload).eq('id', transactionId);
+          if (minimalErr) throw minimalErr;
+        }
+
+        // Restore inventory stock for each item in the transaction
+        const items = tx.items as any[];
+        for (const item of items) { await storageService.updateInventoryStock(item.id, item.quantity); }
     },
   resetSystem: async (currentAdminId: string) => {
     await supabase.from('reports').delete().neq('id', '00000000-0000-0000-0000-000000000000'); 

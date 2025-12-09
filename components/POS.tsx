@@ -152,7 +152,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6">
+    <div className="flex flex-col md:flex-row gap-6 h-full w-full min-w-0">
        {/* Left: Item Grid */}
     <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden min-h-0">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">

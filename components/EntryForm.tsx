@@ -339,8 +339,9 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
         </div>
 
         {/* --- TAB 2: END OF DAY --- */}
-        <div className={activeTab === 'eod' ? 'block' : 'hidden'}>
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div className={activeTab === 'eod' ? 'flex flex-col' : 'hidden'} style={{ height: 'calc(100vh - 128px)' }}>
+            <div className="flex-1 overflow-y-auto pr-4 space-y-6">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">End of Day (Assets)</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <InputRow label="GPO End" value={eodGpo} setter={setEodGpo} prefix="₱" />
@@ -378,13 +379,14 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
              </div>
 
             {/* Expenses now here in EOD, removed from SOD */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-32">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Expenses & Fees</h2>
                 <ExpensesInputSection bankFees={bankFees} setBankFees={setBankFees} opExpenses={opExpenses} setOpExpenses={setOpExpenses} opExpensesNote={opExpensesNote} setOpExpensesNote={setOpExpensesNote}/>
             </div>
+            </div>
 
             {/* Sticky Footer */}
-            <div className="fixed bottom-0 left-0 md:left-64 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-30">
+            <div className="border-t border-gray-200 bg-white p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                  <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                          <div className="bg-gray-50 p-2 rounded border border-gray-100"><div className="text-gray-900 text-xs font-bold uppercase">TOTAL EOD SALES</div><div className="text-gray-900 font-bold">₱{calculations.actualCashSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div></div>

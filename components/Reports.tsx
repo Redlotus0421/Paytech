@@ -357,7 +357,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                 </div>
                 </div>
 
-                <div className="p-6 overflow-y-auto space-y-8">
+                <div className="p-6 overflow-y-auto space-y-8 flex-1 min-h-0">
                     {/* 1. Start of Day */}
                     <section>
                         <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 border-b pb-2">1. Start of Day (SOD)</h4>

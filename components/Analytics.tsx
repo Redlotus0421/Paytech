@@ -67,6 +67,17 @@ export const Analytics: React.FC = () => {
       .sort((a, b) => a.timestamp - b.timestamp);
   }, [reports, selectedStore, currentUser, selectedMonth]);
 
+  // Debug: log storeReports and chartData to help diagnose missing chart
+  useEffect(() => {
+    try {
+      console.log('Analytics: storeReports count', storeReports.length);
+      const data = chartData;
+      console.log('Analytics: chartData sample', data.slice(0, 10));
+    } catch (e) {
+      console.error('Analytics debug failed', e);
+    }
+  }, [storeReports, chartData]);
+
   const stats = useMemo(() => {
     // Use the filtered storeReports directly for stats
     const totalProfit = storeReports.reduce((acc, r) => acc + r.recordedProfit, 0);

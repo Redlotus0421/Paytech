@@ -55,6 +55,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }));
   }, [filteredReports]);
 
+  useEffect(() => {
+    try {
+      console.log('Dashboard: filteredReports count', filteredReports.length);
+      console.log('Dashboard: chartData sample', chartData.slice(0, 10));
+    } catch (e) { console.error('Dashboard debug failed', e); }
+  }, [filteredReports, chartData]);
+
   const StatCard = ({ label, value, color, icon: Icon }: any) => (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 h-full flex flex-col justify-between">
       <div className="flex justify-between items-start">

@@ -100,19 +100,19 @@ export const storageService = {
     if (error) { console.error('Error fetching reports:', error); return []; }
     console.log('storageService.fetchReports returned', (data || []).length, 'rows');
     return (data || []).map((r: any) => ({
-      id: r.id, storeId: r.store_id, userId: r.user_id, date: r.date, timestamp: r.timestamp,
-      sodGpo: Number(r.sod_gpo), sodGcash: Number(r.sod_gcash), sodPettyCash: Number(r.sod_petty_cash),
+      id: r.id, storeId: r.store_id, userId: r.user_id, date: r.date, timestamp: r.timestamp || Date.parse(r.date),
+      sodGpo: Number(r.sod_gpo || 0), sodGcash: Number(r.sod_gcash || 0), sodPettyCash: Number(r.sod_petty_cash || 0),
       // Mapped fundIn/cashAtm (handle older records by defaulting to 0)
       fundIns: 0, // Deprecated
       fundIn: Number(r.fund_in || 0),
       cashAtm: Number(r.cash_atm || 0),
       customSales: r.custom_sales || [], posSalesDetails: r.pos_sales_details || [],
-      bankTransferFees: Number(r.bank_transfer_fees), operationalExpenses: Number(r.operational_expenses), operationalExpensesNote: r.operational_expenses_note,
-      eodGpo: Number(r.eod_gpo), eodGcash: Number(r.eod_gcash), eodActualCash: Number(r.eod_actual_cash),
-      gcashNotebook: r.gcash_notebook !== null ? Number(r.gcash_notebook) : undefined,
-      totalStartFund: Number(r.total_start_fund), totalEndAssets: Number(r.total_end_assets), totalNetSales: Number(r.total_net_sales),
-      totalExpenses: Number(r.total_expenses), theoreticalGrowth: Number(r.theoretical_growth), recordedProfit: Number(r.recorded_profit),
-      discrepancy: Number(r.discrepancy), status: r.status, notes: r.notes
+      bankTransferFees: Number(r.bank_transfer_fees || 0), operationalExpenses: Number(r.operational_expenses || 0), operationalExpensesNote: r.operational_expenses_note,
+      eodGpo: Number(r.eod_gpo || 0), eodGcash: Number(r.eod_gcash || 0), eodActualCash: Number(r.eod_actual_cash || 0),
+      gcashNotebook: r.gcash_notebook !== null && r.gcash_notebook !== undefined ? Number(r.gcash_notebook) : undefined,
+      totalStartFund: Number(r.total_start_fund || 0), totalEndAssets: Number(r.total_end_assets || 0), totalNetSales: Number(r.total_net_sales || 0),
+      totalExpenses: Number(r.total_expenses || 0), theoreticalGrowth: Number(r.theoretical_growth || 0), recordedProfit: Number(r.recorded_profit || 0),
+      discrepancy: Number(r.discrepancy || 0), status: r.status, notes: r.notes
     }));
   },
   saveReport: async (report: ReportData) => {

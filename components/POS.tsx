@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Store, InventoryItem, CartItem, UserRole, PosTransaction } from '../types';
 import { storageService } from '../services/storageService';
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Loader2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Loader2, Edit2, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface POSProps {
@@ -19,6 +19,8 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
+    const [editingPrice, setEditingPrice] = useState<string>('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -83,6 +85,14 @@ export const POS: React.FC<POSProps> = ({ user }) => {
 
   const removeFromCart = (itemId: string) => {
       setCart(prev => prev.filter(c => c.id !== itemId));
+  };
+
+  const updatePrice = (itemId: string, newPrice: number) => {
+      setCart(prev => prev.map(c => 
+          c.id === itemId ? { ...c, price: newPrice } : c
+      ));
+      setEditingPriceId(null);
+      setEditingPrice('');
   };
 
   const cartTotal = useMemo(() => {
@@ -245,7 +255,55 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                         <div key={item.id} className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-100">
                             <div className="flex-1 min-w-0 pr-2">
                                 <div className="font-medium text-gray-900 truncate">{item.name}</div>
-                                <div className="text-xs text-gray-500">₱{item.price.toFixed(2)} each</div>
+                                <div className="text-xs text-gray-500">
+                                    {editingPriceId === item.id ? (
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <span className="text-gray-600">₱</span>
+                                            <input 
+                                                type="number"
+                                                value={editingPrice}
+                                                onChange={e => setEditingPrice(e.target.value)}
+                                                placeholder={item.price.toFixed(2)}
+                                                autoFocus
+                                                className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
+                                            />
+                                            <button 
+                                                onClick={() => {
+                                                    const newPrice = parseFloat(editingPrice);
+                                                    if (!isNaN(newPrice) && newPrice > 0) {
+                                                        updatePrice(item.id, newPrice);
+                                                    }
+                                                }}
+                                                className="text-green-600 hover:text-green-800 text-xs font-bold"
+                                            >
+                                                ✓
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    setEditingPriceId(null);
+                                                    setEditingPrice('');
+                                                }}
+                                                className="text-red-400 hover:text-red-600"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1">
+                                            <span>₱{item.price.toFixed(2)} each</span>
+                                            <button 
+                                                onClick={() => {
+                                                    setEditingPriceId(item.id);
+                                                    setEditingPrice(item.price.toString());
+                                                }}
+                                                className="text-blue-500 hover:text-blue-700 ml-1"
+                                                title="Adjust price"
+                                            >
+                                                <Edit2 size={12} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1 bg-white rounded border border-gray-200">

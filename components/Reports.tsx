@@ -308,8 +308,23 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
 
       {/* DETAILED BREAKDOWN MODAL */}
       {selectedReport && (() => {
-          const startFund = Number(selectedReport.totalStartFund);
-          const endAssets = Number(selectedReport.totalEndAssets);
+          // Use edited data if in editing mode, otherwise use original report data
+          const reportData = isEditing && editReportData ? editReportData : selectedReport;
+          
+          const startFund = Number((isEditing && editReportData) ? 
+            ((Number((editReportData as any).sodGpo || selectedReport.sodGpo || 0) + 
+              Number((editReportData as any).sodGcash || selectedReport.sodGcash || 0) + 
+              Number((editReportData as any).sodPettyCash || selectedReport.sodPettyCash || 0) +
+              Number((editReportData as any).fundIn || selectedReport.fundIn || 0) +
+              Number((editReportData as any).cashAtm || selectedReport.cashAtm || 0))) 
+            : selectedReport.totalStartFund);
+          
+          const endAssets = Number((isEditing && editReportData) ?
+            ((Number((editReportData as any).eodGpo || selectedReport.eodGpo || 0) + 
+              Number((editReportData as any).eodGcash || selectedReport.eodGcash || 0) + 
+              Number((editReportData as any).eodActualCash || selectedReport.eodActualCash || 0)))
+            : selectedReport.totalEndAssets);
+          
           const growth = endAssets - startFund;
           
           let legacyManualRevenue = 0;

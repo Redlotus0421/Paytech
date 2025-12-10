@@ -191,7 +191,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                         <button onClick={loadData} className="text-sm text-blue-600 border border-blue-100 px-3 py-1 rounded">Refresh</button>
                     </div>
                 </div>
-                <div className="overflow-x-auto min-w-0">
+                <div className="overflow-x-auto overflow-y-auto min-w-0 max-h-[70vh]">
                     {/** compute filteredReports */}
                     {(() => {
                         const start = startDate ? new Date(startDate) : null;
@@ -368,7 +368,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                             <div>
                                 <span className="block text-xs text-gray-600 mb-1">GPO Start</span>
                                 {isEditing ? (
-                                    <input type="number" value={(editReportData as any)?.sodGpo ?? Number(selectedReport.sodGpo || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodGpo: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                    <input type="number" value={(editReportData as any)?.sodGpo ?? Number(selectedReport.sodGpo || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodGpo: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900 border border-gray-300 rounded px-2 py-1" />
                                 ) : (
                                     <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodGpo))}</span>
                                 )}
@@ -376,7 +376,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                             <div>
                                 <span className="block text-xs text-gray-600 mb-1">GCash Start</span>
                                 {isEditing ? (
-                                    <input type="number" value={(editReportData as any)?.sodGcash ?? Number(selectedReport.sodGcash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodGcash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                    <input type="number" value={(editReportData as any)?.sodGcash ?? Number(selectedReport.sodGcash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodGcash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900 border border-gray-300 rounded px-2 py-1" />
                                 ) : (
                                     <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodGcash))}</span>
                                 )}
@@ -384,7 +384,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                             <div>
                                 <span className="block text-xs text-gray-600 mb-1">Petty Cash</span>
                                 {isEditing ? (
-                                    <input type="number" value={(editReportData as any)?.sodPettyCash ?? Number(selectedReport.sodPettyCash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodPettyCash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                    <input type="number" value={(editReportData as any)?.sodPettyCash ?? Number(selectedReport.sodPettyCash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodPettyCash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900 border border-gray-300 rounded px-2 py-1" />
                                 ) : (
                                     <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodPettyCash))}</span>
                                 )}
@@ -393,7 +393,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                             <div>
                                 <span className="block text-xs text-gray-600 mb-1">Add. Fund-in</span>
                                 {isEditing ? (
-                                    <input type="number" value={(editReportData as any)?.fundIn ?? Number(selectedReport.fundIn || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), fundIn: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                    <input type="number" value={(editReportData as any)?.fundIn ?? Number(selectedReport.fundIn || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), fundIn: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900 border border-gray-300 rounded px-2 py-1" />
                                 ) : (
                                     <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.fundIn || 0))}</span>
                                 )}
@@ -401,7 +401,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                             <div>
                                 <span className="block text-xs text-gray-600 mb-1">Add. Cash (ATM)</span>
                                 {isEditing ? (
-                                    <input type="number" value={(editReportData as any)?.cashAtm ?? Number(selectedReport.cashAtm || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), cashAtm: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                    <input type="number" value={(editReportData as any)?.cashAtm ?? Number(selectedReport.cashAtm || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), cashAtm: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900 border border-gray-300 rounded px-2 py-1" />
                                 ) : (
                                     <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.cashAtm || 0))}</span>
                                 )}
@@ -421,7 +421,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                             <div>
                                 <span className="block text-xs text-gray-600 mb-1">GPO End</span>
                                 {isEditing ? (
-                                    <input type="number" value={(editReportData as any)?.eodGpo ?? Number(selectedReport.eodGpo || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), eodGpo: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                    <input type="number" value={(editReportData as any)?.eodGpo ?? Number(selectedReport.eodGpo || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), eodGpo: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900 border border-gray-300 rounded px-2 py-1" />
                                 ) : (
                                     <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.eodGpo))}</span>
                                 )}
@@ -429,7 +429,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                             <div>
                                 <span className="block text-xs text-gray-600 mb-1">GCash End</span>
                                 {isEditing ? (
-                                    <input type="number" value={(editReportData as any)?.eodGcash ?? Number(selectedReport.eodGcash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), eodGcash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                    <input type="number" value={(editReportData as any)?.eodGcash ?? Number(selectedReport.eodGcash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), eodGcash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900 border border-gray-300 rounded px-2 py-1" />
                                 ) : (
                                     <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.eodGcash))}</span>
                                 )}
@@ -437,7 +437,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                             <div>
                                 <span className="block text-xs text-gray-600 mb-1">Actual Cash Count</span>
                                 {isEditing ? (
-                                    <input type="number" value={(editReportData as any)?.eodActualCash ?? Number(selectedReport.eodActualCash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), eodActualCash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900" />
+                                    <input type="number" value={(editReportData as any)?.eodActualCash ?? Number(selectedReport.eodActualCash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), eodActualCash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900 border border-gray-300 rounded px-2 py-1" />
                                 ) : (
                                     <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.eodActualCash))}</span>
                                 )}
@@ -471,7 +471,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                                                 <td className="p-2 pl-3 text-purple-900 font-bold">GCash Net <span className="text-xs font-normal text-purple-600">(Notebook)</span></td>
                                                 <td className="p-2 pr-3 text-right font-mono font-bold text-purple-900">
                                                     {isEditing ? (
-                                                        <input type="number" value={(editReportData as any)?.gcashNotebook ?? notebookGcash} onChange={e => setEditReportData(prev => ({ ...(prev||{}), gcashNotebook: Number(e.target.value) }))} className="w-28 text-right" />
+                                                        <input type="number" value={(editReportData as any)?.gcashNotebook ?? notebookGcash} onChange={e => setEditReportData(prev => ({ ...(prev||{}), gcashNotebook: Number(e.target.value) }))} className="w-28 text-right border border-gray-300 rounded px-2 py-1" />
                                                     ) : (
                                                         formatMoney(notebookGcash)
                                                     )}
@@ -550,7 +550,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                                             <td className="p-2 pl-3 text-gray-700">Bank Transfer Fees</td>
                                             <td className="p-2 pr-3 text-right font-mono text-gray-900">
                                                 {isEditing ? (
-                                                    <input type="number" value={(editReportData as any)?.bankTransferFees ?? selectedReport.bankTransferFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), bankTransferFees: Number(e.target.value) }))} className="w-24 text-right" />
+                                                    <input type="number" value={(editReportData as any)?.bankTransferFees ?? selectedReport.bankTransferFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), bankTransferFees: Number(e.target.value) }))} className="w-24 text-right border border-gray-300 rounded px-2 py-1" />
                                                 ) : (
                                                     formatMoney(Number(selectedReport.bankTransferFees) || 0)
                                                 )}
@@ -567,7 +567,7 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                                             </td>
                                             <td className="p-2 pr-3 text-right font-mono text-gray-900">
                                                 {isEditing ? (
-                                                    <input type="number" value={(editReportData as any)?.operationalExpenses ?? selectedReport.operationalExpenses ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), operationalExpenses: Number(e.target.value) }))} className="w-24 text-right" />
+                                                    <input type="number" value={(editReportData as any)?.operationalExpenses ?? selectedReport.operationalExpenses ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), operationalExpenses: Number(e.target.value) }))} className="w-24 text-right border border-gray-300 rounded px-2 py-1" />
                                                 ) : (
                                                     formatMoney(Number(selectedReport.operationalExpenses) || 0)
                                                 )}

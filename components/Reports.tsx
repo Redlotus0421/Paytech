@@ -125,8 +125,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         </div>
     );
 };
-                </div>
-            )}
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
                 <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">

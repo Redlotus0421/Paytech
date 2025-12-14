@@ -125,19 +125,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         </div>
     );
 };
-                                <label className="block text-xs text-gray-600">Username</label>
-                                <input value={adminUsername} onChange={e => setAdminUsername(e.target.value)} className="w-full border rounded px-3 py-2" />
-                            </div>
-                            <div>
-                                <label className="block text-xs text-gray-600">Password</label>
-                                <input type="password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} className="w-full border rounded px-3 py-2" />
-                            </div>
-                        </div>
-                        <div className="mt-4 flex justify-end gap-2">
-                            <button onClick={() => setShowAdminAuth(false)} className="px-3 py-1 bg-gray-100 rounded">Cancel</button>
-                            <button onClick={confirmAdminAuth} disabled={isAuthenticating} className="px-3 py-1 bg-blue-600 text-white rounded">{isAuthenticating ? 'Checking...' : 'Confirm'}</button>
-                        </div>
-                    </div>
                 </div>
             )}
 

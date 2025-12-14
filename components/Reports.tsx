@@ -125,39 +125,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         </div>
     );
 };
-                        filteredReports.forEach(report => {
-                            const startFund = Number(report.totalStartFund || 0);
-                            const endAssets = Number(report.totalEndAssets || 0);
-                            const growth = endAssets - startFund;
-                            let legacyManualRevenue = 0;
-                            if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
-                            if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
-                            if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
-                            if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
-                            const manualRevenue = (report.customSales || []).reduce((a, b) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
-                            const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
-                            const totalSalesRevenue = manualRevenue + posRevenue;
-                            const derivedGcashNet = growth - totalSalesRevenue;
-                            const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
-                            const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
-                            const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
-                            const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
-                            const totalItemsNet = manualNet + posNet;
-                            const totalExp = Number(report.bankTransferFees || 0) + Number(report.operationalExpenses || 0);
-                            const grossSalesIncome = usedGcashNet + totalItemsNet;
-                            const finalEodNet = grossSalesIncome - totalExp;
-                            const overNegative = notebookGcash !== undefined ? (derivedGcashNet - notebookGcash) : 0;
-                            totalGcash += usedGcashNet;
-                            totalToys += posNet;
-                            totalPrinters += manualNet;
-                            totalExpenses += totalExp;
-                            totalOverNeg += overNegative;
-                            totalEodNet += finalEodNet;
-                        });
-                        return (
-                            <div className="w-full flex flex-row justify-end gap-2">
-                                <div className="flex flex-col items-end text-xs font-bold text-gray-500">
-                                    <span className="mb-1">TOTALS</span>
                                     <span className="text-right text-gray-900 whitespace-nowrap">GCash EOD</span>
                                     <span className="text-right text-gray-900 whitespace-nowrap">Toys Net EOD</span>
                                     <span className="text-right text-gray-900 whitespace-nowrap">Printers EOD</span>
@@ -182,7 +149,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             </div>
         );
     })()}
-}
                         <div className="space-y-3">
                             <div>
                                 <label className="block text-xs text-gray-600">Username</label>

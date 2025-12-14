@@ -657,8 +657,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     </button>
                 </div>
             </div>
-        );
-        })()}
-    </div>
- );
-}
+        </div>
+    );
+};

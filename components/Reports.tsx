@@ -117,18 +117,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         return true;
     }).sort((a,b)=> b.timestamp - a.timestamp);
 
-    // Apply UI filters to reports
-    const filteredReports = reports.filter(r => {
-        if (filterStoreId && r.storeId !== filterStoreId) return false;
-        if (monthFilter) {
-            const m = new Date(r.date).getMonth() + 1;
-            if (m !== Number(monthFilter)) return false;
-        }
-        if (startDate && new Date(r.date) < new Date(startDate)) return false;
-        if (endDate && new Date(r.date) > new Date(endDate)) return false;
-        return true;
-    }).sort((a,b)=> b.timestamp - a.timestamp);
-
     return (
         <div className="space-y-6 min-h-0 w-full min-w-0">
             <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
@@ -143,7 +131,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             {/* Sticky Totals Card */}
             <div className="sticky bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.04)] px-8 py-4 flex justify-end">
                 {(() => {
-                    // Calculate totals for filteredReports
                     let totalGcash = 0, totalToys = 0, totalPrinters = 0, totalExpenses = 0, totalOverNeg = 0, totalEodNet = 0;
                     filteredReports.forEach(report => {
                         const startFund = Number(report.totalStartFund || 0);

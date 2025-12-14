@@ -125,19 +125,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         </div>
     );
 };
-                                    <span className={`text-right font-semibold ${totalOverNeg < 0 ? 'text-red-600' : 'text-green-600'}`}>{totalOverNeg < 0 ? '' : (totalOverNeg > 0 ? '+' : '')}{formatMoney(totalOverNeg)}</span>
-                                    <span className="text-right font-semibold text-green-700">{formatMoney(totalEodNet)}</span>
-                                </div>
-                            </div>
-                        );
-                    })()}
-                </div>
-                {/* ...existing code... */}
-            </div>
-        );
-    })()}
-                        <div className="space-y-3">
-                            <div>
                                 <label className="block text-xs text-gray-600">Username</label>
                                 <input value={adminUsername} onChange={e => setAdminUsername(e.target.value)} className="w-full border rounded px-3 py-2" />
                             </div>

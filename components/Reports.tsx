@@ -3,21 +3,16 @@ import { User, ReportData, Store, UserRole } from '../types';
 import { storageService } from '../services/storageService';
 import { Eye, FileText, X, CheckCircle, AlertTriangle, Loader2, Edit2, Trash2 } from 'lucide-react';
 
-interface ReportsProps {
-  user: User;
-}
-
-export const Reports: React.FC<ReportsProps> = ({ user }) => {
-  const [reports, setReports] = useState<ReportData[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [selectedReport, setSelectedReport] = useState<ReportData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const Reports: React.FC<{ user: User }> = ({ user }) => {
+    const [reports, setReports] = useState<ReportData[]>([]);
+    const [stores, setStores] = useState<Store[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
+    const [selectedReport, setSelectedReport] = useState<ReportData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [filterStoreId, setFilterStoreId] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [monthFilter, setMonthFilter] = useState('');
-
     // Admin auth & edit/delete flow
     const [showAdminAuth, setShowAdminAuth] = useState(false);
     const [adminUsername, setAdminUsername] = useState('admin');
@@ -28,30 +23,29 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editReportData, setEditReportData] = useState<Partial<ReportData> | null>(null);
 
-  const loadData = async () => {
-      setIsLoading(true);
-      try {
-          const [allStores, allReports, allUsers] = await Promise.all([
-              storageService.fetchStores(),
-              storageService.fetchReports(),
-              storageService.fetchUsers()
-          ]);
-          setStores(allStores);
-          setUsers(allUsers);
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [allStores, allReports, allUsers] = await Promise.all([
+                storageService.fetchStores(),
+                storageService.fetchReports(),
+                storageService.fetchUsers()
+            ]);
+            setStores(allStores);
+            setUsers(allUsers);
+            let filtered = allReports;
+            if (user.role === UserRole.EMPLOYEE) {
+                filtered = allReports.filter(r => r.storeId === user.storeId);
+            }
+            setReports(filtered.sort((a, b) => b.timestamp - a.timestamp));
+        } catch (error) {
+            console.error("Failed to load reports:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-          let filtered = allReports;
-          if (user.role === UserRole.EMPLOYEE) {
-              filtered = allReports.filter(r => r.storeId === user.storeId);
-          }
-          setReports(filtered.sort((a, b) => b.timestamp - a.timestamp));
-      } catch (error) {
-          console.error("Failed to load reports:", error);
-      } finally {
-          setIsLoading(false);
-      }
-  };
-
-  useEffect(() => { loadData(); }, [user]);
+    useEffect(() => { loadData(); }, [user]);
 
     const openAdminAuth = (reportId: string, action: 'delete'|'edit') => {
         setAdminTargetReportId(reportId);
@@ -68,7 +62,6 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
             const auth = await storageService.login(adminUsername, adminPassword);
             if (!auth || auth.role !== UserRole.ADMIN) throw new Error('Invalid admin credentials');
             setShowAdminAuth(false);
-
             if (adminAction === 'delete') {
                 await storageService.deleteReport(adminTargetReportId);
                 alert('Report deleted');
@@ -104,13 +97,13 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
         }
     };
 
-  const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || 'Unknown Store';
-  const getUserName = (id: string) => {
-    const u = users.find(u => u.id === id);
-    return u ? `${u.name} (${u.username})` : 'Unknown User';
-  };
+    const getStoreName = (id: string) => stores.find(s => s.id === id)?.name || 'Unknown Store';
+    const getUserName = (id: string) => {
+        const u = users.find(u => u.id === id);
+        return u ? `${u.name} (${u.username})` : 'Unknown User';
+    };
 
-  const formatMoney = (amount: number) => `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    const formatMoney = (amount: number) => `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
     // Apply UI filters to reports
     const filteredReports = reports.filter(r => {
@@ -124,20 +117,14 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
         return true;
     }).sort((a,b)=> b.timestamp - a.timestamp);
 
-    return (
-    <div className="space-y-6 min-h-0 w-full min-w-0">
-      <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <FileText size={24} className="text-blue-600"/> Reports History
-        </h2>
-        <div className="text-sm text-gray-500">
-          Total Reports: {reports.length}
+    // ...existing JSX code for rendering the component goes here...
 
-                {/* Sticky Totals Card */}
-                <div className="sticky bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.04)] px-8 py-4 flex justify-end">
-                    {(() => {
-                        // Calculate totals for filteredReports
-                        let totalGcash = 0, totalToys = 0, totalPrinters = 0, totalExpenses = 0, totalOverNeg = 0, totalEodNet = 0;
+    return (
+        <div className="space-y-6 min-h-0 w-full min-w-0">
+            {/* ...existing JSX code... */}
+        </div>
+    );
+};
                         filteredReports.forEach(report => {
                             const startFund = Number(report.totalStartFund || 0);
                             const endAssets = Number(report.totalEndAssets || 0);
@@ -191,14 +178,11 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                         );
                     })()}
                 </div>
+                {/* ...existing code... */}
             </div>
-
-            {/* ADMIN AUTH MODAL for Edit/Delete */}
-            {showAdminAuth && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <h3 className="text-lg font-bold mb-2">Admin Authentication</h3>
-                        <p className="text-sm text-gray-500 mb-4">Enter admin credentials to proceed with this action.</p>
+        );
+    })()}
+}
                         <div className="space-y-3">
                             <div>
                                 <label className="block text-xs text-gray-600">Username</label>
@@ -679,20 +663,17 @@ export const Reports: React.FC<ReportsProps> = ({ user }) => {
                                     </tbody>
                                 </table>
                             </div>
-
                         </div>
                     </div>
                 </div>
-
                 <div className="p-6 bg-gray-50 border-t border-gray-200 rounded-b-xl text-right shrink-0">
                     <button onClick={() => setSelectedReport(null)} className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded transition-colors">
                         Close Report
                     </button>
                 </div>
             </div>
-            </div>
-          );
-      })()}
-    </div>
-  );
-};
+        );
+    })()}
+  </div>
+ );
+}

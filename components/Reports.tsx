@@ -125,19 +125,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         </div>
     );
 };
-                                    <span className="text-right text-gray-900 whitespace-nowrap">GCash EOD</span>
-                                    <span className="text-right text-gray-900 whitespace-nowrap">Toys Net EOD</span>
-                                    <span className="text-right text-gray-900 whitespace-nowrap">Printers EOD</span>
-                                    <span className="text-right text-gray-900 whitespace-nowrap">Expenses</span>
-                                    <span className="text-right text-gray-900 whitespace-nowrap">Over/Negative</span>
-                                    <span className="text-right text-gray-900 whitespace-nowrap">EOD Net Sales</span>
-                                </div>
-                                <div className="flex flex-col items-end text-xs font-mono">
-                                    <span className="mb-1">&nbsp;</span>
-                                    <span className="text-right font-semibold text-blue-900">{formatMoney(totalGcash)}</span>
-                                    <span className="text-right font-semibold text-blue-900">{formatMoney(totalToys)}</span>
-                                    <span className="text-right font-semibold text-blue-900">{formatMoney(totalPrinters)}</span>
-                                    <span className="text-right font-semibold text-blue-900">{formatMoney(totalExpenses)}</span>
                                     <span className={`text-right font-semibold ${totalOverNeg < 0 ? 'text-red-600' : 'text-green-600'}`}>{totalOverNeg < 0 ? '' : (totalOverNeg > 0 ? '+' : '')}{formatMoney(totalOverNeg)}</span>
                                     <span className="text-right font-semibold text-green-700">{formatMoney(totalEodNet)}</span>
                                 </div>

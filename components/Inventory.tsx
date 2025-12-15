@@ -52,6 +52,12 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemStoreId) return alert("Select a store");
+    if (!newItemName.trim()) return alert("Enter item name");
+    if (!newItemCategory.trim()) return alert("Enter category");
+    if (!newItemCost || parseFloat(newItemCost) < 0) return alert("Enter valid cost");
+    if (!newItemPrice || parseFloat(newItemPrice) < 0) return alert("Enter valid price");
+    if (!newItemStock || parseInt(newItemStock) < 0) return alert("Enter valid stock");
+    
     setIsLoading(true);
 
     let result;
@@ -84,6 +90,8 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         console.error('❌ Save failed:', result.error);
         alert(`Failed to save item:\n${errorMsg}`);
     } else {
+        // Set filter to show the store we just added/edited the item for
+        setFilterStoreId(newItemStoreId);
         await refreshInventory();
         handleCancelEdit();
     }

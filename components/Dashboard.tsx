@@ -101,9 +101,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full min-w-0 flex flex-col flex-1 min-h-0">
-        <div className="p-4 border-b border-gray-100 shrink-0"><h3 className="text-sm font-semibold text-gray-700">Recent Submissions</h3></div>
-        <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full min-w-0">
+        <div className="p-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Recent Submissions</h3></div>
+        <div className="overflow-x-auto overflow-y-auto min-w-0 max-h-[70vh]">
           <table className="w-full min-w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-600 sticky top-0">
               <tr>

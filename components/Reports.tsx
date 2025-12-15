@@ -643,7 +643,11 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
 
                                         {(selectedReport.customSales || []).map((s: any, i: number) => (
                                             <tr key={`manual-${i}`} className="bg-white">
-                                                <td className="p-2 pl-3 text-gray-700 pl-6">{s.name} <span className="text-xs text-gray-400">(Net)</span></td>
+                                                <td className="p-2 pl-3 text-gray-700 pl-6">
+                                                    {s.name} 
+                                                    {s.category && <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{s.category}</span>}
+                                                    <span className="text-xs text-gray-400 ml-1">(Net)</span>
+                                                </td>
                                                 <td className="p-2 pr-3 text-right font-mono text-gray-900">
                                                     {formatMoney((Number(s.amount) || 0) - (Number(s.cost) || 0))}
                                                 </td>

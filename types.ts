@@ -25,6 +25,7 @@ export interface SalesTransaction {
   name: string;
   amount: number;
   cost?: number;
+  category?: string;
 }
 export interface PosTransaction {
   id: string;

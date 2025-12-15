@@ -5,6 +5,7 @@ const KEYS = {
   USERS: 'cfs_users',
   CURRENT_USER: 'cfs_current_user',
   POS_TRANSACTIONS: 'cfs_pos_transactions',
+  TRANSACTION_CATEGORIES: 'cfs_transaction_categories',
 };
 
 const seedData = () => {
@@ -305,5 +306,19 @@ export const storageService = {
     await supabase.from('users').delete().neq('id', currentAdminId).neq('username', 'admin');
     await supabase.from('stores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     localStorage.removeItem(KEYS.POS_TRANSACTIONS);
-  }
+  },
+  // Transaction Categories - stored locally and synced
+  getTransactionCategories: (): string[] => {
+    const cats = localStorage.getItem(KEYS.TRANSACTION_CATEGORIES);
+    return cats ? JSON.parse(cats) : ['Printing Services', 'Repair Services', 'Accessories', 'Other'];
+  },
+  addTransactionCategory: (category: string): string[] => {
+    const cats = storageService.getTransactionCategories();
+    const trimmed = category.trim();
+    if (trimmed && !cats.includes(trimmed)) {
+      cats.push(trimmed);
+      localStorage.setItem(KEYS.TRANSACTION_CATEGORIES, JSON.stringify(cats));
+    }
+    return cats;
+  },
 };

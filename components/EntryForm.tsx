@@ -103,7 +103,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   const [cashAtm, setCashAtm] = useState<string>('');
 
   // Section 2: Sales (Manual Generic)
-  const [salesTransactions, setSalesTransactions] = useState<{id: string, name: string, amount: string, cost: string}[]>([]);
+  const [salesTransactions, setSalesTransactions] = useState<{id: string, name: string, amount: string, cost: string, category: string}[]>([]);
+  const [transactionCategories, setTransactionCategories] = useState<string[]>([]);
   
   // Section 2B: POS Sales (Auto-Loaded)
   const [posAggregated, setPosAggregated] = useState<CartItem[]>([]);
@@ -121,7 +122,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   // Section 5: Manual Override
   const [gcashNotebook, setGcashNotebook] = useState<string>('');
 
-  // Load stores asynchronously
+  // Load stores and categories asynchronously
   useEffect(() => {
     storageService.fetchStores().then(data => {
         setStores(data);
@@ -131,6 +132,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
             setSelectedStoreId(data[0].id);
         }
     });
+    // Load saved transaction categories
+    setTransactionCategories(storageService.getTransactionCategories());
   }, [user.storeId]);
 
   // --- AUTO LOAD POS DATA ---
@@ -189,10 +192,15 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   // --- HELPERS ---
   const num = (val: string) => parseFloat(val) || 0;
   
-  const addTransaction = () => setSalesTransactions([...salesTransactions, { id: uuidv4(), name: '', amount: '', cost: '' }]);
+  const addTransaction = () => setSalesTransactions([...salesTransactions, { id: uuidv4(), name: '', amount: '', cost: '', category: '' }]);
   const removeTransaction = (id: string) => setSalesTransactions(salesTransactions.filter(t => t.id !== id));
-  const updateTransaction = (id: string, field: 'name' | 'amount' | 'cost', val: string) => {
+  const updateTransaction = (id: string, field: 'name' | 'amount' | 'cost' | 'category', val: string) => {
     setSalesTransactions(salesTransactions.map(t => t.id === id ? { ...t, [field]: val } : t));
+    // If adding a new category, save it
+    if (field === 'category' && val && !transactionCategories.includes(val)) {
+      const updated = storageService.addTransactionCategory(val);
+      setTransactionCategories(updated);
+    }
   };
 
   // --- CALCULATIONS ---
@@ -261,7 +269,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       fundIn: num(fundIn),
       cashAtm: num(cashAtm),
       
-      customSales: salesTransactions.map(t => ({ id: t.id, name: t.name, amount: num(t.amount), cost: num(t.cost) })),
+      customSales: salesTransactions.map(t => ({ id: t.id, name: t.name, amount: num(t.amount), cost: num(t.cost), category: t.category || 'Uncategorized' })),
       posSalesDetails: posAggregated,
       bankTransferFees: num(bankFees),
       operationalExpenses: num(opExpenses),
@@ -366,7 +374,36 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
                 <div className="flex justify-between items-center mb-4 pb-2 border-b"><h2 className="text-lg font-bold text-gray-900">Other Transactions</h2><button type="button" onClick={addTransaction} className="text-blue-600 text-sm font-bold flex items-center hover:bg-blue-50 px-3 py-1 rounded"><Plus size={16} className="mr-1"/> ADD TRANSACTION</button></div>
                 {salesTransactions.length === 0 ? <div className="text-center py-6 text-gray-400 bg-gray-50 rounded border border-dashed border-gray-200">No manual transactions recorded.</div> : (
-                    <div className="space-y-3">{salesTransactions.map((item) => (<div key={item.id} className="flex gap-3 items-end"><div className="flex-[2]"><label className="text-xs text-gray-500 mb-1 block">Name</label><input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900" value={item.name} onChange={e => updateTransaction(item.id, 'name', e.target.value)} placeholder="Services/Others"/></div><div className="flex-1"><label className="text-xs text-gray-500 mb-1 block">Cost (Optional)</label><div className="relative"><span className="absolute left-2 top-2 text-gray-400 text-xs">₱</span><input placeholder="0.00" type="number" className="w-full pl-6 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900" value={item.cost} onChange={e => updateTransaction(item.id, 'cost', e.target.value)} /></div></div><div className="flex-1"><label className="text-xs text-gray-500 mb-1 block">Amount</label><div className="relative"><span className="absolute left-2 top-2 text-gray-400 text-xs">₱</span><input placeholder="0.00" type="number" className="w-full pl-6 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900" value={item.amount} onChange={e => updateTransaction(item.id, 'amount', e.target.value)} /></div></div><button type="button" onClick={() => removeTransaction(item.id)} className="text-red-400 hover:text-red-600 p-2 mb-0.5 hover:bg-red-50 rounded"><Trash2 size={18}/></button></div>))}</div>
+                    <div className="space-y-3">{salesTransactions.map((item) => (
+                      <div key={item.id} className="flex gap-3 items-end flex-wrap">
+                        <div className="flex-[2] min-w-[150px]">
+                          <label className="text-xs text-gray-500 mb-1 block">Name</label>
+                          <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900" value={item.name} onChange={e => updateTransaction(item.id, 'name', e.target.value)} placeholder="Services/Others"/>
+                        </div>
+                        <div className="flex-1 min-w-[120px]">
+                          <label className="text-xs text-gray-500 mb-1 block">Category</label>
+                          <input 
+                            list={`category-list-${item.id}`}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900" 
+                            value={item.category} 
+                            onChange={e => updateTransaction(item.id, 'category', e.target.value)} 
+                            placeholder="Select or type..."
+                          />
+                          <datalist id={`category-list-${item.id}`}>
+                            {transactionCategories.map(cat => <option key={cat} value={cat}/>)}
+                          </datalist>
+                        </div>
+                        <div className="flex-1 min-w-[100px]">
+                          <label className="text-xs text-gray-500 mb-1 block">Cost (Optional)</label>
+                          <div className="relative"><span className="absolute left-2 top-2 text-gray-400 text-xs">₱</span><input placeholder="0.00" type="number" className="w-full pl-6 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900" value={item.cost} onChange={e => updateTransaction(item.id, 'cost', e.target.value)} /></div>
+                        </div>
+                        <div className="flex-1 min-w-[100px]">
+                          <label className="text-xs text-gray-500 mb-1 block">Amount</label>
+                          <div className="relative"><span className="absolute left-2 top-2 text-gray-400 text-xs">₱</span><input placeholder="0.00" type="number" className="w-full pl-6 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900" value={item.amount} onChange={e => updateTransaction(item.id, 'amount', e.target.value)} /></div>
+                        </div>
+                        <button type="button" onClick={() => removeTransaction(item.id)} className="text-red-400 hover:text-red-600 p-2 mb-0.5 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                      </div>
+                    ))}</div>
                 )}
             </div>
 

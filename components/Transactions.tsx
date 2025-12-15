@@ -202,8 +202,8 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
             </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
-            <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0">
+            <div className="overflow-x-auto overflow-y-auto min-w-0 max-h-[70vh]">
                 <table className="w-full min-w-full text-sm text-left">
                     <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200 sticky top-0">
                         <tr>

@@ -251,7 +251,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                 </select>
             </div>
 
-            <div className="overflow-x-auto overflow-y-auto min-w-0">
+            <div className="overflow-x-auto overflow-y-auto min-w-0 max-h-[70vh]">
                 <table className="w-full min-w-full text-sm text-left">
                     <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-xs">
                         <tr>

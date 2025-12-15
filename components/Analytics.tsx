@@ -199,7 +199,7 @@ export const Analytics: React.FC = () => {
           <h3 className="font-bold text-gray-900">Reports History ({selectedMonth})</h3>
           <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.length} records found</span>
         </div>
-        <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0">
+        <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
               <tr>

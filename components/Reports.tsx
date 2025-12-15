@@ -271,93 +271,166 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 </tr>
               )}
             </tbody>
+            <tfoot className="bg-blue-50 border-t-2 border-blue-200">
+              <tr className="font-bold text-gray-900">
+                <td className="px-6 py-4 text-sm font-bold text-gray-700">TOTALS</td>
+                <td></td>
+                <td></td>
+                <td className="px-6 py-4 text-right">{(() => {
+                    let totalGcash = 0;
+                    reports.filter(r => {
+                        if (filterStoreId && r.storeId !== filterStoreId) return false;
+                        if (monthFilter) {
+                            const m = new Date(r.date).getMonth() + 1;
+                            if (m !== Number(monthFilter)) return false;
+                        }
+                        if (startDate && new Date(r.date) < new Date(startDate)) return false;
+                        if (endDate && new Date(r.date) > new Date(endDate)) return false;
+                        return true;
+                    }).forEach(report => {
+                        const startFund = Number(report.totalStartFund || 0);
+                        const endAssets = Number(report.totalEndAssets || 0);
+                        const growth = endAssets - startFund;
+                        let legacyManualRevenue = 0;
+                        if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
+                        if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
+                        if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
+                        if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
+                        const manualRevenue = (report.customSales || []).reduce((a, b) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
+                        const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
+                        const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
+                        const derivedGcashNet = growth - (manualRevenue + posRevenue);
+                        const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
+                        totalGcash += usedGcashNet;
+                    });
+                    return formatMoney(totalGcash);
+                })()}</td>
+                <td className="px-6 py-4 text-right">{(() => {
+                    let totalToys = 0;
+                    reports.filter(r => {
+                        if (filterStoreId && r.storeId !== filterStoreId) return false;
+                        if (monthFilter) {
+                            const m = new Date(r.date).getMonth() + 1;
+                            if (m !== Number(monthFilter)) return false;
+                        }
+                        if (startDate && new Date(r.date) < new Date(startDate)) return false;
+                        if (endDate && new Date(r.date) > new Date(endDate)) return false;
+                        return true;
+                    }).forEach(report => {
+                        const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
+                        totalToys += posNet;
+                    });
+                    return formatMoney(totalToys);
+                })()}</td>
+                <td className="px-6 py-4 text-right">{(() => {
+                    let totalPrinters = 0;
+                    reports.filter(r => {
+                        if (filterStoreId && r.storeId !== filterStoreId) return false;
+                        if (monthFilter) {
+                            const m = new Date(r.date).getMonth() + 1;
+                            if (m !== Number(monthFilter)) return false;
+                        }
+                        if (startDate && new Date(r.date) < new Date(startDate)) return false;
+                        if (endDate && new Date(r.date) > new Date(endDate)) return false;
+                        return true;
+                    }).forEach(report => {
+                        let legacyManualRevenue = 0;
+                        if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
+                        if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
+                        if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
+                        if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
+                        const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
+                        totalPrinters += manualNet;
+                    });
+                    return formatMoney(totalPrinters);
+                })()}</td>
+                <td className="px-6 py-4 text-right">{(() => {
+                    let totalExpenses = 0;
+                    reports.filter(r => {
+                        if (filterStoreId && r.storeId !== filterStoreId) return false;
+                        if (monthFilter) {
+                            const m = new Date(r.date).getMonth() + 1;
+                            if (m !== Number(monthFilter)) return false;
+                        }
+                        if (startDate && new Date(r.date) < new Date(startDate)) return false;
+                        if (endDate && new Date(r.date) > new Date(endDate)) return false;
+                        return true;
+                    }).forEach(report => {
+                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.operationalExpenses || 0);
+                        totalExpenses += totalExp;
+                    });
+                    return formatMoney(totalExpenses);
+                })()}</td>
+                <td className="px-6 py-4 text-right">{(() => {
+                    let totalOverNeg = 0;
+                    reports.filter(r => {
+                        if (filterStoreId && r.storeId !== filterStoreId) return false;
+                        if (monthFilter) {
+                            const m = new Date(r.date).getMonth() + 1;
+                            if (m !== Number(monthFilter)) return false;
+                        }
+                        if (startDate && new Date(r.date) < new Date(startDate)) return false;
+                        if (endDate && new Date(r.date) > new Date(endDate)) return false;
+                        return true;
+                    }).forEach(report => {
+                        const startFund = Number(report.totalStartFund || 0);
+                        const endAssets = Number(report.totalEndAssets || 0);
+                        const growth = endAssets - startFund;
+                        let legacyManualRevenue = 0;
+                        if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
+                        if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
+                        if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
+                        if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
+                        const manualRevenue = (report.customSales || []).reduce((a, b) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
+                        const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
+                        const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
+                        const derivedGcashNet = growth - (manualRevenue + posRevenue);
+                        const overNegative = notebookGcash !== undefined ? (derivedGcashNet - notebookGcash) : 0;
+                        totalOverNeg += overNegative;
+                    });
+                    return <span className={totalOverNeg < 0 ? 'text-red-600' : 'text-green-600'}>{totalOverNeg < 0 ? '' : (totalOverNeg > 0 ? '+' : '')}{formatMoney(totalOverNeg)}</span>;
+                })()}</td>
+                <td className="px-6 py-4 text-right text-green-700">{(() => {
+                    let totalEodNet = 0;
+                    reports.filter(r => {
+                        if (filterStoreId && r.storeId !== filterStoreId) return false;
+                        if (monthFilter) {
+                            const m = new Date(r.date).getMonth() + 1;
+                            if (m !== Number(monthFilter)) return false;
+                        }
+                        if (startDate && new Date(r.date) < new Date(startDate)) return false;
+                        if (endDate && new Date(r.date) > new Date(endDate)) return false;
+                        return true;
+                    }).forEach(report => {
+                        const startFund = Number(report.totalStartFund || 0);
+                        const endAssets = Number(report.totalEndAssets || 0);
+                        const growth = endAssets - startFund;
+                        let legacyManualRevenue = 0;
+                        if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
+                        if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
+                        if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
+                        if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
+                        const manualRevenue = (report.customSales || []).reduce((a, b) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
+                        const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
+                        const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
+                        const derivedGcashNet = growth - (manualRevenue + posRevenue);
+                        const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
+                        const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
+                        const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
+                        const totalItemsNet = manualNet + posNet;
+                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.operationalExpenses || 0);
+                        const grossSalesIncome = usedGcashNet + totalItemsNet;
+                        const finalEodNet = grossSalesIncome - totalExp;
+                        totalEodNet += finalEodNet;
+                    });
+                    return formatMoney(totalEodNet);
+                })()}</td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
-
-      {/* SUMMARY CARD AT BOTTOM */}
-      {(() => {
-          const filteredReports = reports.filter(r => {
-              if (filterStoreId && r.storeId !== filterStoreId) return false;
-              if (monthFilter) {
-                  const m = new Date(r.date).getMonth() + 1;
-                  if (m !== Number(monthFilter)) return false;
-              }
-              if (startDate && new Date(r.date) < new Date(startDate)) return false;
-              if (endDate && new Date(r.date) > new Date(endDate)) return false;
-              return true;
-          });
-          if (filteredReports.length === 0) return null;
-          
-          let totalGcash = 0, totalToys = 0, totalPrinters = 0, totalExpenses = 0, totalOverNeg = 0, totalEodNet = 0;
-          filteredReports.forEach(report => {
-              const startFund = Number(report.totalStartFund || 0);
-              const endAssets = Number(report.totalEndAssets || 0);
-              const growth = endAssets - startFund;
-              let legacyManualRevenue = 0;
-              if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
-              if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
-              if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
-              if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
-              const manualRevenue = (report.customSales || []).reduce((a, b) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
-              const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
-              const totalSalesRevenue = manualRevenue + posRevenue;
-              const derivedGcashNet = growth - totalSalesRevenue;
-              const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
-              const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
-              const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
-              const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
-              const totalItemsNet = manualNet + posNet;
-              const totalExp = Number(report.bankTransferFees || 0) + Number(report.operationalExpenses || 0);
-              const grossSalesIncome = usedGcashNet + totalItemsNet;
-              const finalEodNet = grossSalesIncome - totalExp;
-              const overNegative = notebookGcash !== undefined ? (derivedGcashNet - notebookGcash) : 0;
-              totalGcash += usedGcashNet;
-              totalToys += posNet;
-              totalPrinters += manualNet;
-              totalExpenses += totalExp;
-              totalOverNeg += overNegative;
-              totalEodNet += finalEodNet;
-          });
-          return (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mt-6">
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 p-6">
-                      <h3 className="text-lg font-bold text-blue-900 mb-1">Summary Totals</h3>
-                      <p className="text-sm text-blue-700">Total across {filteredReports.length} report(s)</p>
-                  </div>
-                  <div className="p-6">
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">GCash EOD</div>
-                              <div className="text-lg font-bold text-blue-900">{formatMoney(totalGcash)}</div>
-                          </div>
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Toys Net EOD</div>
-                              <div className="text-lg font-bold text-blue-900">{formatMoney(totalToys)}</div>
-                          </div>
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Printers EOD</div>
-                              <div className="text-lg font-bold text-blue-900">{formatMoney(totalPrinters)}</div>
-                          </div>
-                          <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-                              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Expenses</div>
-                              <div className="text-lg font-bold text-red-600">{formatMoney(totalExpenses)}</div>
-                          </div>
-                          <div className={`p-4 rounded-lg border ${totalOverNeg < 0 ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
-                              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Over/Negative</div>
-                              <div className={`text-lg font-bold ${totalOverNeg < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                  {totalOverNeg < 0 ? '' : (totalOverNeg > 0 ? '+' : '')}{formatMoney(totalOverNeg)}
-                              </div>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">EOD Net Sales</div>
-                              <div className="text-lg font-bold text-green-700">{formatMoney(totalEodNet)}</div>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          );
-      })()}
 
       {/* DETAILED BREAKDOWN MODAL */}
       {selectedReport && (() => {

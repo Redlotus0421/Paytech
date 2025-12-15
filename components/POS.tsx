@@ -257,12 +257,12 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                             <div className="flex-1 min-w-0 pr-2">
                                 <div className="font-medium text-gray-900 truncate">{item.name}</div>
                                 <div className="text-xs text-gray-500">
-                                    Cost: ₱{item.cost?.toFixed(2) || '0.00'} | Sale: ₱{item.price.toFixed(2)}
+                                    Cost: ₱{item.cost?.toFixed(2) || '0.00'}
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-500 mt-1">
                                     {editingPriceId === item.id ? (
-                                        <div className="flex items-center gap-1 mt-1">
-                                            <span className="text-gray-600">₱</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-gray-600">Sale: ₱</span>
                                             <input 
                                                 type="number"
                                                 value={editingPrice}
@@ -294,20 +294,21 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-1">
-                                            <span>₱{item.price.toFixed(2)} each</span>
+                                            <span className="font-medium text-gray-900">Sale: ₱{item.price.toFixed(2)}</span>
                                             <button 
                                                 onClick={() => {
                                                     setEditingPriceId(item.id);
                                                     setEditingPrice(item.price.toString());
                                                 }}
-                                                className="text-blue-500 hover:text-blue-700 ml-1"
-                                                title="Adjust price"
+                                                className="text-blue-500 hover:text-blue-700"
+                                                title="Adjust transaction price only"
                                             >
                                                 <Edit2 size={12} />
                                             </button>
                                         </div>
                                     )}
                                 </div>
+                                <div className="text-xs text-gray-400 italic mt-0.5">*Price adjustment for this transaction only</div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1 bg-white rounded border border-gray-200">

@@ -79,7 +79,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }
 
   return (
-    <div className="flex flex-col gap-6 min-h-0 w-full min-w-0 h-full overflow-y-auto">
+    <div className="flex flex-col gap-6 w-full">
       <h2 className="text-xl font-bold text-gray-900">
         {user.role === UserRole.ADMIN ? 'Global Overview' : 'Store Performance'}
       </h2>
@@ -101,9 +101,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full min-w-0">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full">
       <div className="p-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Recent Submissions</h3></div>
-        <div className="overflow-x-auto min-w-0">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-600 sticky top-0">
               <tr>

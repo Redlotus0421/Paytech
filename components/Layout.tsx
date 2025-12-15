@@ -155,9 +155,9 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col bg-gray-50 min-w-0">
+        <main className="flex-1 flex flex-col bg-gray-50 min-w-0 overflow-hidden">
           {/* Content of the current view */}
-          <div className="flex-1 p-4 sm:p-6 overflow-auto">
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
               {children}
             </div>
         </main>

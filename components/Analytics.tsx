@@ -136,17 +136,17 @@ export const Analytics: React.FC = () => {
   const displayStore = selectedStore || (currentUser?.storeId ? stores.find(s => s.id === currentUser.storeId) : null);
 
   return (
-    <div className="flex flex-col gap-6 relative min-h-0 w-full min-w-0 h-full overflow-y-auto"> 
+    <div className="flex flex-col gap-6 relative min-h-0 w-full min-w-0"> 
       {/* Error Alert */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 flex-shrink-0">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
           <p className="font-semibold">Error loading analytics</p>
           <p className="text-sm">{error}</p>
         </div>
       )}
 
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 flex-shrink-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
             {currentUser?.role === UserRole.ADMIN && <button onClick={handleBack} className="p-2 hover:bg-gray-200 rounded-full"><ArrowLeft size={24} /></button>}
             <div>

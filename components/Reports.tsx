@@ -118,8 +118,8 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     }).sort((a,b)=> b.timestamp - a.timestamp);
 
     return (
-        <div className="flex flex-col gap-6 min-h-0 w-full min-w-0 h-full overflow-y-auto">
-            <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm flex-shrink-0">
+        <div className="flex flex-col gap-6 min-h-0 w-full min-w-0">
+            <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                     <FileText size={24} className="text-blue-600"/> Reports History
                 </h2>
@@ -128,8 +128,8 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0 flex flex-col flex-1 min-h-0">
-                <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
+                <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div className="flex items-center gap-3">
                         {user.role === UserRole.ADMIN && (
                             <select value={filterStoreId} onChange={e => setFilterStoreId(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900">
@@ -160,7 +160,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         <button onClick={loadData} className="text-sm text-blue-600 border border-blue-100 px-3 py-1 rounded">Refresh</button>
                     </div>
                 </div>
-                <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1">
+                <div className="overflow-x-auto overflow-y-auto min-w-0 max-h-[70vh]">
                     {/** compute filteredReports */}
                     {(() => {
                         const start = startDate ? new Date(startDate) : null;

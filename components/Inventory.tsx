@@ -229,7 +229,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         </div>
 
         {/* Inventory List */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0 flex flex-col">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0 flex flex-col flex-1 min-h-0">
              {/* Filter Bar */}
             <div className="p-4 border-b border-gray-100 flex items-center gap-4 shrink-0">
                 <span className="text-sm text-gray-500">View Store:</span>
@@ -251,7 +251,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                 </select>
             </div>
 
-            <div className="overflow-x-auto overflow-y-auto min-w-0 max-h-[70vh]">
+            <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0">
                 <table className="w-full min-w-full text-sm text-left">
                     <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-xs">
                         <tr>

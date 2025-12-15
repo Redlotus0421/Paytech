@@ -379,7 +379,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
              </div>
 
             {/* Expenses now here in EOD, removed from SOD */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Expenses & Fees</h2>
                 <ExpensesInputSection bankFees={bankFees} setBankFees={setBankFees} opExpenses={opExpenses} setOpExpenses={setOpExpenses} opExpensesNote={opExpensesNote} setOpExpensesNote={setOpExpensesNote}/>
             </div>

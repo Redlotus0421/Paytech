@@ -194,8 +194,8 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* Recent Activity Table (Filtered by Month) */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col">
+        <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
           <h3 className="font-bold text-gray-900">Reports History ({selectedMonth})</h3>
           <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.length} records found</span>
         </div>

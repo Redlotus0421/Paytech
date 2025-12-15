@@ -229,9 +229,9 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         </div>
 
         {/* Inventory List */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0 flex flex-col">
              {/* Filter Bar */}
-            <div className="p-4 border-b border-gray-100 flex items-center gap-4">
+            <div className="p-4 border-b border-gray-100 flex items-center gap-4 shrink-0">
                 <span className="text-sm text-gray-500">View Store:</span>
                 <select 
                     value={filterStoreId}

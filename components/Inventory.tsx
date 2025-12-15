@@ -129,8 +129,8 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   const uniqueCategories = Array.from(new Set(items.map(item => item.category).filter(Boolean))) as string[];
 
     return (
-        <div className="space-y-6 min-h-0 w-full min-w-0">
-        <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
+        <div className="flex flex-col gap-6 min-h-0 w-full min-w-0 h-full overflow-y-auto">
+        <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm flex-shrink-0">
             <h2 className="text-xl font-bold text-gray-900">Inventory</h2>
             <div className="text-sm text-gray-500 text-right">
                 <div className="font-semibold">{new Date().toLocaleDateString(undefined, {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}</div>
@@ -139,7 +139,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         </div>
 
         {/* Add/Edit Item Form */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 w-full min-w-0">
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 w-full min-w-0 flex-shrink-0">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-blue-700 font-semibold">
                     <Package size={20}/>

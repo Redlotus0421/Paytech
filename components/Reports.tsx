@@ -128,64 +128,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 </div>
             </div>
 
-            {/* Sticky Totals Card */}
-            <div className="sticky bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.04)] px-8 py-4 flex justify-end">
-                {(() => {
-                    let totalGcash = 0, totalToys = 0, totalPrinters = 0, totalExpenses = 0, totalOverNeg = 0, totalEodNet = 0;
-                    filteredReports.forEach(report => {
-                        const startFund = Number(report.totalStartFund || 0);
-                        const endAssets = Number(report.totalEndAssets || 0);
-                        const growth = endAssets - startFund;
-                        let legacyManualRevenue = 0;
-                        if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
-                        if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
-                        if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
-                        if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
-                        const manualRevenue = (report.customSales || []).reduce((a, b) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
-                        const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
-                        const totalSalesRevenue = manualRevenue + posRevenue;
-                        const derivedGcashNet = growth - totalSalesRevenue;
-                        const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
-                        const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
-                        const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
-                        const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
-                        const totalItemsNet = manualNet + posNet;
-                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.operationalExpenses || 0);
-                        const grossSalesIncome = usedGcashNet + totalItemsNet;
-                        const finalEodNet = grossSalesIncome - totalExp;
-                        const overNegative = notebookGcash !== undefined ? (derivedGcashNet - notebookGcash) : 0;
-                        totalGcash += usedGcashNet;
-                        totalToys += posNet;
-                        totalPrinters += manualNet;
-                        totalExpenses += totalExp;
-                        totalOverNeg += overNegative;
-                        totalEodNet += finalEodNet;
-                    });
-                    return (
-                        <div className="w-full flex flex-row justify-end gap-2">
-                            <div className="flex flex-col items-end text-xs font-bold text-gray-500">
-                                <span className="mb-1">TOTALS</span>
-                                <span className="text-right text-gray-900 whitespace-nowrap">GCash EOD</span>
-                                <span className="text-right text-gray-900 whitespace-nowrap">Toys Net EOD</span>
-                                <span className="text-right text-gray-900 whitespace-nowrap">Printers EOD</span>
-                                <span className="text-right text-gray-900 whitespace-nowrap">Expenses</span>
-                                <span className="text-right text-gray-900 whitespace-nowrap">Over/Negative</span>
-                                <span className="text-right text-gray-900 whitespace-nowrap">EOD Net Sales</span>
-                            </div>
-                            <div className="flex flex-col items-end text-xs font-mono">
-                                <span className="mb-1">&nbsp;</span>
-                                <span className="text-right font-semibold text-blue-900">{formatMoney(totalGcash)}</span>
-                                <span className="text-right font-semibold text-blue-900">{formatMoney(totalToys)}</span>
-                                <span className="text-right font-semibold text-blue-900">{formatMoney(totalPrinters)}</span>
-                                <span className="text-right font-semibold text-blue-900">{formatMoney(totalExpenses)}</span>
-                                <span className={`text-right font-semibold ${totalOverNeg < 0 ? 'text-red-600' : 'text-green-600'}`}>{totalOverNeg < 0 ? '' : (totalOverNeg > 0 ? '+' : '')}{formatMoney(totalOverNeg)}</span>
-                                <span className="text-right font-semibold text-green-700">{formatMoney(totalEodNet)}</span>
-                            </div>
-                        </div>
-                    );
-                })()}
-            </div>
-
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
                 <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div className="flex items-center gap-3">

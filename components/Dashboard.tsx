@@ -79,7 +79,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }
 
   return (
-    <div className="flex flex-col gap-6 min-h-0 w-full min-w-0">
+    <div className="flex flex-col gap-6 min-h-0 w-full min-w-0 h-full overflow-y-auto">
       <h2 className="text-xl font-bold text-gray-900">
         {user.role === UserRole.ADMIN ? 'Global Overview' : 'Store Performance'}
       </h2>

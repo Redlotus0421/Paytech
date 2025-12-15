@@ -129,7 +129,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   const uniqueCategories = Array.from(new Set(items.map(item => item.category).filter(Boolean))) as string[];
 
     return (
-        <div className="flex flex-col gap-6 min-h-0 w-full min-w-0">
+        <div className="flex flex-col gap-6 min-h-0 w-full min-w-0 h-full overflow-y-auto">
         <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
             <h2 className="text-xl font-bold text-gray-900">Inventory</h2>
             <div className="text-sm text-gray-500 text-right">

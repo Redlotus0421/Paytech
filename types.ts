@@ -27,6 +27,13 @@ export interface SalesTransaction {
   cost?: number;
   category?: string;
 }
+
+export interface ExpenseTransaction {
+  id: string;
+  amount: number;
+  description: string;
+}
+
 export interface PosTransaction {
   id: string;
   storeId: string;
@@ -55,6 +62,7 @@ export interface ReportData {
   bankTransferFees: number;
   operationalExpenses: number;
   operationalExpensesNote?: string;
+  expenses?: ExpenseTransaction[];
   eodGpo: number;
   eodGcash: number;
   eodActualCash: number;

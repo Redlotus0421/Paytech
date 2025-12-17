@@ -43,44 +43,78 @@ const InputRow = ({ label, value, setter, placeholder = "0", type = "number", pr
 interface ExpensesInputSectionProps {
     bankFees: string;
     setBankFees: (val: string) => void;
-    opExpenses: string;
-    setOpExpenses: (val: string) => void;
-    opExpensesNote: string;
-    setOpExpensesNote: (val: string) => void;
+    expenses: { id: string, amount: string, description: string }[];
+    setExpenses: React.Dispatch<React.SetStateAction<{ id: string, amount: string, description: string }[]>>;
 }
 
 const ExpensesInputSection: React.FC<ExpensesInputSectionProps> = ({ 
-    bankFees, setBankFees, opExpenses, setOpExpenses, opExpensesNote, setOpExpensesNote 
-}) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <InputRow label="Bank Fees" value={bankFees} setter={setBankFees} prefix="₱" />
-        <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Other Expenses</label>
-            <div className="flex gap-2">
-                <div className="relative w-1/3">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500 sm:text-sm">₱</span>
-                    </div>
-                    <input
-                        type="number"
-                        step="0.01"
-                        value={opExpenses}
-                        onChange={(e) => setOpExpenses(e.target.value)}
-                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="0.00"
-                    />
+    bankFees, setBankFees, expenses, setExpenses 
+}) => {
+    const addExpense = () => {
+        setExpenses([...expenses, { id: uuidv4(), amount: '', description: '' }]);
+    };
+
+    const updateExpense = (id: string, field: 'amount' | 'description', value: string) => {
+        setExpenses(expenses.map(e => e.id === id ? { ...e, [field]: value } : e));
+    };
+
+    const removeExpense = (id: string) => {
+        setExpenses(expenses.filter(e => e.id !== id));
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InputRow label="Bank Fees" value={bankFees} setter={setBankFees} prefix="₱" />
+            </div>
+            
+            <div>
+                <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-semibold text-gray-700">Other Expenses</label>
+                    <button type="button" onClick={addExpense} className="text-blue-600 text-xs font-bold flex items-center hover:bg-blue-50 px-2 py-1 rounded">
+                        <Plus size={14} className="mr-1"/> ADD EXPENSE
+                    </button>
                 </div>
-                <input
-                    type="text"
-                    value={opExpensesNote}
-                    onChange={(e) => setOpExpensesNote(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Description (e.g. Food, Supplies)"
-                />
+                
+                {expenses.length === 0 ? (
+                    <div className="text-center py-4 text-gray-400 bg-gray-50 rounded border border-dashed border-gray-200 text-sm italic">
+                        No other expenses recorded.
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {expenses.map((item) => (
+                            <div key={item.id} className="flex gap-2 items-center">
+                                <div className="relative w-1/3 min-w-[100px]">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span className="text-gray-500 sm:text-sm">₱</span>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={item.amount}
+                                        onChange={(e) => updateExpense(item.id, 'amount', e.target.value)}
+                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={item.description}
+                                    onChange={(e) => updateExpense(item.id, 'description', e.target.value)}
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    placeholder="Description (e.g. Food, Supplies)"
+                                />
+                                <button type="button" onClick={() => removeExpense(item.id)} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded">
+                                    <Trash2 size={16}/>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   const [stores, setStores] = useState<Store[]>([]);
@@ -111,8 +145,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
   // Section 3: Expenses (Shared state for SOD and EOD)
   const [bankFees, setBankFees] = useState<string>('');
-  const [opExpenses, setOpExpenses] = useState<string>('');
-  const [opExpensesNote, setOpExpensesNote] = useState<string>('');
+  const [expenses, setExpenses] = useState<{id: string, amount: string, description: string}[]>([]);
 
   // Section 4: End of Day Assets
   const [eodGpo, setEodGpo] = useState<string>('');
@@ -178,8 +211,12 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                 setFundIn(data.fundIn || '');
                 setCashAtm(data.cashAtm || '');
                 setBankFees(data.bankFees || '');
-                setOpExpenses(data.opExpenses || '');
-                setOpExpensesNote(data.opExpensesNote || '');
+                if (data.expenses) {
+                    setExpenses(data.expenses);
+                } else if (data.opExpenses) {
+                    // Migrate old draft format
+                    setExpenses([{ id: uuidv4(), amount: data.opExpenses, description: data.opExpensesNote || '' }]);
+                }
                 if (data.salesTransactions) setSalesTransactions(data.salesTransactions);
                 setIsSodSaved(true);
             } else {
@@ -219,7 +256,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
     const totalSalesRevenue = manualRevenue + posRevenue;
     const totalSalesNet = manualNet + posNet;
-    const totalExpenses = Number(bankFees || 0) + Number(opExpenses || 0);
+    const totalExpenses = Number(bankFees || 0) + expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
     const actualCashSales = totalEndAssets - totalStartFund;
     const derivedGcashNet = actualCashSales - totalSalesRevenue;
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
@@ -234,13 +271,13 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       totalStartFund, totalEndAssets, totalSalesRevenue, totalExpenses, actualCashSales,
       derivedGcashNet, effectiveGcashNet, eodNetSales, hasNotebookEntry, notebookDifference
     };
-  }, [sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, eodGpo, eodGcash, eodActual, salesTransactions, posAggregated, bankFees, opExpenses, gcashNotebook]);
+  }, [sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, eodGpo, eodGcash, eodActual, salesTransactions, posAggregated, bankFees, expenses, gcashNotebook]);
 
   // --- SAVE HANDLERS ---
   const handleSaveSod = () => {
     if (!selectedStoreId) return alert("Please select a store");
     const draftData = {
-        date, sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, bankFees, opExpenses, opExpensesNote,
+        date, sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, bankFees, expenses,
         salesTransactions 
     };
     const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
@@ -272,8 +309,9 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       customSales: salesTransactions.map(t => ({ id: t.id, name: t.name, amount: num(t.amount), cost: num(t.cost), category: t.category || 'Uncategorized' })),
       posSalesDetails: posAggregated,
       bankTransferFees: num(bankFees),
-      operationalExpenses: num(opExpenses),
-      operationalExpensesNote: opExpensesNote, 
+      operationalExpenses: expenses.reduce((acc, e) => acc + num(e.amount), 0),
+      operationalExpensesNote: expenses.map(e => e.description).filter(Boolean).join(', '), 
+      expenses: expenses.map(e => ({ id: e.id, amount: num(e.amount), description: e.description })),
       eodGpo: num(eodGpo),
       eodGcash: num(eodGcash),
       eodActualCash: num(eodActual),
@@ -418,7 +456,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
             {/* Expenses now here in EOD, removed from SOD */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Expenses & Fees</h2>
-                <ExpensesInputSection bankFees={bankFees} setBankFees={setBankFees} opExpenses={opExpenses} setOpExpenses={setOpExpenses} opExpensesNote={opExpensesNote} setOpExpensesNote={setOpExpensesNote}/>
+                <ExpensesInputSection bankFees={bankFees} setBankFees={setBankFees} expenses={expenses} setExpenses={setExpenses}/>
             </div>
             </div>
 

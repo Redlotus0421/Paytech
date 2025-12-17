@@ -701,6 +701,19 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                                 )}
                                             </td>
                                         </tr>
+                                        {selectedReport.expenses && selectedReport.expenses.length > 0 ? (
+                                            selectedReport.expenses.map((exp, i) => (
+                                                <tr key={`exp-${i}`} className="bg-white">
+                                                    <td className="p-2 pl-3 text-gray-700">
+                                                        <div className="font-medium">Other Expense</div>
+                                                        <div className="text-xs text-gray-600 mt-0.5">{exp.description}</div>
+                                                    </td>
+                                                    <td className="p-2 pr-3 text-right font-mono text-gray-900">
+                                                        {formatMoney(Number(exp.amount))}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
                                         <tr className="bg-white">
                                             <td className="p-2 pl-3 text-gray-700">
                                                 <div className="font-medium">Other Expenses</div>
@@ -718,6 +731,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                                 )}
                                             </td>
                                         </tr>
+                                        )}
                                         <tr className="bg-gray-50 border-t border-gray-200">
                                             <td className="p-2 pl-3 font-bold text-gray-700">Total Expenses</td>
                                             <td className="p-2 pr-3 text-right font-bold font-mono text-gray-900">{formatMoney(totalExpenses)}</td>

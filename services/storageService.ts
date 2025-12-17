@@ -109,6 +109,7 @@ export const storageService = {
       cashAtm: Number(r.cash_atm || 0),
       customSales: r.custom_sales || [], posSalesDetails: r.pos_sales_details || [],
       bankTransferFees: Number(r.bank_transfer_fees || 0), operationalExpenses: Number(r.operational_expenses || 0), operationalExpensesNote: r.operational_expenses_note,
+      expenses: r.expenses || [],
       eodGpo: Number(r.eod_gpo || 0), eodGcash: Number(r.eod_gcash || 0), eodActualCash: Number(r.eod_actual_cash || 0),
       gcashNotebook: r.gcash_notebook !== null && r.gcash_notebook !== undefined ? Number(r.gcash_notebook) : undefined,
       totalStartFund: Number(r.total_start_fund || 0), totalEndAssets: Number(r.total_end_assets || 0), totalNetSales: Number(r.total_net_sales || 0),
@@ -127,6 +128,7 @@ export const storageService = {
       fund_ins: 0, // Deprecated
       custom_sales: report.customSales, pos_sales_details: report.posSalesDetails,
       bank_transfer_fees: report.bankTransferFees, operational_expenses: report.operationalExpenses, operational_expenses_note: report.operationalExpensesNote,
+      expenses: report.expenses,
       eod_gpo: report.eodGpo, eod_gcash: report.eodGcash, eod_actual_cash: report.eodActualCash,
       gcash_notebook: report.gcashNotebook, total_start_fund: report.totalStartFund, total_end_assets: report.totalEndAssets,
       total_net_sales: report.totalNetSales, total_expenses: report.totalExpenses, theoretical_growth: report.theoreticalGrowth,

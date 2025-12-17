@@ -31,9 +31,13 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
   ];
 
   const visibleNavItems = navItems.filter(item => {
-    if (item.role === UserRole.ADMIN) {
-        return user.role === UserRole.ADMIN;
-    }
+    // Admin sees everything
+    if (user.role === UserRole.ADMIN) return true;
+
+    // Non-admins cannot see Admin-only items
+    if (item.role === UserRole.ADMIN) return false;
+
+    // Check permissions for other items
     if (user.permissions) {
         return user.permissions.includes(item.id);
     }

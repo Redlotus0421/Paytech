@@ -9,8 +9,8 @@ interface AdminSettingsProps {
   activeTab: 'stores' | 'users';
 }
 
-// FIX: Added 'transactions' to the list of available permissions
-const ALL_PERMISSIONS = ['dashboard', 'analytics', 'transactions', 'reports', 'entry', 'pos', 'inventory'];
+// FIX: Added 'transactions' and 'expenses' to the list of available permissions
+const ALL_PERMISSIONS = ['dashboard', 'analytics', 'transactions', 'expenses', 'reports', 'entry', 'pos', 'inventory'];
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
   const [stores, setStores] = useState<Store[]>([]);

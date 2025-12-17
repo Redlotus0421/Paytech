@@ -83,8 +83,8 @@ const ExpensesInputSection: React.FC<ExpensesInputSectionProps> = ({
                 ) : (
                     <div className="space-y-2">
                         {expenses.map((item) => (
-                            <div key={item.id} className="flex gap-2 items-center">
-                                <div className="relative w-1/3 min-w-[100px]">
+                            <div key={item.id} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                                <div className="relative w-full">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <span className="text-gray-500 sm:text-sm">₱</span>
                                     </div>
@@ -97,16 +97,18 @@ const ExpensesInputSection: React.FC<ExpensesInputSectionProps> = ({
                                         placeholder="0.00"
                                     />
                                 </div>
-                                <input
-                                    type="text"
-                                    value={item.description}
-                                    onChange={(e) => updateExpense(item.id, 'description', e.target.value)}
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                    placeholder="Description (e.g. Food, Supplies)"
-                                />
-                                <button type="button" onClick={() => removeExpense(item.id)} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded">
-                                    <Trash2 size={16}/>
-                                </button>
+                                <div className="flex gap-2 items-center">
+                                    <input
+                                        type="text"
+                                        value={item.description}
+                                        onChange={(e) => updateExpense(item.id, 'description', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="Description (e.g. Food, Supplies)"
+                                    />
+                                    <button type="button" onClick={() => removeExpense(item.id)} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded">
+                                        <Trash2 size={16}/>
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>

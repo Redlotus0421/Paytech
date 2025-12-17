@@ -256,7 +256,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
     const totalSalesRevenue = manualRevenue + posRevenue;
     const totalSalesNet = manualNet + posNet;
-    const totalExpenses = Number(bankFees || 0) + expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
+    const operationalExpensesOnly = expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
+    const totalExpenses = Number(bankFees || 0) + operationalExpensesOnly;
     const actualCashSales = totalEndAssets - totalStartFund;
     const derivedGcashNet = actualCashSales - totalSalesRevenue;
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
@@ -265,7 +266,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     
     // REVERSED AS REQUESTED: System Derived - Notebook
     // Updated: Add expenses back to derived net so they don't count as shortages
-    const notebookDifference = hasNotebookEntry ? (derivedGcashNet + totalExpenses) - notebookGcashVal : 0;
+    // Note: Only operational expenses are added back, bank fees are excluded from this adjustment as per request
+    const notebookDifference = hasNotebookEntry ? (derivedGcashNet + operationalExpensesOnly) - notebookGcashVal : 0;
     const eodNetSales = effectiveGcashNet + totalSalesNet - totalExpenses;
 
     return {

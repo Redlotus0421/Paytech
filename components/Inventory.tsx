@@ -42,7 +42,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             setFilterStoreId(user.storeId);
         } else if (allStores.length > 0) {
             setNewItemStoreId(allStores[0].id);
-            setFilterStoreId(allStores[0].id);
+            setFilterStoreId(''); // Default to All Stores for Admin
         }
         refreshInventory();
     };
@@ -312,6 +312,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                             onChange={e => setFilterStoreId(e.target.value)}
                             className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
                         >
+                            <option value="">All Stores</option>
                             {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>

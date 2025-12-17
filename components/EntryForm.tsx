@@ -310,7 +310,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
           <button onClick={() => isSodSaved && setActiveTab('eod')} disabled={!isSodSaved} className={`flex-1 py-3 text-sm font-bold rounded-md transition-all flex items-center justify-center gap-2 ${activeTab === 'eod' ? 'bg-white text-blue-600 shadow-sm' : !isSodSaved ? 'text-gray-400 cursor-not-allowed' : 'text-gray-500 hover:text-gray-700'}`}>{!isSodSaved && <Lock size={14} />} 2. End of Day (EOD)</button>
       </div>
 
-      <form onSubmit={handleSubmit} className="pb-96">
+      <form onSubmit={handleSubmit} className="pb-20">
         {/* --- TAB 1: START OF DAY --- */}
         <div className={activeTab === 'sod' ? 'block' : 'hidden'}>
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-6 mb-20"> {/* Added mb-20 for spacing */}
@@ -416,7 +416,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
              </div>
 
             {/* Expenses now here in EOD, removed from SOD */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-32">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Expenses & Fees</h2>
                 <ExpensesInputSection bankFees={bankFees} setBankFees={setBankFees} opExpenses={opExpenses} setOpExpenses={setOpExpenses} opExpensesNote={opExpensesNote} setOpExpensesNote={setOpExpensesNote}/>
             </div>

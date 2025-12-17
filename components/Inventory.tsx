@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { User, Store, InventoryItem, UserRole } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { User, Store, InventoryItem, UserRole, ReportData } from '../types';
 import { storageService } from '../services/storageService';
-import { Package, Plus, X, Check, Loader2 } from 'lucide-react';
+import { Package, Plus, X, Check, Loader2, Search, TrendingUp, DollarSign, ShoppingCart, BarChart3 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface InventoryProps {
@@ -11,6 +11,7 @@ interface InventoryProps {
 export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [reports, setReports] = useState<ReportData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
   // State for adding/editing item
@@ -25,11 +26,17 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   // Filtering
   const [filterStoreId, setFilterStoreId] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
-        const allStores = await storageService.fetchStores();
+        const [allStores, allReports] = await Promise.all([
+            storageService.fetchStores(),
+            storageService.fetchReports()
+        ]);
         setStores(allStores);
+        setReports(allReports);
+
         if (user.role === UserRole.EMPLOYEE && user.storeId) {
             setNewItemStoreId(user.storeId);
             setFilterStoreId(user.storeId);
@@ -121,12 +128,33 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
       }
   };
 
-  const filteredItems = items.filter(i => 
+  const filteredItems = useMemo(() => items.filter(i => 
       (!filterStoreId || i.storeId === filterStoreId) &&
-      (!filterCategory || i.category === filterCategory)
-  );
+      (!filterCategory || i.category === filterCategory) &&
+      (!searchQuery || i.name.toLowerCase().includes(searchQuery.toLowerCase()) || (i.category && i.category.toLowerCase().includes(searchQuery.toLowerCase())))
+  ), [items, filterStoreId, filterCategory, searchQuery]);
 
   const uniqueCategories = Array.from(new Set(items.map(item => item.category).filter(Boolean))) as string[];
+
+  // Metrics Calculations
+  const metrics = useMemo(() => {
+      const totalCost = filteredItems.reduce((acc, item) => acc + (item.cost * item.stock), 0);
+      const totalValue = filteredItems.reduce((acc, item) => acc + (item.price * item.stock), 0);
+      const potentialProfit = totalValue - totalCost;
+
+      const totalSold = reports
+        .filter(r => !filterStoreId || r.storeId === filterStoreId)
+        .reduce((acc, report) => {
+            const reportSold = (report.posSalesDetails || []).reduce((rAcc, item) => {
+                if (filterCategory && item.category !== filterCategory) return rAcc;
+                if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return rAcc;
+                return rAcc + item.quantity;
+            }, 0);
+            return acc + reportSold;
+        }, 0);
+
+      return { totalCost, totalValue, potentialProfit, totalSold };
+  }, [filteredItems, reports, filterStoreId, filterCategory, searchQuery]);
 
     return (
         <div className="flex flex-col gap-6 w-full">
@@ -135,6 +163,38 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             <div className="text-sm text-gray-500 text-right">
                 <div className="font-semibold">{new Date().toLocaleDateString(undefined, {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}</div>
                 <div>{stores.length} Active Store(s)</div>
+            </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-4">
+                <div className="p-3 bg-blue-50 rounded-full text-blue-600"><DollarSign size={24}/></div>
+                <div>
+                    <div className="text-xs text-gray-500 font-bold uppercase">Total Inventory Cost</div>
+                    <div className="text-xl font-bold text-gray-900">₱{metrics.totalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-4">
+                <div className="p-3 bg-green-50 rounded-full text-green-600"><TrendingUp size={24}/></div>
+                <div>
+                    <div className="text-xs text-gray-500 font-bold uppercase">Total Selling Value</div>
+                    <div className="text-xl font-bold text-gray-900">₱{metrics.totalValue.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-4">
+                <div className="p-3 bg-purple-50 rounded-full text-purple-600"><BarChart3 size={24}/></div>
+                <div>
+                    <div className="text-xs text-gray-500 font-bold uppercase">Potential Profit</div>
+                    <div className="text-xl font-bold text-gray-900">₱{metrics.potentialProfit.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
+                </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-4">
+                <div className="p-3 bg-orange-50 rounded-full text-orange-600"><ShoppingCart size={24}/></div>
+                <div>
+                    <div className="text-xs text-gray-500 font-bold uppercase">Total Items Sold</div>
+                    <div className="text-xl font-bold text-gray-900">{metrics.totalSold.toLocaleString()}</div>
+                </div>
             </div>
         </div>
 
@@ -231,24 +291,42 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         {/* Inventory List */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden w-full min-w-0">
              {/* Filter Bar */}
-            <div className="p-4 border-b border-gray-100 flex items-center gap-4">
-                <span className="text-sm text-gray-500">View Store:</span>
-                <select 
-                    value={filterStoreId}
-                    onChange={e => setFilterStoreId(e.target.value)}
-                    className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
-                >
-                    {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-                <span className="text-sm text-gray-500">Category:</span>
-                <select 
-                    value={filterCategory}
-                    onChange={e => setFilterCategory(e.target.value)}
-                    className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
-                >
-                    <option value="">All Categories</option>
-                    {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
+            <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center gap-4 justify-between">
+                <div className="flex items-center gap-4 flex-1">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                        <input 
+                            type="text"
+                            placeholder="Search items..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        />
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 whitespace-nowrap">Store:</span>
+                        <select 
+                            value={filterStoreId}
+                            onChange={e => setFilterStoreId(e.target.value)}
+                            className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                        >
+                            {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 whitespace-nowrap">Category:</span>
+                        <select 
+                            value={filterCategory}
+                            onChange={e => setFilterCategory(e.target.value)}
+                            className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                        >
+                            <option value="">All Categories</option>
+                            {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div className="overflow-x-auto">

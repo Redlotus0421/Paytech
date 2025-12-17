@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { supabase } from '../services/supabaseClient';
-import { Store, User, UserRole } from '../types';
+import { Store, User, UserRole, InventoryItem, ReportData } from '../types';
 import { Store as StoreIcon, User as UserIcon, Pencil, Trash2, X, RefreshCw, Loader2, Lock } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -135,11 +135,36 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
   const executeDeleteStore = async (storeId: string) => {
     setIsStoreLoading(true);
     try {
+        // Check for dependencies
+        const [allUsers, inventory, reports] = await Promise.all([
+            storageService.fetchUsers(),
+            storageService.getInventory(),
+            storageService.fetchReports()
+        ]);
+
+        const storeUsers = allUsers.filter(u => u.storeId === storeId && u.status === 'active');
+        const storeInventory = inventory.filter(i => i.storeId === storeId);
+        const storeReports = reports.filter(r => r.storeId === storeId);
+
+        if (storeUsers.length > 0 || storeInventory.length > 0 || storeReports.length > 0) {
+            let msg = "Cannot delete store because it has related data:\n";
+            if (storeUsers.length > 0) msg += `- ${storeUsers.length} active users\n`;
+            if (storeInventory.length > 0) msg += `- ${storeInventory.length} inventory items\n`;
+            if (storeReports.length > 0) msg += `- ${storeReports.length} reports\n`;
+            msg += "\nPlease delete or reassign these items first.";
+            alert(msg);
+            return;
+        }
+
         await storageService.deleteStore(storeId);
         await loadStores();
-    } catch (e) {
-        alert("Error deleting store");
+    } catch (e: any) {
         console.error(e);
+        if (e.code === '23503') { // Foreign key violation
+             alert("Cannot delete store because it is referenced by other records (e.g. transactions).");
+        } else {
+             alert("Error deleting store: " + (e.message || "Unknown error"));
+        }
     } finally {
         setIsStoreLoading(false);
     }

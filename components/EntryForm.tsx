@@ -348,7 +348,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
         {/* --- TAB 2: END OF DAY --- */}
         <div className={activeTab === 'eod' ? 'flex flex-col' : 'hidden'} style={{ height: 'calc(100vh - 128px)' }}>
-            <div className="flex-1 overflow-y-auto pr-4 space-y-6">
+            <div className="flex-1 overflow-y-auto pr-4 space-y-6 pb-8">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">End of Day (Assets)</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

@@ -11,6 +11,7 @@ import { POS } from './components/POS';
 import { Reports } from './components/Reports'; // Verified Import
 import { Analytics } from './components/Analytics';
 import { Transactions } from './components/Transactions';
+import { Expenses } from './components/Expenses';
 import { Settings } from './components/Settings';
 import { Loader2 } from 'lucide-react';
 import { PaytechLogo } from './components/PaytechLogo';
@@ -121,6 +122,7 @@ const App: React.FC = () => {
       {view === 'dashboard' && <Dashboard user={user} />}
       {view === 'analytics' && <Analytics />}
       {view === 'transactions' && <Transactions user={user} />}
+      {view === 'expenses' && <Expenses user={user} />}
       {view === 'reports' && <Reports user={user} />}
       {view === 'entry' && <EntryForm user={user} onSuccess={() => setView('dashboard')} />}
       {view === 'pos' && <POS user={user} />}

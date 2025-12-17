@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, LayoutDashboard, PlusCircle, Store, Users, Menu, ChevronLeft, ChevronRight, X, Package, ShoppingCart, FileText, BarChart, Settings as SettingsIcon, Receipt } from 'lucide-react';
+import { LogOut, LayoutDashboard, PlusCircle, Store, Users, Menu, ChevronLeft, ChevronRight, X, Package, ShoppingCart, FileText, BarChart, Settings as SettingsIcon, Receipt, Wallet } from 'lucide-react';
 import { PaytechLogo } from './PaytechLogo';
 
 interface LayoutProps {
@@ -18,7 +18,8 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'analytics', label: 'Analytics', icon: BarChart },
-    { id: 'transactions', label: 'Transactions', icon: Receipt }, // NEW TAB
+    { id: 'transactions', label: 'Transactions', icon: Receipt },
+    { id: 'expenses', label: 'Expenses', icon: Wallet }, // NEW TAB
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'entry', label: 'New Report', icon: PlusCircle },
     { id: 'pos', label: 'POS', icon: ShoppingCart },

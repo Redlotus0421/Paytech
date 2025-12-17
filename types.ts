@@ -34,6 +34,16 @@ export interface ExpenseTransaction {
   description: string;
 }
 
+export interface GeneralExpense {
+  id: string;
+  storeId: string;
+  date: string;
+  category: string; // 'Payroll' | 'Rent' | 'Utilities' | 'Maintenance' | 'Other'
+  amount: number;
+  description: string;
+  recordedBy: string;
+}
+
 export interface PosTransaction {
   id: string;
   storeId: string;

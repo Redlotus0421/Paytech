@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { User, ReportData, Store, UserRole } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { User, ReportData, Store, UserRole, GeneralExpense } from '../types';
 import { storageService } from '../services/storageService';
-import { Eye, FileText, X, CheckCircle, AlertTriangle, Loader2, Edit2, Trash2 } from 'lucide-react';
+import { Eye, FileText, X, CheckCircle, AlertTriangle, Loader2, Edit2, Trash2, Wallet } from 'lucide-react';
 
 export const Reports: React.FC<{ user: User }> = ({ user }) => {
+    const [activeTab, setActiveTab] = useState<'daily-reports' | 'expense-summary'>('daily-reports');
     const [reports, setReports] = useState<ReportData[]>([]);
+    const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
     const [stores, setStores] = useState<Store[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [selectedReport, setSelectedReport] = useState<ReportData | null>(null);
@@ -26,13 +28,15 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [allStores, allReports, allUsers] = await Promise.all([
+            const [allStores, allReports, allUsers, allExpenses] = await Promise.all([
                 storageService.fetchStores(),
                 storageService.fetchReports(),
-                storageService.fetchUsers()
+                storageService.fetchUsers(),
+                storageService.fetchGeneralExpenses()
             ]);
             setStores(allStores);
             setUsers(allUsers);
+            setGeneralExpenses(allExpenses);
             let filtered = allReports;
             if (user.role === UserRole.EMPLOYEE) {
                 filtered = allReports.filter(r => r.storeId === user.storeId);
@@ -117,14 +121,49 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         return true;
     }).sort((a,b)=> b.timestamp - a.timestamp);
 
+    // Filter General Expenses
+    const filteredGeneralExpenses = useMemo(() => {
+        return generalExpenses.filter(e => {
+            if (filterStoreId && e.storeId !== filterStoreId) return false;
+            if (monthFilter) {
+                const m = new Date(e.date).getMonth() + 1;
+                if (m !== Number(monthFilter)) return false;
+            }
+            if (startDate && new Date(e.date) < new Date(startDate)) return false;
+            if (endDate && new Date(e.date) > new Date(endDate)) return false;
+            return true;
+        });
+    }, [generalExpenses, filterStoreId, monthFilter, startDate, endDate]);
+
+    const expenseSummary = useMemo(() => {
+        const summary: Record<string, number> = {};
+        filteredGeneralExpenses.forEach(e => {
+            summary[e.category] = (summary[e.category] || 0) + e.amount;
+        });
+        return summary;
+    }, [filteredGeneralExpenses]);
+
+    const totalGeneralExpenses = Object.values(expenseSummary).reduce((a, b) => a + b, 0);
+
     return (
         <div className="flex flex-col gap-6 min-h-0 w-full min-w-0">
             <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                     <FileText size={24} className="text-blue-600"/> Reports History
                 </h2>
-                <div className="text-sm text-gray-500">
-                    Total Reports: {reports.length}
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => setActiveTab('daily-reports')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'daily-reports' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                        Daily Reports
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('expense-summary')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'expense-summary' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                        Expense Summary
+                    </button>
                 </div>
             </div>
 
@@ -154,31 +193,17 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             <option value="11">November</option>
                             <option value="12">December</option>
                         </select>
-                        <button onClick={() => { setStartDate(''); setEndDate(''); setMonthFilter(''); setFilterStoreId(''); }} className="text-sm text-gray-500">Clear</button>
+                        <button onClick={() => {setFilterStoreId(''); setStartDate(''); setEndDate(''); setMonthFilter('');}} className="text-sm text-blue-600 hover:underline">Clear</button>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button onClick={loadData} className="text-sm text-blue-600 border border-blue-100 px-3 py-1 rounded">Refresh</button>
+                        {activeTab === 'daily-reports' && (
+                            <button onClick={loadData} className="text-sm text-blue-600 border border-blue-100 px-3 py-1 rounded">Refresh</button>
+                        )}
                     </div>
                 </div>
+                
+                {activeTab === 'daily-reports' ? (
                 <div className="overflow-x-auto overflow-y-auto min-w-0 max-h-[70vh]">
-                    {/** compute filteredReports */}
-                    {(() => {
-                        const start = startDate ? new Date(startDate) : null;
-                        const end = endDate ? new Date(endDate) : null;
-                        const filtered = reports.filter(r => {
-                            if (filterStoreId && r.storeId !== filterStoreId) return false;
-                            if (monthFilter) {
-                                const m = new Date(r.date).getMonth() + 1;
-                                if (m !== Number(monthFilter)) return false;
-                            }
-                            if (start && new Date(r.date) < start) return false;
-                            if (end && new Date(r.date) > end) return false;
-                            return true;
-                        });
-                        (filtered as ReportData[]).sort((a,b)=> b.timestamp - a.timestamp);
-                        // expose filteredReports by closure for JSX below
-                        (window as any).__filteredReports = filtered;
-                    })()}
           <table className="w-full min-w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
               <tr>
@@ -430,6 +455,52 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             </tfoot>
           </table>
         </div>
+        ) : (
+            <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {Object.entries(expenseSummary).map(([category, amount]) => (
+                        <div key={category} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <div className="text-sm text-gray-500 font-medium mb-1">{category}</div>
+                            <div className="text-2xl font-bold text-gray-900">{formatMoney(amount)}</div>
+                        </div>
+                    ))}
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <div className="text-sm text-blue-600 font-medium mb-1">Total Expenses</div>
+                        <div className="text-2xl font-bold text-blue-900">{formatMoney(totalGeneralExpenses)}</div>
+                    </div>
+                </div>
+
+                <h3 className="font-bold text-gray-800 mb-4">Expense Details</h3>
+                <div className="overflow-x-auto border rounded-lg">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-xs">
+                            <tr>
+                                <th className="px-6 py-3">Date</th>
+                                <th className="px-6 py-3">Store</th>
+                                <th className="px-6 py-3">Category</th>
+                                <th className="px-6 py-3">Description</th>
+                                <th className="px-6 py-3 text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {filteredGeneralExpenses.length === 0 ? (
+                                <tr><td colSpan={5} className="p-6 text-center text-gray-500">No expenses found.</td></tr>
+                            ) : (
+                                filteredGeneralExpenses.map(e => (
+                                    <tr key={e.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4">{new Date(e.date).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4">{getStoreName(e.storeId)}</td>
+                                        <td className="px-6 py-4">{e.category}</td>
+                                        <td className="px-6 py-4">{e.description}</td>
+                                        <td className="px-6 py-4 text-right font-medium">{formatMoney(e.amount)}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
       </div>
 
       {/* DETAILED BREAKDOWN MODAL */}

@@ -1,4 +1,4 @@
-import { User, Store, ReportData, UserRole, InventoryItem, PosTransaction } from '../types';
+import { User, Store, ReportData, UserRole, InventoryItem, PosTransaction, GeneralExpense } from '../types';
 import { supabase } from './supabaseClient';
 
 const KEYS = {
@@ -322,5 +322,37 @@ export const storageService = {
       localStorage.setItem(KEYS.TRANSACTION_CATEGORIES, JSON.stringify(cats));
     }
     return cats;
+  },
+  
+  // General Expenses
+  fetchGeneralExpenses: async (): Promise<GeneralExpense[]> => {
+    const { data, error } = await supabase.from('general_expenses').select('*');
+    if (error) { console.error('Error fetching general expenses:', error); return []; }
+    return (data || []).map((e: any) => ({
+      id: e.id,
+      storeId: e.store_id,
+      date: e.date,
+      category: e.category,
+      amount: Number(e.amount),
+      description: e.description,
+      recordedBy: e.recorded_by
+    }));
+  },
+  addGeneralExpense: async (expense: GeneralExpense) => {
+    const dbExpense = {
+      id: expense.id,
+      store_id: expense.storeId,
+      date: expense.date,
+      category: expense.category,
+      amount: expense.amount,
+      description: expense.description,
+      recorded_by: expense.recordedBy
+    };
+    const { error } = await supabase.from('general_expenses').insert([dbExpense]);
+    if (error) throw error;
+  },
+  deleteGeneralExpense: async (id: string) => {
+    const { error } = await supabase.from('general_expenses').delete().eq('id', id);
+    if (error) throw error;
   },
 };

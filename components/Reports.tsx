@@ -703,11 +703,11 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                         </tr>
                                         <tr className="bg-white">
                                             <td className="p-2 pl-3 text-gray-700">
-                                                Other Expenses
+                                                <div className="font-medium">Other Expenses</div>
                                                 {selectedReport.operationalExpensesNote && (
-                                                    <span className="block text-xs text-gray-500 font-normal italic">
-                                                        ({selectedReport.operationalExpensesNote})
-                                                    </span>
+                                                    <div className="text-xs text-gray-600 mt-0.5">
+                                                        {selectedReport.operationalExpensesNote}
+                                                    </div>
                                                 )}
                                             </td>
                                             <td className="p-2 pr-3 text-right font-mono text-gray-900">

@@ -310,7 +310,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
           <button onClick={() => isSodSaved && setActiveTab('eod')} disabled={!isSodSaved} className={`flex-1 py-3 text-sm font-bold rounded-md transition-all flex items-center justify-center gap-2 ${activeTab === 'eod' ? 'bg-white text-blue-600 shadow-sm' : !isSodSaved ? 'text-gray-400 cursor-not-allowed' : 'text-gray-500 hover:text-gray-700'}`}>{!isSodSaved && <Lock size={14} />} 2. End of Day (EOD)</button>
       </div>
 
-      <form onSubmit={handleSubmit} className="pb-20">
+      <form onSubmit={handleSubmit}>
         {/* --- TAB 1: START OF DAY --- */}
         <div className={activeTab === 'sod' ? 'block' : 'hidden'}>
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-6 mb-20"> {/* Added mb-20 for spacing */}

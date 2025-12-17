@@ -433,7 +433,18 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                     </div>
                     <div className="flex flex-col md:flex-row gap-4 items-stretch">
                         <div className={`flex-1 w-full p-4 rounded-lg border flex justify-between items-center ${Math.abs(calculations.effectiveGcashNet) < 1 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200' }`}><div className="flex flex-col justify-center"><div className={`text-xs font-bold uppercase mb-1 ${Math.abs(calculations.effectiveGcashNet) < 1 ? 'text-green-600' : 'text-red-400'}`}>Total Gcash NET</div><div className={`text-3xl font-extrabold ${Math.abs(calculations.effectiveGcashNet) < 1 ? 'text-green-700' : 'text-red-600'}`}>{calculations.effectiveGcashNet > 0 ? '+' : ''}₱{calculations.effectiveGcashNet.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div></div><div className="text-right flex items-center h-full">{Math.abs(calculations.effectiveGcashNet) < 1 ? (<span className="text-green-700 font-bold flex items-center gap-2 text-lg"><CheckCircle size={24}/> BALANCED</span>) : (<span className="text-red-600 font-bold flex items-center gap-2 text-lg"><AlertTriangle size={24}/> {calculations.effectiveGcashNet < 0 ? 'SHORTAGE' : 'SURPLUS'}</span>)}</div></div>
-                        {calculations.hasNotebookEntry && (<div className="bg-purple-50 border border-purple-200 p-4 rounded-lg flex flex-col justify-center min-w-[160px] shadow-sm"><div className="text-xs font-bold uppercase text-purple-700 mb-1">Difference</div><div className={`text-2xl font-bold ${calculations.notebookDifference > 0 ? 'text-green-600' : (calculations.notebookDifference < 0 ? 'text-red-600' : 'text-black')}`}>{calculations.notebookDifference > 0 ? '+' : ''}₱{calculations.notebookDifference.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div></div>)}
+                        <div className={`border p-4 rounded-lg flex flex-col justify-center min-w-[160px] shadow-sm ${calculations.hasNotebookEntry ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-100'}`}>
+                            <div className={`text-xs font-bold uppercase mb-1 ${calculations.hasNotebookEntry ? 'text-purple-700' : 'text-gray-500'}`}>Difference</div>
+                            <div className={`text-2xl font-bold ${!calculations.hasNotebookEntry ? 'text-gray-400' : calculations.notebookDifference > 0 ? 'text-green-600' : (calculations.notebookDifference < 0 ? 'text-red-600' : 'text-black')}`}>
+                                {calculations.hasNotebookEntry ? (
+                                    <>
+                                        {calculations.notebookDifference > 0 ? '+' : ''}₱{calculations.notebookDifference.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    </>
+                                ) : (
+                                    '---'
+                                )}
+                            </div>
+                        </div>
                         <button type="submit" disabled={isSubmitting} className={`w-full md:w-auto bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition-colors whitespace-nowrap flex items-center justify-center ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}>{isSubmitting ? (<><Loader2 className="animate-spin mr-2" size={20}/> Submitting...</>) : ('Submit Final Report')}</button>
                     </div>
                  </div>

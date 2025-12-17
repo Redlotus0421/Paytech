@@ -258,16 +258,14 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const totalSalesNet = manualNet + posNet;
     const totalExpenses = Number(bankFees || 0) + expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
     const actualCashSales = totalEndAssets - totalStartFund;
-    // Subtract bankFees so derived value matches Net Notebook value (excluding fees from difference)
-    const derivedGcashNet = actualCashSales - totalSalesRevenue - Number(bankFees || 0);
+    const derivedGcashNet = actualCashSales - totalSalesRevenue;
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
     const hasNotebookEntry = gcashNotebook !== '';
     const effectiveGcashNet = hasNotebookEntry ? notebookGcashVal : derivedGcashNet;
     
     // REVERSED AS REQUESTED: System Derived - Notebook
     const notebookDifference = hasNotebookEntry ? derivedGcashNet - notebookGcashVal : 0;
-    // Exclude bankFees from expenses subtraction because effectiveGcashNet is already Net of fees
-    const eodNetSales = effectiveGcashNet + totalSalesNet - (totalExpenses - Number(bankFees || 0));
+    const eodNetSales = effectiveGcashNet + totalSalesNet - totalExpenses;
 
     return {
       totalStartFund, totalEndAssets, totalSalesRevenue, totalExpenses, actualCashSales,

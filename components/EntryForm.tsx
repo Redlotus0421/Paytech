@@ -264,7 +264,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const effectiveGcashNet = hasNotebookEntry ? notebookGcashVal : derivedGcashNet;
     
     // REVERSED AS REQUESTED: System Derived - Notebook
-    const notebookDifference = hasNotebookEntry ? derivedGcashNet - notebookGcashVal : 0;
+    // Updated: Add expenses back to derived net so they don't count as shortages
+    const notebookDifference = hasNotebookEntry ? (derivedGcashNet + totalExpenses) - notebookGcashVal : 0;
     const eodNetSales = effectiveGcashNet + totalSalesNet - totalExpenses;
 
     return {

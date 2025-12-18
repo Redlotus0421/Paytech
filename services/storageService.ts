@@ -128,7 +128,7 @@ export const storageService = {
       fund_ins: 0, // Deprecated
       custom_sales: report.customSales, pos_sales_details: report.posSalesDetails,
       bank_transfer_fees: report.bankTransferFees, operational_expenses: report.operationalExpenses, operational_expenses_note: report.operationalExpensesNote,
-      // expenses: report.expenses, // Column likely missing in DB, disabling to fix save error
+      expenses: report.expenses,
       eod_gpo: report.eodGpo, eod_gcash: report.eodGcash, eod_actual_cash: report.eodActualCash,
       gcash_notebook: report.gcashNotebook, total_start_fund: report.totalStartFund, total_end_assets: report.totalEndAssets,
       total_net_sales: report.totalNetSales, total_expenses: report.totalExpenses, theoretical_growth: report.theoreticalGrowth,

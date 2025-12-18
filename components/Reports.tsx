@@ -12,6 +12,8 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const [selectedReport, setSelectedReport] = useState<ReportData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [filterStoreId, setFilterStoreId] = useState('');
+    const [filterCategory, setFilterCategory] = useState('');
+    const [categories, setCategories] = useState<string[]>([]);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [monthFilter, setMonthFilter] = useState('');
@@ -34,6 +36,8 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 storageService.fetchUsers(),
                 storageService.fetchGeneralExpenses()
             ]);
+            const cats = storageService.getExpenseCategories();
+            setCategories(cats);
             setStores(allStores);
             setUsers(allUsers);
             setGeneralExpenses(allExpenses);
@@ -125,6 +129,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const filteredGeneralExpenses = useMemo(() => {
         return generalExpenses.filter(e => {
             if (filterStoreId && e.storeId !== filterStoreId) return false;
+            if (filterCategory && e.category !== filterCategory) return false;
             if (monthFilter) {
                 const m = new Date(e.date).getMonth() + 1;
                 if (m !== Number(monthFilter)) return false;
@@ -133,7 +138,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             if (endDate && new Date(e.date) > new Date(endDate)) return false;
             return true;
         });
-    }, [generalExpenses, filterStoreId, monthFilter, startDate, endDate]);
+    }, [generalExpenses, filterStoreId, filterCategory, monthFilter, startDate, endDate]);
 
     const expenseSummary = useMemo(() => {
         const summary: Record<string, number> = {};
@@ -199,7 +204,13 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             <option value="11">November</option>
                             <option value="12">December</option>
                         </select>
-                        <button onClick={() => {setFilterStoreId(''); setStartDate(''); setEndDate(''); setMonthFilter('');}} className="text-sm text-blue-600 hover:underline">Clear</button>
+                        {activeTab === 'expense-summary' && (
+                            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
+                                <option value="">All Categories</option>
+                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        )}
+                        <button onClick={() => {setFilterStoreId(''); setStartDate(''); setEndDate(''); setMonthFilter(''); setFilterCategory('');}} className="text-sm text-blue-600 hover:underline">Clear</button>
                     </div>
                     <div className="flex items-center gap-2">
                         {activeTab === 'daily-reports' && (

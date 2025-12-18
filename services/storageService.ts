@@ -339,6 +339,12 @@ export const storageService = {
     }
     return cats;
   },
+  removeExpenseCategory: (category: string): string[] => {
+    let cats = storageService.getExpenseCategories();
+    cats = cats.filter(c => c !== category);
+    localStorage.setItem(KEYS.EXPENSE_CATEGORIES, JSON.stringify(cats));
+    return cats;
+  },
   
   // General Expenses
   fetchGeneralExpenses: async (): Promise<GeneralExpense[]> => {

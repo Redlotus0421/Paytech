@@ -165,25 +165,42 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
 
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
-                        <select
-                            value={category}
-                            onChange={e => {
-                                if (e.target.value === 'NEW_CATEGORY') {
-                                    const newCat = prompt("Enter new expense category:");
-                                    if (newCat) {
-                                        const updatedCats = storageService.addExpenseCategory(newCat);
-                                        setCategories(updatedCats);
-                                        setCategory(newCat);
+                        <div className="flex gap-2">
+                            <select
+                                value={category}
+                                onChange={e => {
+                                    if (e.target.value === 'NEW_CATEGORY') {
+                                        const newCat = prompt("Enter new expense category:");
+                                        if (newCat) {
+                                            const updatedCats = storageService.addExpenseCategory(newCat);
+                                            setCategories(updatedCats);
+                                            setCategory(newCat);
+                                        }
+                                    } else {
+                                        setCategory(e.target.value);
                                     }
-                                } else {
-                                    setCategory(e.target.value);
-                                }
-                            }}
-                            className="w-full p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
-                        >
-                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                            <option value="NEW_CATEGORY" className="font-bold text-blue-600">+ Add New Category</option>
-                        </select>
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                            >
+                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                <option value="NEW_CATEGORY" className="font-bold text-blue-600">+ Add New Category</option>
+                            </select>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!category || category === 'NEW_CATEGORY') return;
+                                    if (window.confirm(`Remove category "${category}"?`)) {
+                                        const updatedCats = storageService.removeExpenseCategory(category);
+                                        setCategories(updatedCats);
+                                        setCategory(updatedCats[0] || '');
+                                    }
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded border border-gray-200"
+                                title="Remove selected category"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
                     </div>
 
                     <div>

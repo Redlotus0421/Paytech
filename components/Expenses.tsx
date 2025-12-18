@@ -8,17 +8,16 @@ interface ExpensesProps {
   user: User;
 }
 
-const EXPENSE_CATEGORIES = ['Payroll', 'Rent', 'Utilities', 'Maintenance', 'Supplies', 'Other'];
-
 export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
   const [expenses, setExpenses] = useState<GeneralExpense[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   // Form State
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
+  const [category, setCategory] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedStoreId, setSelectedStoreId] = useState('');
 
@@ -38,15 +37,22 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
         storageService.fetchStores(),
         storageService.fetchGeneralExpenses()
       ]);
+      const cats = storageService.getExpenseCategories();
+      setCategories(cats);
       setStores(allStores);
       setExpenses(allExpenses);
+
+      // Set default category if not set
+      if (!category && cats.length > 0) {
+        setCategory(cats[0]);
+      }
 
       // Set default store for form
       if (user.role === UserRole.EMPLOYEE && user.storeId) {
         setSelectedStoreId(user.storeId);
         setFilterStoreId(user.storeId);
       } else if (allStores.length > 0) {
-        setSelectedStoreId(allStores[0].id);
+        if (!selectedStoreId) setSelectedStoreId(allStores[0].id);
         setFilterStoreId(''); // Admin sees all by default
       }
     } catch (error) {
@@ -78,7 +84,9 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
       // Reset form
       setAmount('');
       setDescription('');
-      setCategory(EXPENSE_CATEGORIES[0]);
+      // Keep last used category or reset to first? Usually keeping last used is better UX, or reset to first.
+      // Code previously reset to first.
+      setCategory(categories[0] || '');
     } catch (error) {
       alert("Failed to save expense");
       console.error(error);
@@ -159,10 +167,22 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
                         <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
                         <select
                             value={category}
-                            onChange={e => setCategory(e.target.value)}
+                            onChange={e => {
+                                if (e.target.value === 'NEW_CATEGORY') {
+                                    const newCat = prompt("Enter new expense category:");
+                                    if (newCat) {
+                                        const updatedCats = storageService.addExpenseCategory(newCat);
+                                        setCategories(updatedCats);
+                                        setCategory(newCat);
+                                    }
+                                } else {
+                                    setCategory(e.target.value);
+                                }
+                            }}
                             className="w-full p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
                         >
-                            {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="NEW_CATEGORY" className="font-bold text-blue-600">+ Add New Category</option>
                         </select>
                     </div>
 
@@ -235,7 +255,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
                     className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
                 >
                     <option value="">All Categories</option>
-                    {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
             </div>
 

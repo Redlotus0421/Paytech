@@ -6,6 +6,7 @@ const KEYS = {
   CURRENT_USER: 'cfs_current_user',
   POS_TRANSACTIONS: 'cfs_pos_transactions',
   TRANSACTION_CATEGORIES: 'cfs_transaction_categories',
+  EXPENSE_CATEGORIES: 'cfs_expense_categories',
 };
 
 const seedData = () => {
@@ -320,6 +321,21 @@ export const storageService = {
     if (trimmed && !cats.includes(trimmed)) {
       cats.push(trimmed);
       localStorage.setItem(KEYS.TRANSACTION_CATEGORIES, JSON.stringify(cats));
+    }
+    return cats;
+  },
+
+  // Expense Categories
+  getExpenseCategories: (): string[] => {
+    const cats = localStorage.getItem(KEYS.EXPENSE_CATEGORIES);
+    return cats ? JSON.parse(cats) : ['Payroll', 'Rent', 'Utilities', 'Maintenance', 'Supplies', 'Other'];
+  },
+  addExpenseCategory: (category: string): string[] => {
+    const cats = storageService.getExpenseCategories();
+    const trimmed = category.trim();
+    if (trimmed && !cats.includes(trimmed)) {
+      cats.push(trimmed);
+      localStorage.setItem(KEYS.EXPENSE_CATEGORIES, JSON.stringify(cats));
     }
     return cats;
   },

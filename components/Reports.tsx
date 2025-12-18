@@ -582,8 +582,8 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                      <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 flex flex-col">
-                        <div className="text-sm text-indigo-600 font-medium mb-1">Total Bank Transfer Fees</div>
-                        <div className="text-2xl font-bold text-indigo-600">{formatMoney(totalBankTransferFees)}</div>
+                        <div className="text-sm text-black font-medium mb-1">Total Bank Transfer Fees</div>
+                        <div className="text-2xl font-bold text-black">{formatMoney(totalBankTransferFees)}</div>
                     </div>
                 </div>
 

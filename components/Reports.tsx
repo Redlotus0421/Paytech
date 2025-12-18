@@ -206,9 +206,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             <button onClick={loadData} className="text-sm text-blue-600 border border-blue-100 px-3 py-1 rounded">Refresh</button>
                         )}
                         {activeTab === 'expense-summary' && (
-                             <div className="bg-red-50 px-4 py-2 rounded-lg border border-red-200 flex flex-col items-end">
-                                <div className="text-xs text-red-600 font-medium uppercase">Total Expenses</div>
-                                <div className="text-xl font-bold text-red-600">{formatMoney(totalGeneralExpenses)}</div>
+                             <div className="bg-red-50 p-4 rounded-lg border border-red-200 flex flex-col min-w-[240px]">
+                                <div className="text-sm text-red-600 font-medium mb-1">Total Expenses</div>
+                                <div className="text-2xl font-bold text-red-600">{formatMoney(totalGeneralExpenses)}</div>
                             </div>
                         )}
                     </div>

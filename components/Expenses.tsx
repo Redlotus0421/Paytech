@@ -26,6 +26,11 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
   const [filterCategory, setFilterCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Admin Auth State
+  const [showAdminAuth, setShowAdminAuth] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+
   useEffect(() => {
     loadData();
   }, [user]);
@@ -92,6 +97,33 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
       console.error(error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const initiateDeleteCategory = (cat: string) => {
+    setCategoryToDelete(cat);
+    setAdminPassword('');
+    setShowAdminAuth(true);
+  };
+
+  const confirmDeleteCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryToDelete) return;
+
+    try {
+        const auth = await storageService.login('admin', adminPassword);
+        if (auth && auth.role === UserRole.ADMIN) {
+            const updatedCats = storageService.removeExpenseCategory(categoryToDelete);
+            setCategories(updatedCats);
+            setCategory(updatedCats[0] || '');
+            setShowAdminAuth(false);
+            setCategoryToDelete(null);
+        } else {
+            alert("Invalid admin password");
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Authentication failed");
     }
   };
 
@@ -189,11 +221,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
                                 type="button"
                                 onClick={() => {
                                     if (!category || category === 'NEW_CATEGORY') return;
-                                    if (window.confirm(`Remove category "${category}"?`)) {
-                                        const updatedCats = storageService.removeExpenseCategory(category);
-                                        setCategories(updatedCats);
-                                        setCategory(updatedCats[0] || '');
-                                    }
+                                    initiateDeleteCategory(category);
                                 }}
                                 className="p-2 text-red-500 hover:bg-red-50 rounded border border-gray-200"
                                 title="Remove selected category"
@@ -342,6 +370,41 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
             </div>
         </div>
       </div>
+
+      {/* Admin Auth Modal */}
+      {showAdminAuth && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+            <h3 className="text-lg font-bold mb-4 text-gray-900">Admin Authentication</h3>
+            <p className="text-sm text-gray-600 mb-4">Please enter admin password to delete category "{categoryToDelete}".</p>
+            <form onSubmit={confirmDeleteCategory}>
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-4"
+                placeholder="Admin Password"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAdminAuth(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

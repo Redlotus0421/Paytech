@@ -4,7 +4,7 @@ import { storageService } from '../services/storageService';
 import { Eye, FileText, X, CheckCircle, AlertTriangle, Loader2, Edit2, Trash2, Wallet } from 'lucide-react';
 
 export const Reports: React.FC<{ user: User }> = ({ user }) => {
-    const [activeTab, setActiveTab] = useState<'daily-reports' | 'expense-summary' | 'sod-eod'>('daily-reports');
+    const [activeTab, setActiveTab] = useState<'daily-reports' | 'expense-summary' | 'sod-eod' | 'bank-transfer-fees'>('daily-reports');
     const [reports, setReports] = useState<ReportData[]>([]);
     const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
     const [stores, setStores] = useState<Store[]>([]);
@@ -150,6 +150,10 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
 
     const totalGeneralExpenses = Object.values(expenseSummary).reduce((a, b) => a + b, 0);
 
+    const totalBankTransferFees = useMemo(() => {
+        return filteredReports.reduce((sum, report) => sum + (report.bankTransferFees || 0), 0);
+    }, [filteredReports]);
+
     return (
         <div className="flex flex-col gap-6 min-h-0 w-full min-w-0">
             <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
@@ -174,6 +178,12 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'expense-summary' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     >
                         Expense Summary
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('bank-transfer-fees')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'bank-transfer-fees' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                        Bank Transfer Fees
                     </button>
                 </div>
             </div>
@@ -559,6 +569,43 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                         <td className="px-6 py-4">{e.category}</td>
                                         <td className="px-6 py-4">{e.description}</td>
                                         <td className="px-6 py-4 text-right font-medium">{formatMoney(e.amount)}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+
+        {activeTab === 'bank-transfer-fees' && (
+            <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                     <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 flex flex-col">
+                        <div className="text-sm text-indigo-600 font-medium mb-1">Total Bank Transfer Fees</div>
+                        <div className="text-2xl font-bold text-indigo-600">{formatMoney(totalBankTransferFees)}</div>
+                    </div>
+                </div>
+
+                <h3 className="font-bold text-gray-800 mb-4">Bank Transfer Fee Details</h3>
+                <div className="overflow-x-auto border rounded-lg">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-xs">
+                            <tr>
+                                <th className="px-6 py-3">Date</th>
+                                <th className="px-6 py-3">Store</th>
+                                <th className="px-6 py-3 text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {filteredReports.filter(r => (r.bankTransferFees || 0) > 0).length === 0 ? (
+                                <tr><td colSpan={3} className="p-6 text-center text-gray-500">No bank transfer fees found.</td></tr>
+                            ) : (
+                                filteredReports.filter(r => (r.bankTransferFees || 0) > 0).map(r => (
+                                    <tr key={r.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4">{new Date(r.date).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4">{getStoreName(r.storeId)}</td>
+                                        <td className="px-6 py-4 text-right font-medium">{formatMoney(r.bankTransferFees)}</td>
                                     </tr>
                                 ))
                             )}

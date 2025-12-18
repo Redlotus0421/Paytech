@@ -511,16 +511,16 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
 
         {activeTab === 'expense-summary' && (
             <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     {Object.entries(expenseSummary).map(([category, amount]) => (
-                        <div key={category} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                            <div className="text-sm text-gray-500 font-medium mb-1">{category}</div>
+                        <div key={category} className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div className="text-sm text-gray-600 font-medium mb-1">{category}</div>
                             <div className="text-2xl font-bold text-gray-900">{formatMoney(amount)}</div>
                         </div>
                     ))}
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <div className="text-sm text-blue-600 font-medium mb-1">Total Expenses</div>
-                        <div className="text-2xl font-bold text-blue-900">{formatMoney(totalGeneralExpenses)}</div>
+                    <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <div className="text-sm text-red-600 font-medium mb-1">Total Expenses</div>
+                        <div className="text-2xl font-bold text-red-600">{formatMoney(totalGeneralExpenses)}</div>
                     </div>
                 </div>
 

@@ -4,7 +4,7 @@ import { storageService } from '../services/storageService';
 import { Eye, FileText, X, CheckCircle, AlertTriangle, Loader2, Edit2, Trash2, Wallet } from 'lucide-react';
 
 export const Reports: React.FC<{ user: User }> = ({ user }) => {
-    const [activeTab, setActiveTab] = useState<'daily-reports' | 'expense-summary'>('daily-reports');
+    const [activeTab, setActiveTab] = useState<'daily-reports' | 'expense-summary' | 'sod-eod'>('daily-reports');
     const [reports, setReports] = useState<ReportData[]>([]);
     const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
     const [stores, setStores] = useState<Store[]>([]);
@@ -159,6 +159,12 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         Daily Reports
                     </button>
                     <button 
+                        onClick={() => setActiveTab('sod-eod')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'sod-eod' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                        SOD/EOD
+                    </button>
+                    <button 
                         onClick={() => setActiveTab('expense-summary')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'expense-summary' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     >
@@ -202,7 +208,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     </div>
                 </div>
                 
-                {activeTab === 'daily-reports' ? (
+                {activeTab === 'daily-reports' && (
                 <div className="overflow-x-auto overflow-y-auto min-w-0 max-h-[70vh]">
           <table className="w-full min-w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
@@ -455,7 +461,55 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             </tfoot>
           </table>
         </div>
-        ) : (
+        )}
+
+        {activeTab === 'sod-eod' && (
+            <div className="overflow-x-auto overflow-y-auto min-w-0 max-h-[70vh]">
+                <table className="w-full min-w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
+                        <tr>
+                            <th className="px-6 py-4">Report Date</th>
+                            <th className="px-6 py-4">Store</th>
+                            <th className="px-6 py-4 text-right bg-blue-50">GPO Start</th>
+                            <th className="px-6 py-4 text-right bg-blue-50">GCash Start</th>
+                            <th className="px-6 py-4 text-right bg-blue-50">Petty Cash</th>
+                            <th className="px-6 py-4 text-right bg-blue-50">Add. Fund-in</th>
+                            <th className="px-6 py-4 text-right bg-blue-50">Add. Cash (ATM)</th>
+                            <th className="px-6 py-4 text-right bg-blue-100 font-bold">Total Start</th>
+                            <th className="px-6 py-4 text-right bg-green-50">GPO End</th>
+                            <th className="px-6 py-4 text-right bg-green-50">GCash End</th>
+                            <th className="px-6 py-4 text-right bg-green-50">Actual Cash</th>
+                            <th className="px-6 py-4 text-right bg-green-100 font-bold">Total End</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {isLoading ? (
+                            <tr><td colSpan={12} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading reports...</td></tr>
+                        ) : filteredReports.map((report) => (
+                            <tr key={report.id} className="hover:bg-gray-50 transition-colors text-gray-900">
+                                <td className="px-6 py-4 whitespace-nowrap">{report.date}</td>
+                                <td className="px-6 py-4">{getStoreName(report.storeId)}</td>
+                                <td className="px-6 py-4 text-right bg-blue-50/30">{formatMoney(Number(report.sodGpo || 0))}</td>
+                                <td className="px-6 py-4 text-right bg-blue-50/30">{formatMoney(Number(report.sodGcash || 0))}</td>
+                                <td className="px-6 py-4 text-right bg-blue-50/30">{formatMoney(Number(report.sodPettyCash || 0))}</td>
+                                <td className="px-6 py-4 text-right bg-blue-50/30">{formatMoney(Number(report.fundIn || 0))}</td>
+                                <td className="px-6 py-4 text-right bg-blue-50/30">{formatMoney(Number(report.cashAtm || 0))}</td>
+                                <td className="px-6 py-4 text-right font-bold bg-blue-100/30">{formatMoney(Number(report.totalStartFund || 0))}</td>
+                                <td className="px-6 py-4 text-right bg-green-50/30">{formatMoney(Number(report.eodGpo || 0))}</td>
+                                <td className="px-6 py-4 text-right bg-green-50/30">{formatMoney(Number(report.eodGcash || 0))}</td>
+                                <td className="px-6 py-4 text-right bg-green-50/30">{formatMoney(Number(report.eodActualCash || 0))}</td>
+                                <td className="px-6 py-4 text-right font-bold bg-green-100/30">{formatMoney(Number(report.totalEndAssets || 0))}</td>
+                            </tr>
+                        ))}
+                        {!isLoading && filteredReports.length === 0 && (
+                            <tr><td colSpan={12} className="p-8 text-center text-gray-400">No reports found.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        )}
+
+        {activeTab === 'expense-summary' && (
             <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                     {Object.entries(expenseSummary).map(([category, amount]) => (

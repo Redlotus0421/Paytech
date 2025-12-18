@@ -373,6 +373,18 @@ export const storageService = {
     const { error } = await supabase.from('general_expenses').insert([dbExpense]);
     if (error) throw error;
   },
+  updateGeneralExpense: async (expense: GeneralExpense) => {
+    const dbExpense = {
+      store_id: expense.storeId,
+      date: expense.date,
+      category: expense.category,
+      amount: expense.amount,
+      description: expense.description,
+      recorded_by: expense.recordedBy
+    };
+    const { error } = await supabase.from('general_expenses').update(dbExpense).eq('id', expense.id);
+    if (error) throw error;
+  },
   deleteGeneralExpense: async (id: string) => {
     const { error } = await supabase.from('general_expenses').delete().eq('id', id);
     if (error) throw error;

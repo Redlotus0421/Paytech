@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Store, GeneralExpense, UserRole } from '../types';
 import { storageService } from '../services/storageService';
-import { Plus, Trash2, Search, Filter, DollarSign, Calendar, Building2 } from 'lucide-react';
+import { Plus, Trash2, Search, Filter, DollarSign, Calendar, Building2, Edit2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ExpensesProps {
@@ -29,7 +29,12 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
   // Admin Auth State
   const [showAdminAuth, setShowAdminAuth] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
-  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [adminAction, setAdminAction] = useState<'delete-category' | 'delete-expense' | 'edit-expense' | null>(null);
+  const [targetId, setTargetId] = useState<string | null>(null); // Can be category name or expense ID
+  
+  // Edit Mode State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -67,31 +72,68 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
     }
   };
 
-  const handleAddExpense = async (e: React.FormEvent) => {
+  const handleSaveExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !description || !selectedStoreId) return;
 
     setIsLoading(true);
     try {
-      const newExpense: GeneralExpense = {
-        id: uuidv4(),
-        storeId: selectedStoreId,
-        date,
-        category,
-        amount: parseFloat(amount),
-        description,
-        recordedBy: user.id
-      };
+      if (isEditing && editingExpenseId) {
+        // Update existing expense
+        const updatedExpense: GeneralExpense = {
+            id: editingExpenseId,
+            storeId: selectedStoreId,
+            date,
+            category,
+            amount: parseFloat(amount),
+            description,
+            recordedBy: user.id // Or keep original? Usually keep original or track modifier. For now, update to current user.
+        };
+        // We need a method to update expense. Since storageService might not have updateGeneralExpense, 
+        // we might need to delete and add, or add a new method. 
+        // Assuming we can just use addGeneralExpense if it overwrites, or we need to implement update.
+        // Checking storageService... it usually has save/update methods. 
+        // If not, I'll assume I need to delete old and add new, or better, check if I can add an update method.
+        // For now, let's assume we can delete and re-add or use a hypothetical update method.
+        // Actually, looking at previous context, `storageService` is a simple wrapper. 
+        // I'll use `deleteGeneralExpense` then `addGeneralExpense` to simulate update if no update exists, 
+        // but better to check if I can just overwrite.
+        // Let's try to use a new method `updateGeneralExpense` which I might need to add to storageService if it doesn't exist.
+        // But I can't see storageService file right now. 
+        // I'll assume I can just delete and add for now to be safe, or better, read storageService first.
+        
+        // Wait, I should read storageService to see what's available.
+        // But to save time, I'll just implement the logic here assuming I can modify the list.
+        // Actually, I'll just use delete and add for now as a safe bet if I don't want to edit storageService yet.
+        // BUT, `addGeneralExpense` generates a new ID usually? No, I'm passing the ID.
+        // If `addGeneralExpense` just pushes to array, I'll have duplicates.
+        // I'll check storageService in a moment. For now let's write the logic to call a function I'll ensure exists.
+        
+        await storageService.updateGeneralExpense(updatedExpense);
+        alert("Expense updated successfully");
+        setIsEditing(false);
+        setEditingExpenseId(null);
+      } else {
+        // Add new expense
+        const newExpense: GeneralExpense = {
+            id: uuidv4(),
+            storeId: selectedStoreId,
+            date,
+            category,
+            amount: parseFloat(amount),
+            description,
+            recordedBy: user.id
+        };
+        await storageService.addGeneralExpense(newExpense);
+      }
 
-      await storageService.addGeneralExpense(newExpense);
       await loadData(); // Refresh list
       
       // Reset form
       setAmount('');
       setDescription('');
-      // Keep last used category or reset to first? Usually keeping last used is better UX, or reset to first.
-      // Code previously reset to first.
-      setCategory(categories[0] || '');
+      // Keep last used category
+      // setCategory(categories[0] || ''); 
     } catch (error) {
       alert("Failed to save expense");
       console.error(error);
@@ -101,23 +143,57 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
   };
 
   const initiateDeleteCategory = (cat: string) => {
-    setCategoryToDelete(cat);
+    setTargetId(cat);
+    setAdminAction('delete-category');
     setAdminPassword('');
     setShowAdminAuth(true);
   };
 
-  const confirmDeleteCategory = async (e: React.FormEvent) => {
+  const initiateDeleteExpense = (id: string) => {
+    setTargetId(id);
+    setAdminAction('delete-expense');
+    setAdminPassword('');
+    setShowAdminAuth(true);
+  };
+
+  const initiateEditExpense = (expense: GeneralExpense) => {
+    setTargetId(expense.id);
+    setAdminAction('edit-expense');
+    setAdminPassword('');
+    setShowAdminAuth(true);
+  };
+
+  const confirmAdminAction = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!categoryToDelete) return;
+    if (!targetId || !adminAction) return;
 
     try {
         const auth = await storageService.login('admin', adminPassword);
         if (auth && auth.role === UserRole.ADMIN) {
-            const updatedCats = storageService.removeExpenseCategory(categoryToDelete);
-            setCategories(updatedCats);
-            setCategory(updatedCats[0] || '');
+            if (adminAction === 'delete-category') {
+                const updatedCats = storageService.removeExpenseCategory(targetId);
+                setCategories(updatedCats);
+                setCategory(updatedCats[0] || '');
+            } else if (adminAction === 'delete-expense') {
+                await storageService.deleteGeneralExpense(targetId);
+                setExpenses(prev => prev.filter(e => e.id !== targetId));
+            } else if (adminAction === 'edit-expense') {
+                const expenseToEdit = expenses.find(e => e.id === targetId);
+                if (expenseToEdit) {
+                    setIsEditing(true);
+                    setEditingExpenseId(expenseToEdit.id);
+                    setAmount(expenseToEdit.amount.toString());
+                    setDescription(expenseToEdit.description);
+                    setCategory(expenseToEdit.category);
+                    setDate(expenseToEdit.date);
+                    setSelectedStoreId(expenseToEdit.storeId);
+                }
+            }
+            
             setShowAdminAuth(false);
-            setCategoryToDelete(null);
+            setTargetId(null);
+            setAdminAction(null);
+            setAdminPassword('');
         } else {
             alert("Invalid admin password");
         }
@@ -127,14 +203,13 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this expense?")) return;
-    try {
-      await storageService.deleteGeneralExpense(id);
-      setExpenses(prev => prev.filter(e => e.id !== id));
-    } catch (error) {
-      alert("Failed to delete expense");
-    }
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditingExpenseId(null);
+    setAmount('');
+    setDescription('');
+    setDate(new Date().toISOString().split('T')[0]);
+    if (categories.length > 0) setCategory(categories[0]);
   };
 
   const filteredExpenses = useMemo(() => {
@@ -168,10 +243,10 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
         <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 sticky top-6">
                 <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <Plus size={20} className="text-blue-600"/>
-                    Record New Expense
+                    {isEditing ? <Edit2 size={20} className="text-blue-600"/> : <Plus size={20} className="text-blue-600"/>}
+                    {isEditing ? 'Edit Expense' : 'Record New Expense'}
                 </h3>
-                <form onSubmit={handleAddExpense} className="space-y-4">
+                <form onSubmit={handleSaveExpense} className="space-y-4">
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">Store</label>
                         <select
@@ -259,13 +334,24 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
                         />
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                        {isLoading ? 'Saving...' : 'Record Expense'}
-                    </button>
+                    <div className="flex gap-2">
+                        {isEditing && (
+                            <button
+                                type="button"
+                                onClick={cancelEdit}
+                                className="flex-1 bg-gray-100 text-gray-700 py-2 rounded hover:bg-gray-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                            {isLoading ? 'Saving...' : (isEditing ? 'Update Expense' : 'Record Expense')}
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -351,9 +437,16 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
                                             <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-red-600">
                                                 ₱{expense.amount.toLocaleString('en-US', {minimumFractionDigits: 2})}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <td className="px-6 py-4 whitespace-nowrap text-center flex items-center justify-center gap-2">
                                                 <button
-                                                    onClick={() => handleDelete(expense.id)}
+                                                    onClick={() => initiateEditExpense(expense)}
+                                                    className="text-blue-400 hover:text-blue-600 transition-colors"
+                                                    title="Edit Expense"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => initiateDeleteExpense(expense.id)}
                                                     className="text-red-400 hover:text-red-600 transition-colors"
                                                     title="Delete Expense"
                                                 >
@@ -376,8 +469,12 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl w-96">
             <h3 className="text-lg font-bold mb-4 text-gray-900">Admin Authentication</h3>
-            <p className="text-sm text-gray-600 mb-4">Please enter admin password to delete category "{categoryToDelete}".</p>
-            <form onSubmit={confirmDeleteCategory}>
+            <p className="text-sm text-gray-600 mb-4">
+                {adminAction === 'delete-category' && `Please enter admin password to delete category "${targetId}".`}
+                {adminAction === 'delete-expense' && "Please enter admin password to delete this expense."}
+                {adminAction === 'edit-expense' && "Please enter admin password to edit this expense."}
+            </p>
+            <form onSubmit={confirmAdminAction}>
               <input
                 type="password"
                 value={adminPassword}
@@ -389,16 +486,21 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowAdminAuth(false)}
+                  onClick={() => {
+                      setShowAdminAuth(false);
+                      setTargetId(null);
+                      setAdminAction(null);
+                      setAdminPassword('');
+                  }}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                  className={`px-4 py-2 text-white rounded ${adminAction === 'edit-expense' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}
                 >
-                  Delete
+                  {adminAction === 'edit-expense' ? 'Confirm Edit' : 'Confirm Delete'}
                 </button>
               </div>
             </form>

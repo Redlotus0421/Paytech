@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { User, UserRole, ReportData, Store } from '../types';
+import { User, UserRole, ReportData, Store, GeneralExpense } from '../types';
 import { storageService } from '../services/storageService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { TrendingUp, AlertOctagon, DollarSign, Loader2 } from 'lucide-react';
+import { TrendingUp, AlertOctagon, DollarSign, Loader2, CreditCard } from 'lucide-react';
 
 interface DashboardProps {
   user: User;
@@ -10,6 +10,7 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [reports, setReports] = useState<ReportData[]>([]);
+  const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -17,11 +18,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const allStores = await storageService.fetchStores();
+            const [allStores, allReports, allExpenses] = await Promise.all([
+                storageService.fetchStores(),
+                storageService.fetchReports(),
+                storageService.fetchGeneralExpenses()
+            ]);
             setStores(allStores);
-            const allReports = await storageService.fetchReports();
-        console.log('Dashboard: fetched reports count', (allReports || []).length);
             setReports(allReports);
+            setGeneralExpenses(allExpenses);
         } catch (error) {
             console.error("Failed to load dashboard data:", error);
         } finally {
@@ -40,12 +44,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     return data.sort((a, b) => b.timestamp - a.timestamp);
   }, [reports, user]);
 
+  const filteredGeneralExpenses = useMemo(() => {
+    let data = generalExpenses;
+    if (user.role !== UserRole.ADMIN && user.storeId) {
+      data = generalExpenses.filter(e => e.storeId === user.storeId);
+    }
+    return data;
+  }, [generalExpenses, user]);
+
   const stats = useMemo(() => {
     const totalProfit = filteredReports.reduce((acc, r) => acc + r.recordedProfit, 0);
     const totalShortage = filteredReports.reduce((acc, r) => r.discrepancy < 0 ? acc + r.discrepancy : acc, 0);
     const balanceCount = filteredReports.filter(r => r.status === 'BALANCED').length;
-    return { totalProfit, totalShortage, balanceCount };
-  }, [filteredReports]);
+    
+    const reportExpenses = filteredReports.reduce((acc, r) => acc + (r.totalExpenses || 0), 0);
+    const genExpenses = filteredGeneralExpenses.reduce((acc, e) => acc + e.amount, 0);
+    const totalExpenses = reportExpenses + genExpenses;
+
+    return { totalProfit, totalShortage, balanceCount, totalExpenses };
+  }, [filteredReports, filteredGeneralExpenses]);
 
   const chartData = useMemo(() => {
     return filteredReports.slice(0, 7).reverse().map(r => ({
@@ -83,8 +100,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       <h2 className="text-xl font-bold text-gray-900">
         {user.role === UserRole.ADMIN ? 'Global Overview' : 'Store Performance'}
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Net Sales" value={`₱${stats.totalProfit.toLocaleString()}`} color="text-emerald-600" icon={TrendingUp} />
+        <StatCard label="Total Expenses" value={`₱${stats.totalExpenses.toLocaleString()}`} color="text-orange-600" icon={CreditCard} />
         <StatCard label="Total Shortage/Surplus" value={`₱${Math.abs(stats.totalShortage).toLocaleString()}`} color="text-red-600" icon={AlertOctagon} />
         <StatCard label="Balanced Reports" value={stats.balanceCount} color="text-blue-600" icon={DollarSign} />
       </div>

@@ -187,6 +187,12 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                 {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         )}
+                        {activeTab === 'expense-summary' && (
+                            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
+                                <option value="">All Categories</option>
+                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        )}
                         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
                         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
                         <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
@@ -204,12 +210,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             <option value="11">November</option>
                             <option value="12">December</option>
                         </select>
-                        {activeTab === 'expense-summary' && (
-                            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
-                                <option value="">All Categories</option>
-                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        )}
                         <button onClick={() => {setFilterStoreId(''); setStartDate(''); setEndDate(''); setMonthFilter(''); setFilterCategory('');}} className="text-sm text-blue-600 hover:underline">Clear</button>
                     </div>
                     <div className="flex items-center gap-2">

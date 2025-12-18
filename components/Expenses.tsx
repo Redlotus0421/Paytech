@@ -226,7 +226,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
   const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto p-4">
+    <div className="flex flex-col gap-6 min-h-0 w-full min-w-0">
       <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
         <div>
             <h2 className="text-xl font-bold text-gray-900">General Expenses</h2>

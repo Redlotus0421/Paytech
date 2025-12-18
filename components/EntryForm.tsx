@@ -488,7 +488,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                                 )}
                             </div>
                         </div>
-                        <button type="submit" disabled={isSubmitting} className={`w-full md:w-auto bg-slate-900 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-slate-800 transition-colors whitespace-nowrap flex items-center justify-center ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}>{isSubmitting ? (<><Loader2 className="animate-spin mr-2" size={20}/> Submitting...</>) : ('Submit Final Report')}</button>
+                        <button type="submit" disabled={isSubmitting} className={`w-full md:w-auto bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-blue-700 transition-colors whitespace-nowrap flex items-center justify-center ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}>{isSubmitting ? (<><Loader2 className="animate-spin mr-2" size={20}/> Submitting...</>) : ('Submit Final Report')}</button>
                     </div>
                  </div>
             </div>

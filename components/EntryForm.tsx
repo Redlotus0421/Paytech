@@ -280,7 +280,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const totalSalesRevenue = manualRevenue + posRevenue;
     const totalSalesNet = manualNet + posNet;
     const operationalExpensesOnly = expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
-    const totalExpenses = Number(bankFees || 0) + Number(otherTransactionFees || 0) + operationalExpensesOnly;
+    const totalExpenses = Number(bankFees || 0) + operationalExpensesOnly;
     const actualCashSales = totalEndAssets - total
     const derivedGcashNet = actualCashSales - totalSalesRevenue;
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
@@ -297,14 +297,15 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       totalStartFund, totalEndAssets, totalSalesRevenue, totalExpenses, actualCashSales,
       derivedGcashNet, effectiveGcashNet, eodNetSales, hasNotebookEntry, notebookDifference
     };
-  }, [sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, eodGpo, eodGcash, eodActual, salesTransactions, posAggregated, bankFees, otherTransactionFees, expenses, gcashNotebook]);
+  }, [sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, eodGpo, eodGcash, eodActual, salesTransactions, posAggregated, bankFees, expenses, gcashNotebook]);
 expenses, gcashNotebook]);
 
   // --- SAVE HANDLERS ---
   const handleSaveSod = () => {
     if (!selectedStoreId) return alert("Please select a store");
     const draftData = {
-        date, sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, bank
+        date, sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, bankFees, expenses,
+        salesTransactions 
     };
     const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
     localStorage.setItem(draftKey, JSON.stringify(draftData));
@@ -491,7 +492,7 @@ expenses, gcashNotebook]);
             {/* Expenses now here in EOD, removed from SOD */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Expenses & Fees</h2>
-                <ExpensesInputSection bankFees={bankFees} setBankFees={setBankFees} otherTransactionFees={otherTransactionFees} setOtherTransactionFees={setOtherTransactionFees} expenses={expenses} setExpenses={setExpenses}/>
+                <ExpensesInputSection bankFees={bankFees} setBankFees={setBankFees} expenses={expenses} setExpenses={setExpenses}/>
             </div>
             </div>
 

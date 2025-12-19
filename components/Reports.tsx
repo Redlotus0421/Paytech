@@ -666,7 +666,11 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             ) : (
                                 feeData.map(item => (
                                     <tr key={item.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4">{new Date(item.date).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4">
+                                            {(!item.date || isNaN(new Date(item.date).getTime())) 
+                                                ? '-' 
+                                                : new Date(item.date).toLocaleDateString()}
+                                        </td>
                                         <td className="px-6 py-4">{getStoreName(item.storeId)}</td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded text-xs font-medium ${item.type === 'Other Expense' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>
@@ -674,7 +678,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-gray-600">{item.description}</td>
-                                        <td className="px-6 py-4 text-right font-medium">{formatMoney(item.amount)}</td>
+                                        <td className="px-6 py-4 text-right font-medium">{formatMoney(Number(item.amount) || 0)}</td>
                                     </tr>
                                 ))
                             )}

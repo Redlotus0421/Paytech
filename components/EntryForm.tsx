@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, ReportData, Store, UserRole, CartItem } from '../types';
 import { storageService } from '../services/storageService';
-import { AlertTriangle, CheckCircle, Trash2, Plus, Save, Lock, ShoppingBag, BookOpen, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Trash2, Plus, Save, Lock, ShoppingBag, BookOpen, Loader2, Tags, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface EntryFormProps {
@@ -157,6 +157,10 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   // Section 5: Manual Override
   const [gcashNotebook, setGcashNotebook] = useState<string>('');
 
+  // Category Management Modal State
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+
   // Load stores and categories asynchronously
   useEffect(() => {
     storageService.fetchStores().then(data => {
@@ -239,6 +243,21 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     if (field === 'category' && val && !transactionCategories.includes(val)) {
       const updated = storageService.addTransactionCategory(val);
       setTransactionCategories(updated);
+    }
+  };
+
+  const handleAddCategory = () => {
+    if (newCategoryInput.trim()) {
+        const updated = storageService.addTransactionCategory(newCategoryInput);
+        setTransactionCategories(updated);
+        setNewCategoryInput('');
+    }
+  };
+
+  const handleRemoveCategory = (cat: string) => {
+    if (confirm(`Are you sure you want to remove category "${cat}"?`)) {
+        const updated = storageService.removeTransactionCategory(cat);
+        setTransactionCategories(updated);
     }
   };
 
@@ -415,7 +434,15 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
              </div>
 
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-                <div className="flex justify-between items-center mb-4 pb-2 border-b"><h2 className="text-lg font-bold text-gray-900">Other Transactions</h2><button type="button" onClick={addTransaction} className="text-blue-600 text-sm font-bold flex items-center hover:bg-blue-50 px-3 py-1 rounded"><Plus size={16} className="mr-1"/> ADD TRANSACTION</button></div>
+                <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-lg font-bold text-gray-900">Other Transactions</h2>
+                        <button type="button" onClick={() => setIsCategoryModalOpen(true)} className="text-gray-500 hover:text-blue-600 text-xs flex items-center gap-1 bg-gray-100 px-2 py-1 rounded transition-colors">
+                            <Tags size={12} /> Manage Categories
+                        </button>
+                    </div>
+                    <button type="button" onClick={addTransaction} className="text-blue-600 text-sm font-bold flex items-center hover:bg-blue-50 px-3 py-1 rounded"><Plus size={16} className="mr-1"/> ADD TRANSACTION</button>
+                </div>
                 {salesTransactions.length === 0 ? <div className="text-center py-6 text-gray-400 bg-gray-50 rounded border border-dashed border-gray-200">No manual transactions recorded.</div> : (
                     <div className="space-y-3">{salesTransactions.map((item) => (
                       <div key={item.id} className="flex gap-3 items-end flex-wrap">
@@ -493,6 +520,59 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                  </div>
             </div>
         </div>
+      
+      {/* Category Management Modal */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+                <div className="bg-gray-100 px-4 py-3 border-b flex justify-between items-center">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <Tags size={18}/> Manage Categories
+                    </h3>
+                    <button type="button" onClick={() => setIsCategoryModalOpen(false)} className="text-gray-500 hover:text-gray-700"><X size={20}/></button>
+                </div>
+                <div className="p-4">
+                    <div className="flex gap-2 mb-4">
+                        <input 
+                            type="text" 
+                            value={newCategoryInput}
+                            onChange={(e) => setNewCategoryInput(e.target.value)}
+                            placeholder="New category name..."
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCategory())}
+                        />
+                        <button 
+                            type="button"
+                            onClick={handleAddCategory}
+                            disabled={!newCategoryInput.trim()}
+                            className="bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Add
+                        </button>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto border rounded-md divide-y">
+                        {transactionCategories.length === 0 ? (
+                            <div className="p-4 text-center text-gray-400 text-sm italic">No categories found.</div>
+                        ) : (
+                            transactionCategories.map(cat => (
+                                <div key={cat} className="flex justify-between items-center p-3 hover:bg-gray-50">
+                                    <span className="text-sm text-gray-700">{cat}</span>
+                                    <button 
+                                        type="button"
+                                        onClick={() => handleRemoveCategory(cat)}
+                                        className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50"
+                                        title="Remove category"
+                                    >
+                                        <Trash2 size={14}/>
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
       </form>
     </div>
   );

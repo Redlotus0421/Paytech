@@ -313,7 +313,7 @@ export const storageService = {
   // Transaction Categories - stored locally and synced
   getTransactionCategories: (): string[] => {
     const cats = localStorage.getItem(KEYS.TRANSACTION_CATEGORIES);
-    return cats ? JSON.parse(cats) : ['Printing Services', 'Repair Services', 'Accessories', 'Other'];
+    return cats ? JSON.parse(cats) : ['Printing Services', 'Repair Services', 'Accessories', 'Coffee', 'Other'];
   },
   addTransactionCategory: (category: string): string[] => {
     const cats = storageService.getTransactionCategories();
@@ -322,6 +322,12 @@ export const storageService = {
       cats.push(trimmed);
       localStorage.setItem(KEYS.TRANSACTION_CATEGORIES, JSON.stringify(cats));
     }
+    return cats;
+  },
+  removeTransactionCategory: (category: string): string[] => {
+    let cats = storageService.getTransactionCategories();
+    cats = cats.filter(c => c !== category);
+    localStorage.setItem(KEYS.TRANSACTION_CATEGORIES, JSON.stringify(cats));
     return cats;
   },
 

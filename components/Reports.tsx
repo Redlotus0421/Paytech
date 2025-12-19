@@ -1015,7 +1015,17 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                 </div>
                             </div>
                         </div>
-    <td className="p-2 pr-3 text-right font-mono text-gray-900">
+
+                        {/* RIGHT COLUMN: EXPENSES & ACTUALS */}
+                        <div className="flex flex-col gap-6 h-full">
+                            <div className="border border-gray-200 rounded-lg overflow-hidden text-sm flex flex-col flex-1">
+                                <div className="bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 uppercase border-b border-gray-200 shrink-0">EXPENSES</div>
+                                <div className="flex-1 bg-white">
+                                <table className="w-full">
+                                    <tbody className="divide-y divide-gray-100">
+                                        <tr className="bg-white">
+                                            <td className="p-2 pl-3 text-gray-700">Bank Transfer Fees</td>
+                                            <td className="p-2 pr-3 text-right font-mono text-gray-900">
                                                 {isEditing ? (
                                                     <input type="number" value={(editReportData as any)?.bankTransferFees ?? selectedReport.bankTransferFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), bankTransferFees: Number(e.target.value) }))} className="w-24 text-right border border-gray-300 rounded px-2 py-1" />
                                                 ) : (

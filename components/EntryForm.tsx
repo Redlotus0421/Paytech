@@ -239,10 +239,12 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   const removeTransaction = (id: string) => setSalesTransactions(salesTransactions.filter(t => t.id !== id));
   const updateTransaction = (id: string, field: 'name' | 'amount' | 'cost' | 'category', val: string) => {
     setSalesTransactions(salesTransactions.map(t => t.id === id ? { ...t, [field]: val } : t));
-    // If adding a new category, save it
-    if (field === 'category' && val && !transactionCategories.includes(val)) {
-      const updated = storageService.addTransactionCategory(val);
-      setTransactionCategories(updated);
+  };
+
+  const handleCategoryBlur = (val: string) => {
+    if (val && !transactionCategories.includes(val)) {
+        const updated = storageService.addTransactionCategory(val);
+        setTransactionCategories(updated);
     }
   };
 
@@ -457,6 +459,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900" 
                             value={item.category} 
                             onChange={e => updateTransaction(item.id, 'category', e.target.value)} 
+                            onBlur={e => handleCategoryBlur(e.target.value)}
                             placeholder="Select or type..."
                           />
                           <datalist id={`category-list-${item.id}`}>

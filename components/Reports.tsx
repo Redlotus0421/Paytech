@@ -4,7 +4,7 @@ import { storageService } from '../services/storageService';
 import { Eye, FileText, X, CheckCircle, AlertTriangle, Loader2, Edit2, Trash2, Wallet } from 'lucide-react';
 
 export const Reports: React.FC<{ user: User }> = ({ user }) => {
-    const [activeTab, setActiveTab] = useState<'daily-reports' | 'expense-summary' | 'sod-eod' | 'bank-transfer-fees'>('daily-reports');
+    const [activeTab, setActiveTab] = useState<'daily-reports' | 'expense-summary' | 'sod-eod' | 'bank-transfer-fees' | 'other-transactions'>('daily-reports');
     const [reports, setReports] = useState<ReportData[]>([]);
     const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
     const [stores, setStores] = useState<Store[]>([]);
@@ -14,6 +14,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const [filterStoreId, setFilterStoreId] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
     const [categories, setCategories] = useState<string[]>([]);
+    const [transactionCategories, setTransactionCategories] = useState<string[]>([]);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [monthFilter, setMonthFilter] = useState('');
@@ -37,7 +38,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 storageService.fetchGeneralExpenses()
             ]);
             const cats = storageService.getExpenseCategories();
+            const transCats = storageService.getTransactionCategories();
             setCategories(cats);
+            setTransactionCategories(transCats);
             setStores(allStores);
             setUsers(allUsers);
             setGeneralExpenses(allExpenses);
@@ -185,6 +188,12 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     >
                         Bank Transfer Fees
                     </button>
+                    <button 
+                        onClick={() => setActiveTab('other-transactions')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'other-transactions' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                        Other Transactions
+                    </button>
                 </div>
             </div>
 
@@ -197,10 +206,10 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                 {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         )}
-                        {activeTab === 'expense-summary' && (
+                        {(activeTab === 'expense-summary' || activeTab === 'other-transactions') && (
                             <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
                                 <option value="">All Categories</option>
-                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                {(activeTab === 'expense-summary' ? categories : transactionCategories).map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         )}
                         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
@@ -614,6 +623,83 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 </div>
             </div>
         )}
+
+        {activeTab === 'other-transactions' && (() => {
+            const transactions: any[] = [];
+            filteredReports.forEach(r => {
+                if (r.customSales) {
+                    r.customSales.forEach((s: any) => {
+                        if (filterCategory && s.category !== filterCategory) return;
+                        transactions.push({
+                            ...s,
+                            date: r.date,
+                            storeId: r.storeId,
+                            reportId: r.id
+                        });
+                    });
+                }
+            });
+            
+            // Sort by date desc
+            transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            const totalAmount = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+            const totalCost = transactions.reduce((sum, t) => sum + (Number(t.cost) || 0), 0);
+            const totalNet = totalAmount - totalCost;
+
+            return (
+                <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 flex flex-col">
+                            <div className="text-sm text-blue-600 font-medium mb-1">Total Sales</div>
+                            <div className="text-2xl font-bold text-blue-600">{formatMoney(totalAmount)}</div>
+                        </div>
+                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 flex flex-col">
+                            <div className="text-sm text-orange-600 font-medium mb-1">Total Cost</div>
+                            <div className="text-2xl font-bold text-orange-600">{formatMoney(totalCost)}</div>
+                        </div>
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200 flex flex-col">
+                            <div className="text-sm text-green-600 font-medium mb-1">Total Net Income</div>
+                            <div className="text-2xl font-bold text-green-600">{formatMoney(totalNet)}</div>
+                        </div>
+                    </div>
+
+                    <h3 className="font-bold text-gray-800 mb-4">Transaction Details</h3>
+                    <div className="overflow-x-auto border rounded-lg">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-xs">
+                                <tr>
+                                    <th className="px-6 py-3">Date</th>
+                                    <th className="px-6 py-3">Store</th>
+                                    <th className="px-6 py-3">Category</th>
+                                    <th className="px-6 py-3">Name</th>
+                                    <th className="px-6 py-3 text-right">Amount</th>
+                                    <th className="px-6 py-3 text-right">Cost</th>
+                                    <th className="px-6 py-3 text-right">Net</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {transactions.length === 0 ? (
+                                    <tr><td colSpan={7} className="p-6 text-center text-gray-500">No transactions found.</td></tr>
+                                ) : (
+                                    transactions.map((t, i) => (
+                                        <tr key={`${t.reportId}-${t.id}-${i}`} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4">{new Date(t.date).toLocaleDateString()}</td>
+                                            <td className="px-6 py-4">{getStoreName(t.storeId)}</td>
+                                            <td className="px-6 py-4"><span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium">{t.category}</span></td>
+                                            <td className="px-6 py-4">{t.name}</td>
+                                            <td className="px-6 py-4 text-right font-medium">{formatMoney(Number(t.amount))}</td>
+                                            <td className="px-6 py-4 text-right text-gray-500">{formatMoney(Number(t.cost))}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-green-600">{formatMoney(Number(t.amount) - Number(t.cost))}</td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        })()}
       </div>
 
       {/* DETAILED BREAKDOWN MODAL */}

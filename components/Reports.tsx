@@ -13,6 +13,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [filterStoreId, setFilterStoreId] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
+    const [filterFeeType, setFilterFeeType] = useState<'all' | 'gcash' | 'bank'>('all');
     const [categories, setCategories] = useState<string[]>([]);
     const [transactionCategories, setTransactionCategories] = useState<string[]>([]);
     const [startDate, setStartDate] = useState('');
@@ -153,10 +154,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
 
     const totalGeneralExpenses = Object.values(expenseSummary).reduce((a, b) => a + b, 0);
 
-    const totalBankTransferFees = useMemo(() => {
-        return filteredReports.reduce((sum, report) => sum + (report.bankTransferFees || 0), 0);
-    }, [filteredReports]);
-
     return (
         <div className="flex flex-col gap-6 min-h-0 w-full min-w-0">
             <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
@@ -186,7 +183,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         onClick={() => setActiveTab('bank-transfer-fees')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'bank-transfer-fees' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     >
-                        Bank Transfer Fees
+                        Gcash/Bank Transfer Fees
                     </button>
                     <button 
                         onClick={() => setActiveTab('other-transactions')}
@@ -284,7 +281,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                   const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
                   const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
                   const totalItemsNet = manualNet + posNet;
-                  const totalExpenses = Number(report.bankTransferFees || 0) + Number(report.operationalExpenses || 0);
+                  const totalExpenses = Number(report.bankTransferFees || 0) + Number(report.gcashFees || 0) + Number(report.operationalExpenses || 0);
                   const grossSalesIncome = usedGcashNet + totalItemsNet;
                   const finalEodNet = grossSalesIncome - totalExpenses;
                   
@@ -418,7 +415,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         if (endDate && new Date(r.date) > new Date(endDate)) return false;
                         return true;
                     }).forEach(report => {
-                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.operationalExpenses || 0);
+                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.gcashFees || 0) + Number(report.operationalExpenses || 0);
                         totalExpenses += totalExp;
                     });
                     return formatMoney(totalExpenses);
@@ -480,7 +477,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
                         const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
                         const totalItemsNet = manualNet + posNet;
-                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.operationalExpenses || 0);
+                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.gcashFees || 0) + Number(report.operationalExpenses || 0);
                         const grossSalesIncome = usedGcashNet + totalItemsNet;
                         const finalEodNet = grossSalesIncome - totalExp;
                         totalEodNet += finalEodNet;
@@ -587,34 +584,78 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             </div>
         )}
 
-        {activeTab === 'bank-transfer-fees' && (
+        {activeTab === 'bank-transfer-fees' && (() => {
+            const feeData = filteredReports.flatMap(r => {
+                const items = [];
+                if ((filterFeeType === 'all' || filterFeeType === 'bank') && (r.bankTransferFees || 0) > 0) {
+                    items.push({
+                        id: r.id + '-bank',
+                        date: r.date,
+                        storeId: r.storeId,
+                        type: 'Bank Transfer Fee',
+                        amount: r.bankTransferFees
+                    });
+                }
+                if ((filterFeeType === 'all' || filterFeeType === 'gcash') && (r.gcashFees || 0) > 0) {
+                    items.push({
+                        id: r.id + '-gcash',
+                        date: r.date,
+                        storeId: r.storeId,
+                        type: 'GCash Fee',
+                        amount: r.gcashFees
+                    });
+                }
+                return items;
+            });
+
+            const totalFees = feeData.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+            return (
             <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                     <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 flex flex-col">
-                        <div className="text-sm text-black font-medium mb-1">Total Bank Transfer Fees</div>
-                        <div className="text-2xl font-bold text-black">{formatMoney(totalBankTransferFees)}</div>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                     <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 flex flex-col min-w-[200px]">
+                        <div className="text-sm text-black font-medium mb-1">Total Fees</div>
+                        <div className="text-2xl font-bold text-black">{formatMoney(totalFees)}</div>
                     </div>
+                     <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-gray-700">Filter Type:</label>
+                        <select 
+                            value={filterFeeType} 
+                            onChange={e => setFilterFeeType(e.target.value as any)}
+                            className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+                        >
+                            <option value="all">All Fees</option>
+                            <option value="gcash">GCash Fees</option>
+                            <option value="bank">Bank Transfer Fees</option>
+                        </select>
+                     </div>
                 </div>
 
-                <h3 className="font-bold text-gray-800 mb-4">Bank Transfer Fee Details</h3>
+                <h3 className="font-bold text-gray-800 mb-4">Fee Details</h3>
                 <div className="overflow-x-auto border rounded-lg">
                     <table className="w-full text-sm text-left">
                         <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-xs">
                             <tr>
                                 <th className="px-6 py-3">Date</th>
                                 <th className="px-6 py-3">Store</th>
+                                <th className="px-6 py-3">Type</th>
                                 <th className="px-6 py-3 text-right">Amount</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filteredReports.filter(r => (r.bankTransferFees || 0) > 0).length === 0 ? (
-                                <tr><td colSpan={3} className="p-6 text-center text-gray-500">No bank transfer fees found.</td></tr>
+                            {feeData.length === 0 ? (
+                                <tr><td colSpan={4} className="p-6 text-center text-gray-500">No fees found.</td></tr>
                             ) : (
-                                filteredReports.filter(r => (r.bankTransferFees || 0) > 0).map(r => (
-                                    <tr key={r.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4">{new Date(r.date).toLocaleDateString()}</td>
-                                        <td className="px-6 py-4">{getStoreName(r.storeId)}</td>
-                                        <td className="px-6 py-4 text-right font-medium">{formatMoney(r.bankTransferFees)}</td>
+                                feeData.map(item => (
+                                    <tr key={item.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4">{new Date(item.date).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4">{getStoreName(item.storeId)}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 rounded text-xs font-medium ${item.type === 'GCash Fee' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                                                {item.type}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-medium">{formatMoney(item.amount)}</td>
                                     </tr>
                                 ))
                             )}
@@ -622,7 +663,8 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     </table>
                 </div>
             </div>
-        )}
+            );
+        })()}
 
         {activeTab === 'other-transactions' && (() => {
             const transactions: any[] = [];
@@ -740,7 +782,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
           const manualNet = (selectedReport.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
           const posNet = (selectedReport.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
           const totalItemsNet = manualNet + posNet;
-          const totalExpenses = Number((isEditing && editReportData && (editReportData as any).bankTransferFees !== undefined) ? (editReportData as any).bankTransferFees : (selectedReport.bankTransferFees || 0)) + Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
+          const totalExpenses = Number((isEditing && editReportData && (editReportData as any).bankTransferFees !== undefined) ? (editReportData as any).bankTransferFees : (selectedReport.bankTransferFees || 0)) + 
+                                Number((isEditing && editReportData && (editReportData as any).gcashFees !== undefined) ? (editReportData as any).gcashFees : (selectedReport.gcashFees || 0)) +
+                                Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
           const grossSalesIncome = usedGcashNet + totalItemsNet;
           const finalEodNet = grossSalesIncome - totalExpenses;
           const actualEodSales = usedGcashNet + totalSalesRevenue;
@@ -968,6 +1012,16 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                                     <input type="number" value={(editReportData as any)?.bankTransferFees ?? selectedReport.bankTransferFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), bankTransferFees: Number(e.target.value) }))} className="w-24 text-right border border-gray-300 rounded px-2 py-1" />
                                                 ) : (
                                                     formatMoney(Number(selectedReport.bankTransferFees) || 0)
+                                                )}
+                                            </td>
+                                        </tr>
+                                        <tr className="bg-white">
+                                            <td className="p-2 pl-3 text-gray-700">GCash Fees</td>
+                                            <td className="p-2 pr-3 text-right font-mono text-gray-900">
+                                                {isEditing ? (
+                                                    <input type="number" value={(editReportData as any)?.gcashFees ?? selectedReport.gcashFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), gcashFees: Number(e.target.value) }))} className="w-24 text-right border border-gray-300 rounded px-2 py-1" />
+                                                ) : (
+                                                    formatMoney(Number(selectedReport.gcashFees) || 0)
                                                 )}
                                             </td>
                                         </tr>

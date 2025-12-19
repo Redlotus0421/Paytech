@@ -70,6 +70,7 @@ export interface ReportData {
   customSales: SalesTransaction[];
   posSalesDetails?: CartItem[];
   bankTransferFees: number;
+  gcashFees?: number;
   operationalExpenses: number;
   operationalExpensesNote?: string;
   expenses?: ExpenseTransaction[];

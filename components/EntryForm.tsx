@@ -217,7 +217,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                 setFundIn(data.fundIn || '');
                 setCashAtm(data.cashAtm || '');
                 setBankFees(data.bankFees || '');
-                setOtherTransactionFees(data.otherTransactionFees || '');
+                if (data.expenses) {
                     setExpenses(data.expenses);
                 } else if (data.opExpenses) {
                     // Migrate old draft format

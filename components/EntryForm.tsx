@@ -43,14 +43,12 @@ const InputRow = ({ label, value, setter, placeholder = "0", type = "number", pr
 interface ExpensesInputSectionProps {
     bankFees: string;
     setBankFees: (val: string) => void;
-    otherTransactionFees: string;
-    setOtherTransactionFees: (val: string) => void;
     expenses: { id: string, amount: string, description: string }[];
     setExpenses: React.Dispatch<React.SetStateAction<{ id: string, amount: string, description: string }[]>>;
 }
 
 const ExpensesInputSection: React.FC<ExpensesInputSectionProps> = ({ 
-    bankFees, setBankFees, otherTransactionFees, setOtherTransactionFees, expenses, setExpenses 
+    bankFees, setBankFees, expenses, setExpenses 
 }) => {
     const addExpense = () => {
         setExpenses([...expenses, { id: uuidv4(), amount: '', description: '' }]);
@@ -68,7 +66,6 @@ const ExpensesInputSection: React.FC<ExpensesInputSectionProps> = ({
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InputRow label="Bank Fees" value={bankFees} setter={setBankFees} prefix="₱" />
-                <InputRow label="Other Transaction Fees" value={otherTransactionFees} setter={setOtherTransactionFees} prefix="₱" />
             </div>
             
             <div>
@@ -150,7 +147,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
   // Section 3: Expenses (Shared state for SOD and EOD)
   const [bankFees, setBankFees] = useState<string>('');
-  const [otherTransactionFees, setOtherTransactionFees] = useState<string>('');
   const [expenses, setExpenses] = useState<{id: string, amount: string, description: string}[]>([]);
 
   // Section 4: End of Day Assets
@@ -222,7 +218,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                 setCashAtm(data.cashAtm || '');
                 setBankFees(data.bankFees || '');
                 setOtherTransactionFees(data.otherTransactionFees || '');
-                if (data.expenses) {
                     setExpenses(data.expenses);
                 } else if (data.opExpenses) {
                     // Migrate old draft format
@@ -286,7 +281,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const totalSalesNet = manualNet + posNet;
     const operationalExpensesOnly = expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
     const totalExpenses = Number(bankFees || 0) + Number(otherTransactionFees || 0) + operationalExpensesOnly;
-    const actualCashSales = totalEndAssets - totalStartFund;
+    const actualCashSales = totalEndAssets - total
     const derivedGcashNet = actualCashSales - totalSalesRevenue;
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
     const hasNotebookEntry = gcashNotebook !== '';
@@ -303,13 +298,13 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       derivedGcashNet, effectiveGcashNet, eodNetSales, hasNotebookEntry, notebookDifference
     };
   }, [sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, eodGpo, eodGcash, eodActual, salesTransactions, posAggregated, bankFees, otherTransactionFees, expenses, gcashNotebook]);
+expenses, gcashNotebook]);
 
   // --- SAVE HANDLERS ---
   const handleSaveSod = () => {
     if (!selectedStoreId) return alert("Please select a store");
     const draftData = {
-        date, sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, bankFees, otherTransactionFees, expenses,
-        salesTransactions 
+        date, sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, bank
     };
     const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
     localStorage.setItem(draftKey, JSON.stringify(draftData));
@@ -340,7 +335,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       customSales: salesTransactions.map(t => ({ id: t.id, name: t.name, amount: num(t.amount), cost: num(t.cost), category: t.category || 'Uncategorized' })),
       posSalesDetails: posAggregated,
       bankTransferFees: num(bankFees),
-      otherTransactionFees: num(otherTransactionFees),
       operationalExpenses: expenses.reduce((acc, e) => acc + num(e.amount), 0),
       operationalExpensesNote: expenses.map(e => e.description).filter(Boolean).join(', '), 
       expenses: expenses.map(e => ({ id: e.id, amount: num(e.amount), description: e.description })),

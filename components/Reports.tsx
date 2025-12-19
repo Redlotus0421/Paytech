@@ -13,7 +13,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [filterStoreId, setFilterStoreId] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
-    const [filterFeeType, setFilterFeeType] = useState<'all' | 'other' | 'bank'>('all');
+    const [filterFeeType, setFilterFeeType] = useState<'all' | 'expense' | 'bank'>('all');
     const [categories, setCategories] = useState<string[]>([]);
     const [transactionCategories, setTransactionCategories] = useState<string[]>([]);
     const [startDate, setStartDate] = useState('');
@@ -183,7 +183,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         onClick={() => setActiveTab('bank-transfer-fees')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'bank-transfer-fees' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     >
-                        Bank Transfer/Other Fees
+                        Bank Transfer Fee/Other Expense
                     </button>
                     <button 
                         onClick={() => setActiveTab('other-transactions')}
@@ -593,17 +593,34 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         date: r.date,
                         storeId: r.storeId,
                         type: 'Bank Transfer Fee',
+                        description: 'Bank Transfer Fee',
                         amount: r.bankTransferFees
                     });
                 }
-                if ((filterFeeType === 'all' || filterFeeType === 'other') && (r.otherTransactionFees || 0) > 0) {
-                    items.push({
-                        id: r.id + '-other',
-                        date: r.date,
-                        storeId: r.storeId,
-                        type: 'Other Transaction Fee',
-                        amount: r.otherTransactionFees
-                    });
+                
+                if (filterFeeType === 'all' || filterFeeType === 'expense') {
+                    if (r.expenses && r.expenses.length > 0) {
+                        r.expenses.forEach((exp, idx) => {
+                            items.push({
+                                id: r.id + '-exp-' + idx,
+                                date: r.date,
+                                storeId: r.storeId,
+                                type: 'Other Expense',
+                                description: exp.description || 'Other Expense',
+                                amount: exp.amount
+                            });
+                        });
+                    } else if ((r.operationalExpenses || 0) > 0) {
+                        // Legacy support for reports without detailed expenses array
+                        items.push({
+                            id: r.id + '-exp-legacy',
+                            date: r.date,
+                            storeId: r.storeId,
+                            type: 'Other Expense',
+                            description: r.operationalExpensesNote || 'Other Expense',
+                            amount: r.operationalExpenses
+                        });
+                    }
                 }
                 return items;
             });
@@ -614,7 +631,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             <div className="p-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                      <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200 flex flex-col min-w-[200px]">
-                        <div className="text-sm text-black font-medium mb-1">Total Fees</div>
+                        <div className="text-sm text-black font-medium mb-1">Total Fees & Expenses</div>
                         <div className="text-2xl font-bold text-black">{formatMoney(totalFees)}</div>
                     </div>
                      <div className="flex items-center gap-2">
@@ -624,14 +641,14 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             onChange={e => setFilterFeeType(e.target.value as any)}
                             className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
                         >
-                            <option value="all">All Fees</option>
-                            <option value="other">Other Transaction Fees</option>
+                            <option value="all">All Fees & Expenses</option>
                             <option value="bank">Bank Transfer Fees</option>
+                            <option value="expense">Other Expenses</option>
                         </select>
                      </div>
                 </div>
 
-                <h3 className="font-bold text-gray-800 mb-4">Fee Details</h3>
+                <h3 className="font-bold text-gray-800 mb-4">Fee & Expense Details</h3>
                 <div className="overflow-x-auto border rounded-lg">
                     <table className="w-full text-sm text-left">
                         <thead className="bg-gray-50 text-gray-600 uppercase font-bold text-xs">
@@ -639,22 +656,24 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                 <th className="px-6 py-3">Date</th>
                                 <th className="px-6 py-3">Store</th>
                                 <th className="px-6 py-3">Type</th>
+                                <th className="px-6 py-3">Description</th>
                                 <th className="px-6 py-3 text-right">Amount</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {feeData.length === 0 ? (
-                                <tr><td colSpan={4} className="p-6 text-center text-gray-500">No fees found.</td></tr>
+                                <tr><td colSpan={5} className="p-6 text-center text-gray-500">No fees or expenses found.</td></tr>
                             ) : (
                                 feeData.map(item => (
                                     <tr key={item.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4">{new Date(item.date).toLocaleDateString()}</td>
                                         <td className="px-6 py-4">{getStoreName(item.storeId)}</td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded text-xs font-medium ${item.type === 'Other Transaction Fee' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                                            <span className={`px-2 py-1 rounded text-xs font-medium ${item.type === 'Other Expense' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>
                                                 {item.type}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-4 text-gray-600">{item.description}</td>
                                         <td className="px-6 py-4 text-right font-medium">{formatMoney(item.amount)}</td>
                                     </tr>
                                 ))
@@ -765,7 +784,6 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
           
           const growth = endAssets - startFund;
           
-          let legacyManualRevenue = 0;
           if ((selectedReport as any).printerRevenue) legacyManualRevenue += Number((selectedReport as any).printerRevenue);
           if ((selectedReport as any).printerServiceRevenue) legacyManualRevenue += Number((selectedReport as any).printerServiceRevenue);
           if ((selectedReport as any).serviceRevenue) legacyManualRevenue += Number((selectedReport as any).serviceRevenue);
@@ -997,17 +1015,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* RIGHT COLUMN: EXPENSES & ACTUALS */}
-                        <div className="flex flex-col gap-6 h-full">
-                            <div className="border border-gray-200 rounded-lg overflow-hidden text-sm flex flex-col flex-1">
-                                <div className="bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 uppercase border-b border-gray-200 shrink-0">EXPENSES</div>
-                                <div className="flex-1 bg-white">
-                                <table className="w-full">
-                                    <tbody className="divide-y divide-gray-100">
-                                        <tr className="bg-white">
-                                            <td className="p-2 pl-3 text-gray-700">Bank Transfer Fees</td>
-                                            <td className="p-2 pr-3 text-right font-mono text-gray-900">
+    <td className="p-2 pr-3 text-right font-mono text-gray-900">
                                                 {isEditing ? (
                                                     <input type="number" value={(editReportData as any)?.bankTransferFees ?? selectedReport.bankTransferFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), bankTransferFees: Number(e.target.value) }))} className="w-24 text-right border border-gray-300 rounded px-2 py-1" />
                                                 ) : (
@@ -1015,8 +1023,10 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                                 )}
                                             </td>
                                         </tr>
+                                        {/* Conditionally show Other Transaction Fees if it exists (Legacy) */}
+                                        {(Number(selectedReport.otherTransactionFees) > 0 || (isEditing && (editReportData as any)?.otherTransactionFees > 0)) && (
                                         <tr className="bg-white">
-                                            <td className="p-2 pl-3 text-gray-700">Other Transaction Fees</td>
+                                            <td className="p-2 pl-3 text-gray-700">Other Transaction Fees <span className="text-xs text-gray-400">(Legacy)</span></td>
                                             <td className="p-2 pr-3 text-right font-mono text-gray-900">
                                                 {isEditing ? (
                                                     <input type="number" value={(editReportData as any)?.otherTransactionFees ?? selectedReport.otherTransactionFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), otherTransactionFees: Number(e.target.value) }))} className="w-24 text-right border border-gray-300 rounded px-2 py-1" />
@@ -1025,6 +1035,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                                 )}
                                             </td>
                                         </tr>
+                                        )}
                                         {selectedReport.expenses && selectedReport.expenses.length > 0 ? (
                                             selectedReport.expenses.map((exp, i) => (
                                                 <tr key={`exp-${i}`} className="bg-white">

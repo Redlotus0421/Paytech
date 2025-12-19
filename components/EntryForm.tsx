@@ -298,7 +298,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       derivedGcashNet, effectiveGcashNet, eodNetSales, hasNotebookEntry, notebookDifference
     };
   }, [sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, eodGpo, eodGcash, eodActual, salesTransactions, posAggregated, bankFees, expenses, gcashNotebook]);
-expenses, gcashNotebook]);
 
   // --- SAVE HANDLERS ---
   const handleSaveSod = () => {

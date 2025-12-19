@@ -43,14 +43,14 @@ const InputRow = ({ label, value, setter, placeholder = "0", type = "number", pr
 interface ExpensesInputSectionProps {
     bankFees: string;
     setBankFees: (val: string) => void;
-    gcashFees: string;
-    setGcashFees: (val: string) => void;
+    otherTransactionFees: string;
+    setOtherTransactionFees: (val: string) => void;
     expenses: { id: string, amount: string, description: string }[];
     setExpenses: React.Dispatch<React.SetStateAction<{ id: string, amount: string, description: string }[]>>;
 }
 
 const ExpensesInputSection: React.FC<ExpensesInputSectionProps> = ({ 
-    bankFees, setBankFees, gcashFees, setGcashFees, expenses, setExpenses 
+    bankFees, setBankFees, otherTransactionFees, setOtherTransactionFees, expenses, setExpenses 
 }) => {
     const addExpense = () => {
         setExpenses([...expenses, { id: uuidv4(), amount: '', description: '' }]);
@@ -68,7 +68,7 @@ const ExpensesInputSection: React.FC<ExpensesInputSectionProps> = ({
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InputRow label="Bank Fees" value={bankFees} setter={setBankFees} prefix="₱" />
-                <InputRow label="GCash Fees" value={gcashFees} setter={setGcashFees} prefix="₱" />
+                <InputRow label="Other Transaction Fees" value={otherTransactionFees} setter={setOtherTransactionFees} prefix="₱" />
             </div>
             
             <div>
@@ -150,7 +150,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
   // Section 3: Expenses (Shared state for SOD and EOD)
   const [bankFees, setBankFees] = useState<string>('');
-  const [gcashFees, setGcashFees] = useState<string>('');
+  const [otherTransactionFees, setOtherTransactionFees] = useState<string>('');
   const [expenses, setExpenses] = useState<{id: string, amount: string, description: string}[]>([]);
 
   // Section 4: End of Day Assets
@@ -221,7 +221,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                 setFundIn(data.fundIn || '');
                 setCashAtm(data.cashAtm || '');
                 setBankFees(data.bankFees || '');
-                setGcashFees(data.gcashFees || '');
+                setOtherTransactionFees(data.otherTransactionFees || '');
                 if (data.expenses) {
                     setExpenses(data.expenses);
                 } else if (data.opExpenses) {
@@ -285,7 +285,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const totalSalesRevenue = manualRevenue + posRevenue;
     const totalSalesNet = manualNet + posNet;
     const operationalExpensesOnly = expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
-    const totalExpenses = Number(bankFees || 0) + Number(gcashFees || 0) + operationalExpensesOnly;
+    const totalExpenses = Number(bankFees || 0) + Number(otherTransactionFees || 0) + operationalExpensesOnly;
     const actualCashSales = totalEndAssets - totalStartFund;
     const derivedGcashNet = actualCashSales - totalSalesRevenue;
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
@@ -302,13 +302,13 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       totalStartFund, totalEndAssets, totalSalesRevenue, totalExpenses, actualCashSales,
       derivedGcashNet, effectiveGcashNet, eodNetSales, hasNotebookEntry, notebookDifference
     };
-  }, [sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, eodGpo, eodGcash, eodActual, salesTransactions, posAggregated, bankFees, gcashFees, expenses, gcashNotebook]);
+  }, [sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, eodGpo, eodGcash, eodActual, salesTransactions, posAggregated, bankFees, otherTransactionFees, expenses, gcashNotebook]);
 
   // --- SAVE HANDLERS ---
   const handleSaveSod = () => {
     if (!selectedStoreId) return alert("Please select a store");
     const draftData = {
-        date, sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, bankFees, gcashFees, expenses,
+        date, sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, bankFees, otherTransactionFees, expenses,
         salesTransactions 
     };
     const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
@@ -340,7 +340,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       customSales: salesTransactions.map(t => ({ id: t.id, name: t.name, amount: num(t.amount), cost: num(t.cost), category: t.category || 'Uncategorized' })),
       posSalesDetails: posAggregated,
       bankTransferFees: num(bankFees),
-      gcashFees: num(gcashFees),
+      otherTransactionFees: num(otherTransactionFees),
       operationalExpenses: expenses.reduce((acc, e) => acc + num(e.amount), 0),
       operationalExpensesNote: expenses.map(e => e.description).filter(Boolean).join(', '), 
       expenses: expenses.map(e => ({ id: e.id, amount: num(e.amount), description: e.description })),
@@ -497,7 +497,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
             {/* Expenses now here in EOD, removed from SOD */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Expenses & Fees</h2>
-                <ExpensesInputSection bankFees={bankFees} setBankFees={setBankFees} gcashFees={gcashFees} setGcashFees={setGcashFees} expenses={expenses} setExpenses={setExpenses}/>
+                <ExpensesInputSection bankFees={bankFees} setBankFees={setBankFees} otherTransactionFees={otherTransactionFees} setOtherTransactionFees={setOtherTransactionFees} expenses={expenses} setExpenses={setExpenses}/>
             </div>
             </div>
 

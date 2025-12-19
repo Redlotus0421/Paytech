@@ -13,7 +13,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [filterStoreId, setFilterStoreId] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
-    const [filterFeeType, setFilterFeeType] = useState<'all' | 'gcash' | 'bank'>('all');
+    const [filterFeeType, setFilterFeeType] = useState<'all' | 'other' | 'bank'>('all');
     const [categories, setCategories] = useState<string[]>([]);
     const [transactionCategories, setTransactionCategories] = useState<string[]>([]);
     const [startDate, setStartDate] = useState('');
@@ -183,7 +183,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         onClick={() => setActiveTab('bank-transfer-fees')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'bank-transfer-fees' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
                     >
-                        Gcash/Bank Transfer Fees
+                        Bank Transfer/Other Fees
                     </button>
                     <button 
                         onClick={() => setActiveTab('other-transactions')}
@@ -281,7 +281,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                   const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
                   const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
                   const totalItemsNet = manualNet + posNet;
-                  const totalExpenses = Number(report.bankTransferFees || 0) + Number(report.gcashFees || 0) + Number(report.operationalExpenses || 0);
+                  const totalExpenses = Number(report.bankTransferFees || 0) + Number(report.otherTransactionFees || 0) + Number(report.operationalExpenses || 0);
                   const grossSalesIncome = usedGcashNet + totalItemsNet;
                   const finalEodNet = grossSalesIncome - totalExpenses;
                   
@@ -415,7 +415,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         if (endDate && new Date(r.date) > new Date(endDate)) return false;
                         return true;
                     }).forEach(report => {
-                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.gcashFees || 0) + Number(report.operationalExpenses || 0);
+                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.otherTransactionFees || 0) + Number(report.operationalExpenses || 0);
                         totalExpenses += totalExp;
                     });
                     return formatMoney(totalExpenses);
@@ -477,7 +477,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
                         const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
                         const totalItemsNet = manualNet + posNet;
-                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.gcashFees || 0) + Number(report.operationalExpenses || 0);
+                        const totalExp = Number(report.bankTransferFees || 0) + Number(report.otherTransactionFees || 0) + Number(report.operationalExpenses || 0);
                         const grossSalesIncome = usedGcashNet + totalItemsNet;
                         const finalEodNet = grossSalesIncome - totalExp;
                         totalEodNet += finalEodNet;
@@ -596,13 +596,13 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         amount: r.bankTransferFees
                     });
                 }
-                if ((filterFeeType === 'all' || filterFeeType === 'gcash') && (r.gcashFees || 0) > 0) {
+                if ((filterFeeType === 'all' || filterFeeType === 'other') && (r.otherTransactionFees || 0) > 0) {
                     items.push({
-                        id: r.id + '-gcash',
+                        id: r.id + '-other',
                         date: r.date,
                         storeId: r.storeId,
-                        type: 'GCash Fee',
-                        amount: r.gcashFees
+                        type: 'Other Transaction Fee',
+                        amount: r.otherTransactionFees
                     });
                 }
                 return items;
@@ -625,7 +625,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
                         >
                             <option value="all">All Fees</option>
-                            <option value="gcash">GCash Fees</option>
+                            <option value="other">Other Transaction Fees</option>
                             <option value="bank">Bank Transfer Fees</option>
                         </select>
                      </div>
@@ -651,7 +651,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                         <td className="px-6 py-4">{new Date(item.date).toLocaleDateString()}</td>
                                         <td className="px-6 py-4">{getStoreName(item.storeId)}</td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded text-xs font-medium ${item.type === 'GCash Fee' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                                            <span className={`px-2 py-1 rounded text-xs font-medium ${item.type === 'Other Transaction Fee' ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>
                                                 {item.type}
                                             </span>
                                         </td>
@@ -783,7 +783,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
           const posNet = (selectedReport.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
           const totalItemsNet = manualNet + posNet;
           const totalExpenses = Number((isEditing && editReportData && (editReportData as any).bankTransferFees !== undefined) ? (editReportData as any).bankTransferFees : (selectedReport.bankTransferFees || 0)) + 
-                                Number((isEditing && editReportData && (editReportData as any).gcashFees !== undefined) ? (editReportData as any).gcashFees : (selectedReport.gcashFees || 0)) +
+                                Number((isEditing && editReportData && (editReportData as any).otherTransactionFees !== undefined) ? (editReportData as any).otherTransactionFees : (selectedReport.otherTransactionFees || 0)) +
                                 Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
           const grossSalesIncome = usedGcashNet + totalItemsNet;
           const finalEodNet = grossSalesIncome - totalExpenses;
@@ -1016,12 +1016,12 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                             </td>
                                         </tr>
                                         <tr className="bg-white">
-                                            <td className="p-2 pl-3 text-gray-700">GCash Fees</td>
+                                            <td className="p-2 pl-3 text-gray-700">Other Transaction Fees</td>
                                             <td className="p-2 pr-3 text-right font-mono text-gray-900">
                                                 {isEditing ? (
-                                                    <input type="number" value={(editReportData as any)?.gcashFees ?? selectedReport.gcashFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), gcashFees: Number(e.target.value) }))} className="w-24 text-right border border-gray-300 rounded px-2 py-1" />
+                                                    <input type="number" value={(editReportData as any)?.otherTransactionFees ?? selectedReport.otherTransactionFees ?? 0} onChange={e => setEditReportData(prev => ({ ...(prev||{}), otherTransactionFees: Number(e.target.value) }))} className="w-24 text-right border border-gray-300 rounded px-2 py-1" />
                                                 ) : (
-                                                    formatMoney(Number(selectedReport.gcashFees) || 0)
+                                                    formatMoney(Number(selectedReport.otherTransactionFees) || 0)
                                                 )}
                                             </td>
                                         </tr>

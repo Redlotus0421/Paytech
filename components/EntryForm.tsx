@@ -281,7 +281,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const totalSalesNet = manualNet + posNet;
     const operationalExpensesOnly = expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
     const totalExpenses = Number(bankFees || 0) + operationalExpensesOnly;
-    const actualCashSales = totalEndAssets - total
+    const actualCashSales = totalEndAssets - totalStartFund;
     const derivedGcashNet = actualCashSales - totalSalesRevenue;
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
     const hasNotebookEntry = gcashNotebook !== '';

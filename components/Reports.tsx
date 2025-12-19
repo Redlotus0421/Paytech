@@ -587,14 +587,14 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         {activeTab === 'bank-transfer-fees' && (() => {
             const feeData = filteredReports.flatMap(r => {
                 const items = [];
-                if ((filterFeeType === 'all' || filterFeeType === 'bank') && (r.bankTransferFees || 0) > 0) {
+                if ((filterFeeType === 'all' || filterFeeType === 'bank') && (Number(r.bankTransferFees) || 0) > 0) {
                     items.push({
                         id: r.id + '-bank',
                         date: r.date,
                         storeId: r.storeId,
                         type: 'Bank Transfer Fee',
                         description: 'Bank Transfer Fee',
-                        amount: r.bankTransferFees
+                        amount: Number(r.bankTransferFees)
                     });
                 }
                 
@@ -607,10 +607,10 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                 storeId: r.storeId,
                                 type: 'Other Expense',
                                 description: exp.description || 'Other Expense',
-                                amount: exp.amount
+                                amount: Number(exp.amount)
                             });
                         });
-                    } else if ((r.operationalExpenses || 0) > 0) {
+                    } else if ((Number(r.operationalExpenses) || 0) > 0) {
                         // Legacy support for reports without detailed expenses array
                         items.push({
                             id: r.id + '-exp-legacy',
@@ -618,14 +618,14 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             storeId: r.storeId,
                             type: 'Other Expense',
                             description: r.operationalExpensesNote || 'Other Expense',
-                            amount: r.operationalExpenses
+                            amount: Number(r.operationalExpenses)
                         });
                     }
                 }
                 return items;
             });
 
-            const totalFees = feeData.reduce((sum, item) => sum + (item.amount || 0), 0);
+            const totalFees = feeData.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
             return (
             <div className="p-6">

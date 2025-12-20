@@ -980,9 +980,15 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             <div>
                                 <span className="block text-xs text-gray-600 mb-1">Petty Cash</span>
                                 {isEditing ? (
+                                    <>
                                     <input type="number" value={(editReportData as any)?.sodPettyCash ?? Number(selectedReport.sodPettyCash || 0)} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodPettyCash: Number(e.target.value) }))} className="w-full text-right font-mono font-medium text-gray-900 border border-gray-300 rounded px-2 py-1" />
+                                    <input type="text" value={(editReportData as any)?.sodPettyCashNote ?? selectedReport.sodPettyCashNote ?? ''} onChange={e => setEditReportData(prev => ({ ...(prev||{}), sodPettyCashNote: e.target.value }))} className="w-full mt-1 text-xs border border-gray-300 rounded px-2 py-1" placeholder="Note" />
+                                    </>
                                 ) : (
+                                    <>
                                     <span className="font-mono font-medium text-gray-900">{formatMoney(Number(selectedReport.sodPettyCash))}</span>
+                                    {selectedReport.sodPettyCashNote && <div className="text-xs text-gray-500 mt-1 italic">{selectedReport.sodPettyCashNote}</div>}
+                                    </>
                                 )}
                             </div>
                             {/* New Fields */}

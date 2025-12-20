@@ -845,25 +845,36 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                     <th className="px-6 py-3">Category</th>
                                     <th className="px-6 py-3">Item Name</th>
                                     <th className="px-6 py-3 text-right">Price</th>
+                                    <th className="px-6 py-3 text-right">Cost</th>
                                     <th className="px-6 py-3 text-right">Qty</th>
-                                    <th className="px-6 py-3 text-right">Total</th>
+                                    <th className="px-6 py-3 text-right">Sales</th>
+                                    <th className="px-6 py-3 text-right">Total Cost</th>
+                                    <th className="px-6 py-3 text-right">Net</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {posItems.length === 0 ? (
-                                    <tr><td colSpan={7} className="p-6 text-center text-gray-500">No POS sales found.</td></tr>
+                                    <tr><td colSpan={10} className="p-6 text-center text-gray-500">No POS sales found.</td></tr>
                                 ) : (
-                                    posItems.map((item, i) => (
+                                    posItems.map((item, i) => {
+                                        const sales = Number(item.price) * Number(item.quantity);
+                                        const cost = Number(item.cost) * Number(item.quantity);
+                                        const net = sales - cost;
+                                        return (
                                         <tr key={`${item.reportId}-${item.id}-${i}`} className="hover:bg-gray-50">
                                             <td className="px-6 py-4">{new Date(item.date).toLocaleDateString()}</td>
                                             <td className="px-6 py-4">{getStoreName(item.storeId)}</td>
                                             <td className="px-6 py-4"><span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium">{item.category || '-'}</span></td>
                                             <td className="px-6 py-4">{item.name}</td>
                                             <td className="px-6 py-4 text-right text-gray-500">{formatMoney(Number(item.price))}</td>
+                                            <td className="px-6 py-4 text-right text-gray-500">{formatMoney(Number(item.cost))}</td>
                                             <td className="px-6 py-4 text-right font-medium">{item.quantity}</td>
-                                            <td className="px-6 py-4 text-right font-bold text-gray-900">{formatMoney(Number(item.price) * Number(item.quantity))}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-gray-900">{formatMoney(sales)}</td>
+                                            <td className="px-6 py-4 text-right text-gray-500">{formatMoney(cost)}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-green-600">{formatMoney(net)}</td>
                                         </tr>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

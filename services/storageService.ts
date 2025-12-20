@@ -88,6 +88,18 @@ export const storageService = {
     const { error } = await supabase.from('stores').delete().eq('id', storeId);
     if (error) throw error;
   },
+  deleteStoreAndData: async (storeId: string) => {
+    // Delete related data first (manual cascade)
+    await supabase.from('users').delete().eq('store_id', storeId);
+    await supabase.from('inventory').delete().eq('store_id', storeId);
+    await supabase.from('reports').delete().eq('store_id', storeId);
+    await supabase.from('transactions').delete().eq('store_id', storeId);
+    await supabase.from('general_expenses').delete().eq('store_id', storeId);
+    
+    // Finally delete the store
+    const { error } = await supabase.from('stores').delete().eq('id', storeId);
+    if (error) throw error;
+  },
   fetchUsers: async (): Promise<User[]> => {
     const { data, error } = await supabase.from('users').select('*');
     if (error) { console.error('Error fetching users:', error); return []; }

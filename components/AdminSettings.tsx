@@ -133,38 +133,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
   };
 
   const executeDeleteStore = async (storeId: string) => {
+    if (!confirm("WARNING: This will permanently delete the store and ALL associated data (users, inventory, reports, transactions). This action cannot be undone.\n\nAre you sure you want to proceed?")) {
+        return;
+    }
+
     setIsStoreLoading(true);
     try {
-        // Check for dependencies
-        const [allUsers, inventory, reports] = await Promise.all([
-            storageService.fetchUsers(),
-            storageService.getInventory(),
-            storageService.fetchReports()
-        ]);
-
-        const storeUsers = allUsers.filter(u => u.storeId === storeId && u.status === 'active');
-        const storeInventory = inventory.filter(i => i.storeId === storeId);
-        const storeReports = reports.filter(r => r.storeId === storeId);
-
-        if (storeUsers.length > 0 || storeInventory.length > 0 || storeReports.length > 0) {
-            let msg = "Cannot delete store because it has related data:\n";
-            if (storeUsers.length > 0) msg += `- ${storeUsers.length} active users\n`;
-            if (storeInventory.length > 0) msg += `- ${storeInventory.length} inventory items\n`;
-            if (storeReports.length > 0) msg += `- ${storeReports.length} reports\n`;
-            msg += "\nPlease delete or reassign these items first.";
-            alert(msg);
-            return;
-        }
-
-        await storageService.deleteStore(storeId);
+        await storageService.deleteStoreAndData(storeId);
         await loadStores();
+        alert("Store and all associated data deleted successfully.");
     } catch (e: any) {
         console.error(e);
-        if (e.code === '23503') { // Foreign key violation
-             alert("Cannot delete store because it is referenced by other records (e.g. transactions).");
-        } else {
-             alert("Error deleting store: " + (e.message || "Unknown error"));
-        }
+        alert("Error deleting store: " + (e.message || "Unknown error"));
     } finally {
         setIsStoreLoading(false);
     }

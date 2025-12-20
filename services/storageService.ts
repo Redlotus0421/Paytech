@@ -115,7 +115,7 @@ export const storageService = {
     console.log('storageService.fetchReports returned', (data || []).length, 'rows');
     return (data || []).map((r: any) => ({
       id: r.id, storeId: r.store_id, userId: r.user_id, date: r.date, timestamp: r.timestamp || Date.parse(r.date),
-      sodGpo: Number(r.sod_gpo || 0), sodGcash: Number(r.sod_gcash || 0), sodPettyCash: Number(r.sod_petty_cash || 0),
+      sodGpo: Number(r.sod_gpo || 0), sodGcash: Number(r.sod_gcash || 0), sodPettyCash: Number(r.sod_petty_cash || 0), sodPettyCashNote: r.sod_petty_cash_note,
       // Mapped fundIn/cashAtm (handle older records by defaulting to 0)
       fundIns: 0, // Deprecated
       fundIn: Number(r.fund_in || 0),
@@ -134,7 +134,7 @@ export const storageService = {
     const dbReport = {
       id: report.id,
       store_id: report.storeId, user_id: report.userId, date: report.date, timestamp: report.timestamp,
-      sod_gpo: report.sodGpo, sod_gcash: report.sodGcash, sod_petty_cash: report.sodPettyCash,
+      sod_gpo: report.sodGpo, sod_gcash: report.sodGcash, sod_petty_cash: report.sodPettyCash, sod_petty_cash_note: report.sodPettyCashNote,
       // Save new fields
       fund_in: report.fundIn,
       cash_atm: report.cashAtm,

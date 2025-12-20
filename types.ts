@@ -64,6 +64,7 @@ export interface ReportData {
   sodGpo: number;
   sodGcash: number;
   sodPettyCash: number;
+  sodPettyCashNote?: string;
   // fundIns: number; // Removed/Deprecated
   fundIn: number; // New field
   cashAtm: number; // New field

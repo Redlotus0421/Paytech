@@ -134,6 +134,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   const [sodGpo, setSodGpo] = useState<string>('');
   const [sodGcash, setSodGcash] = useState<string>('');
   const [sodPettyCash, setSodPettyCash] = useState<string>('');
+  const [sodPettyCashNote, setSodPettyCashNote] = useState<string>('');
   // New split fields
   const [fundIn, setFundIn] = useState<string>('');
   const [cashAtm, setCashAtm] = useState<string>('');
@@ -213,6 +214,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                 setSodGpo(data.sodGpo);
                 setSodGcash(data.sodGcash);
                 setSodPettyCash(data.sodPettyCash);
+                setSodPettyCashNote(data.sodPettyCashNote || '');
                 // Restore new fields
                 setFundIn(data.fundIn || '');
                 setCashAtm(data.cashAtm || '');
@@ -303,7 +305,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   const handleSaveSod = () => {
     if (!selectedStoreId) return alert("Please select a store");
     const draftData = {
-        date, sodGpo, sodGcash, sodPettyCash, fundIn, cashAtm, bankFees, expenses,
+        date, sodGpo, sodGcash, sodPettyCash, sodPettyCashNote, fundIn, cashAtm, bankFees, expenses,
         salesTransactions 
     };
     const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
@@ -328,6 +330,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       sodGpo: num(sodGpo),
       sodGcash: num(sodGcash),
       sodPettyCash: num(sodPettyCash),
+      sodPettyCashNote: sodPettyCashNote,
       fundIns: 0, // Deprecated
       fundIn: num(fundIn),
       cashAtm: num(cashAtm),
@@ -391,7 +394,16 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <InputRow label="GPO Start" value={sodGpo} setter={setSodGpo} prefix="₱" />
                     <InputRow label="GCash Start" value={sodGcash} setter={setSodGcash} prefix="₱" />
-                    <InputRow label="Petty Cash" value={sodPettyCash} setter={setSodPettyCash} prefix="₱" />
+                    <div>
+                        <InputRow label="Petty Cash" value={sodPettyCash} setter={setSodPettyCash} prefix="₱" />
+                        <input 
+                            type="text" 
+                            value={sodPettyCashNote} 
+                            onChange={e => setSodPettyCashNote(e.target.value)} 
+                            placeholder="Note (Optional)" 
+                            className="w-full -mt-2 px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                    </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      {/* SPLIT FIELDS */}

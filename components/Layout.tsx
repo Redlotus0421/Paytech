@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, LayoutDashboard, PlusCircle, Store, Users, Menu, ChevronLeft, ChevronRight, X, Package, ShoppingCart, FileText, BarChart, Settings as SettingsIcon, Receipt, Wallet } from 'lucide-react';
+import { LogOut, LayoutDashboard, PlusCircle, Store, Users, Menu, ChevronLeft, ChevronRight, X, Package, ShoppingCart, FileText, BarChart, Settings as SettingsIcon, Receipt, Wallet, History } from 'lucide-react';
 import { PaytechLogo } from './PaytechLogo';
 
 interface LayoutProps {
@@ -25,6 +25,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
     { id: 'pos', label: 'POS', icon: ShoppingCart },
     { id: 'inventory', label: 'Inventory', icon: Package },
     // Admin Only Tabs
+    { id: 'activity-logs', label: 'Activity Logs', icon: History, role: UserRole.ADMIN },
     { id: 'manage-stores', label: 'Stores', icon: Store, role: UserRole.ADMIN },
     { id: 'manage-users', label: 'Users', icon: Users, role: UserRole.ADMIN },
     { id: 'settings', label: 'Settings', icon: SettingsIcon, role: UserRole.ADMIN },

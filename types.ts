@@ -100,3 +100,12 @@ export interface InventoryItem {
 export interface CartItem extends InventoryItem {
   quantity: number;
 }
+
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  details: string;
+  timestamp: number;
+}

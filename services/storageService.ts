@@ -1,4 +1,4 @@
-import { User, Store, ReportData, UserRole, InventoryItem, PosTransaction, GeneralExpense } from '../types';
+import { User, Store, ReportData, UserRole, InventoryItem, PosTransaction, GeneralExpense, ActivityLog } from '../types';
 import { supabase } from './supabaseClient';
 
 const KEYS = {
@@ -394,5 +394,58 @@ export const storageService = {
   deleteGeneralExpense: async (id: string) => {
     const { error } = await supabase.from('general_expenses').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  // Activity Logs
+  logActivity: async (action: string, details: string, userId: string, userName: string) => {
+    try {
+      // Try Supabase first
+      const { error } = await supabase.from('activity_logs').insert([{
+        user_id: userId,
+        user_name: userName,
+        action,
+        details,
+        timestamp: Date.now()
+      }]);
+      
+      if (error) {
+        // Fallback to local storage if table doesn't exist or connection fails
+        console.warn('Logging to local storage due to error:', error);
+        const logs = JSON.parse(localStorage.getItem('cfs_activity_logs') || '[]');
+        logs.unshift({
+          id: 'log_' + Date.now(),
+          userId,
+          userName,
+          action,
+          details,
+          timestamp: Date.now()
+        });
+        localStorage.setItem('cfs_activity_logs', JSON.stringify(logs.slice(0, 1000)));
+      }
+    } catch (e) {
+      console.error('Failed to log activity', e);
+    }
+  },
+
+  fetchActivityLogs: async (): Promise<ActivityLog[]> => {
+    try {
+      const { data, error } = await supabase.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(100);
+      if (error || !data) {
+         // Fallback to local storage
+         const logs = JSON.parse(localStorage.getItem('cfs_activity_logs') || '[]');
+         return logs;
+      }
+      return data.map((l: any) => ({
+        id: l.id,
+        userId: l.user_id,
+        userName: l.user_name,
+        action: l.action,
+        details: l.details,
+        timestamp: l.timestamp
+      }));
+    } catch (e) {
+      const logs = JSON.parse(localStorage.getItem('cfs_activity_logs') || '[]');
+      return logs;
+    }
   },
 };

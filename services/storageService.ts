@@ -238,6 +238,10 @@ export const storageService = {
         await supabase.from('inventory').update({ stock: newStock }).eq('id', itemId);
     }
   },
+  deleteInventoryItem: async (itemId: string) => {
+    const { error } = await supabase.from('inventory').delete().eq('id', itemId);
+    if (error) throw error;
+  },
   savePosTransaction: async (transaction: PosTransaction) => {
       console.log("💾 Saving POS Transaction to DB:", transaction);
       const dbTx = {

@@ -300,7 +300,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                   const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
                   
                   // Over/Negative: Difference between System Derived GCash and Notebook Record
-                  const overNegative = notebookGcash !== undefined ? (derivedGcashNet - notebookGcash) : 0;
+                  // Updated to include operational expenses in the derived net for comparison
+                  const operationalExpenses = Number(report.operationalExpenses || 0);
+                  const overNegative = notebookGcash !== undefined ? ((derivedGcashNet + operationalExpenses) - notebookGcash) : 0;
                   
                   const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
                   const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
@@ -468,7 +470,8 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
                         const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
                         const derivedGcashNet = growth - (manualRevenue + posRevenue);
-                        const overNegative = notebookGcash !== undefined ? (derivedGcashNet - notebookGcash) : 0;
+                        const operationalExpenses = Number(report.operationalExpenses || 0);
+                        const overNegative = notebookGcash !== undefined ? ((derivedGcashNet + operationalExpenses) - notebookGcash) : 0;
                         totalOverNeg += overNegative;
                     });
                     return <span className={totalOverNeg < 0 ? 'text-red-600' : 'text-green-600'}>{totalOverNeg < 0 ? '' : (totalOverNeg > 0 ? '+' : '')}{formatMoney(totalOverNeg)}</span>;
@@ -930,7 +933,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
           const actualEodSales = usedGcashNet + totalSalesRevenue;
           
           // Difference Calculation: System Derived - Notebook
-          const difference = notebookGcash !== undefined ? (derivedGcashNet - notebookGcash) : 0;
+          // Updated to include operational expenses in the derived net for comparison
+          const operationalExpenses = Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
+          const difference = notebookGcash !== undefined ? ((derivedGcashNet + operationalExpenses) - notebookGcash) : 0;
 
           return (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">

@@ -894,6 +894,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
           
           const growth = endAssets - startFund;
           
+          let legacyManualRevenue = 0;
           if ((selectedReport as any).printerRevenue) legacyManualRevenue += Number((selectedReport as any).printerRevenue);
           if ((selectedReport as any).printerServiceRevenue) legacyManualRevenue += Number((selectedReport as any).printerServiceRevenue);
           if ((selectedReport as any).serviceRevenue) legacyManualRevenue += Number((selectedReport as any).serviceRevenue);

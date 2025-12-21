@@ -288,23 +288,32 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
     const totalSalesRevenue = manualRevenue + posRevenue;
     const totalSalesNet = manualNet + posNet;
+    const totalSalesCost = manualCost + posCost;
     const operationalExpensesOnly = expenses.reduce((acc, e) => acc + Number(e.amount || 0), 0);
     const totalExpenses = Number(bankFees || 0) + operationalExpensesOnly;
     const actualCashSales = totalEndAssets - totalStartFund;
-    const derivedGcashNet = actualCashSales - totalSalesRevenue;
+    
+    // UPDATED: GCash Net is now simply the Total Asset Growth (EOD - SOD)
+    const derivedGcashNet = actualCashSales;
+    
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
     const hasNotebookEntry = gcashNotebook !== '';
     const effectiveGcashNet = hasNotebookEntry ? notebookGcashVal : derivedGcashNet;
     
     // Total EOD Sales Calculation (Client Formula: GCash Net + Total Sales Revenue)
     // Note: Using effectiveGcashNet (which is either Derived or Notebook)
-    const totalEodSales = effectiveGcashNet + totalSalesRevenue;
+    // Since effectiveGcashNet is now Growth, this formula might need adjustment if client meant something else,
+    // but based on previous request, we keep it or revert to actualCashSales if redundant.
+    // Actually, if GCash Net = Growth, then Growth + Sales = Double Counting?
+    // Let's stick to the previous definition for Total EOD Sales box: Just the Growth (actualCashSales).
+    const totalEodSales = actualCashSales;
     
     // REVERSED AS REQUESTED: System Derived - Notebook
-    // Updated: Add expenses back to derived net so they don't count as shortages
-    // Note: Only operational expenses are added back, bank fees are excluded from this adjustment as per request
-    const notebookDifference = hasNotebookEntry ? (derivedGcashNet + operationalExpensesOnly) - notebookGcashVal : 0;
-    const eodNetSales = effectiveGcashNet + totalSalesNet - totalExpenses;
+    // Updated: Since derivedGcashNet is now Growth, we compare directly with Notebook (assuming Notebook is also Growth)
+    const notebookDifference = hasNotebookEntry ? derivedGcashNet - notebookGcashVal : 0;
+    
+    // Profit Calculation: Growth - Cost - Expenses
+    const eodNetSales = effectiveGcashNet - totalSalesCost - totalExpenses;
 
     return {
       totalStartFund, totalEndAssets, totalSalesRevenue, totalExpenses, actualCashSales,
@@ -524,7 +533,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                          <div className={`bg-gray-50 p-2 rounded border border-gray-100 ${calculations.hasNotebookEntry ? 'opacity-50' : ''}`}><div className="text-green-700 text-xs font-bold uppercase">GCash Net (Derived)</div><div className="text-green-700 font-bold">₱{calculations.derivedGcashNet.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div></div>
                          <div className={`p-2 rounded border ${calculations.hasNotebookEntry ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-100'}`}><div className={`text-xs font-bold uppercase ${calculations.hasNotebookEntry ? 'text-purple-700' : 'text-gray-500'}`}>GCash Notebook</div><div className={`font-bold ${calculations.hasNotebookEntry ? 'text-purple-900' : 'text-gray-400'}`}>{calculations.hasNotebookEntry ? `₱${Number(gcashNotebook).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '---'}</div></div>
-                         <div className="bg-gray-50 p-2 rounded border border-gray-100"><div className="text-gray-900 text-xs font-bold uppercase">TOTAL EOD SALES</div><div className="text-gray-900 font-bold">₱{calculations.totalEodSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div></div>
+                         <div className="bg-gray-50 p-2 rounded border border-gray-100"><div className="text-gray-900 text-xs font-bold uppercase">TOTAL EOD SALES</div><div className="text-gray-900 font-bold">₱{calculations.actualCashSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div></div>
                          <div className="bg-blue-50 border-blue-100 border p-2 rounded"><div className="text-blue-600 text-xs font-bold uppercase">EOD Net Sales</div><div className="text-blue-900 font-bold">₱{calculations.eodNetSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div></div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-stretch">

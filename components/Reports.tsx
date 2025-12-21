@@ -94,10 +94,104 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         }
     };
 
+    const handleDeleteFromModal = async () => {
+        if (!selectedReport) return;
+        if (window.confirm('Are you sure you want to delete this report? This action cannot be undone.')) {
+            try {
+                await storageService.deleteReport(selectedReport.id);
+                await storageService.logActivity('Delete Report', `Deleted report ID: ${selectedReport.id}`, user.id, user.name);
+                alert('Report deleted');
+                setSelectedReport(null);
+                setIsEditing(false);
+                setEditReportData(null);
+                await loadData();
+            } catch (e) {
+                console.error(e);
+                alert('Failed to delete report');
+            }
+        }
+    };
+
     const saveEditedReport = async () => {
         if (!selectedReport || !editReportData) return;
         try {
-            const merged: ReportData = { ...selectedReport, ...(editReportData as ReportData) } as ReportData;
+            // Helper to get value from editData or selectedReport
+            const getVal = (key: string) => {
+                if (editReportData && (editReportData as any)[key] !== undefined) return Number((editReportData as any)[key]);
+                return Number((selectedReport as any)[key] || 0);
+            };
+
+            // 1. Recalculate Start Fund
+            const sodGpo = getVal('sodGpo');
+            const sodGcash = getVal('sodGcash');
+            const sodPettyCash = getVal('sodPettyCash');
+            const fundIn = getVal('fundIn');
+            const cashAtm = getVal('cashAtm');
+            const totalStartFund = sodGpo + sodGcash + sodPettyCash + fundIn + cashAtm;
+
+            // 2. Recalculate End Assets
+            const eodGpo = getVal('eodGpo');
+            const eodGcash = getVal('eodGcash');
+            const eodActualCash = getVal('eodActualCash');
+            const totalEndAssets = eodGpo + eodGcash + eodActualCash;
+
+            // 3. Calculate Growth & Sales
+            const growth = totalEndAssets - totalStartFund;
+
+            let legacyManualRevenue = 0;
+            if ((selectedReport as any).printerRevenue) legacyManualRevenue += Number((selectedReport as any).printerRevenue);
+            if ((selectedReport as any).printerServiceRevenue) legacyManualRevenue += Number((selectedReport as any).printerServiceRevenue);
+            if ((selectedReport as any).serviceRevenue) legacyManualRevenue += Number((selectedReport as any).serviceRevenue);
+            if ((selectedReport as any).otherSales) legacyManualRevenue += Number((selectedReport as any).otherSales);
+
+            const currentCustomSales = (editReportData as any)?.customSales || selectedReport.customSales || [];
+            const manualRevenue = currentCustomSales.reduce((a: number, b: any) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
+            const posRevenue = (selectedReport.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
+            const totalSalesRevenue = manualRevenue + posRevenue;
+
+            const derivedGcashNet = growth - totalSalesRevenue;
+
+            const notebookGcash = (editReportData as any)?.gcashNotebook !== undefined 
+                ? Number((editReportData as any).gcashNotebook) 
+                : (selectedReport.gcashNotebook !== undefined ? Number(selectedReport.gcashNotebook) : undefined);
+
+            const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
+
+            const manualNet = currentCustomSales.reduce((a: number, b: any) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
+            const posNet = (selectedReport.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
+            const totalItemsNet = manualNet + posNet;
+
+            // 4. Recalculate Expenses
+            const currentExpenses = (editReportData as any)?.expenses || selectedReport.expenses || [];
+            const expensesSum = currentExpenses.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+
+            const bankTransferFees = getVal('bankTransferFees');
+            const otherTransactionFees = getVal('otherTransactionFees');
+            const operationalExpenses = currentExpenses.length > 0 ? expensesSum : getVal('operationalExpenses');
+
+            const totalExpenses = bankTransferFees + otherTransactionFees + operationalExpenses;
+
+            // 5. Final Metrics
+            const grossSalesIncome = usedGcashNet + totalItemsNet;
+            const finalEodNet = grossSalesIncome - totalExpenses;
+            const actualEodSales = usedGcashNet + totalSalesRevenue; // theoreticalGrowth in DB
+            
+            const status = Math.abs(usedGcashNet) < 1 ? 'BALANCED' : (usedGcashNet < 0 ? 'SHORTAGE' : 'SURPLUS');
+
+            const merged: ReportData = { 
+                ...selectedReport, 
+                ...(editReportData as ReportData),
+                // Overwrite with recalculated values
+                totalStartFund,
+                totalEndAssets,
+                totalNetSales: totalSalesRevenue,
+                totalExpenses,
+                theoreticalGrowth: actualEodSales,
+                recordedProfit: finalEodNet,
+                discrepancy: usedGcashNet,
+                status: status as any
+            } as ReportData;
+
             await storageService.saveReport(merged);
             await storageService.logActivity('Update Report', `Updated report for ${getStoreName(merged.storeId)} (${merged.date})`, user.id, user.name);
             alert('Report updated');
@@ -960,6 +1054,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 <div className="flex items-center gap-3">
                     {isEditing ? (
                         <>
+                            <button onClick={handleDeleteFromModal} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-1"><Trash2 size={16}/> Delete</button>
                             <button onClick={() => { setIsEditing(false); setEditReportData(null); }} className="px-3 py-1 bg-gray-100 rounded">Cancel</button>
                             <button onClick={saveEditedReport} className="px-3 py-1 bg-blue-600 text-white rounded">Save</button>
                         </>

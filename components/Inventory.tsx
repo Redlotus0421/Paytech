@@ -88,7 +88,19 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             category: newItemCategory
         };
         result = await storageService.updateInventoryItem(updatedItem);
-        await storageService.logActivity('Update Inventory', `Updated item: ${updatedItem.name} (Stock: ${updatedItem.stock}, Price: ${updatedItem.price})`, user.id, user.name);
+
+        // Calculate changes for log
+        const changes = [];
+        if (editingItem.stock !== updatedItem.stock) changes.push(`Stock: ${editingItem.stock} -> ${updatedItem.stock}`);
+        if (editingItem.price !== updatedItem.price) changes.push(`Price: ${editingItem.price} -> ${updatedItem.price}`);
+        if (editingItem.cost !== updatedItem.cost) changes.push(`Cost: ${editingItem.cost} -> ${updatedItem.cost}`);
+        if (editingItem.name !== updatedItem.name) changes.push(`Name: ${editingItem.name} -> ${updatedItem.name}`);
+        
+        const logDetails = changes.length > 0 
+            ? `Updated ${updatedItem.name}: ${changes.join(', ')}`
+            : `Updated item: ${updatedItem.name} (No changes detected)`;
+
+        await storageService.logActivity('Update Inventory', logDetails, user.id, user.name);
     } else {
         const item: InventoryItem = {
             id: uuidv4(),

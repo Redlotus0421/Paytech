@@ -220,8 +220,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             const m = new Date(r.date).getMonth() + 1;
             if (m !== Number(monthFilter)) return false;
         }
-        if (startDate && new Date(r.date) < new Date(startDate)) return false;
-        if (endDate && new Date(r.date) > new Date(endDate)) return false;
+        // Use string comparison for dates (YYYY-MM-DD) to avoid timezone issues
+        if (startDate && r.date < startDate) return false;
+        if (endDate && r.date > endDate) return false;
         return true;
     }).sort((a,b)=> b.timestamp - a.timestamp);
 
@@ -246,8 +247,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 const m = new Date(e.date).getMonth() + 1;
                 if (m !== Number(monthFilter)) return false;
             }
-            if (startDate && new Date(e.date) < new Date(startDate)) return false;
-            if (endDate && new Date(e.date) > new Date(endDate)) return false;
+            // Use string comparison for dates (YYYY-MM-DD) to avoid timezone issues
+            if (startDate && e.date < startDate) return false;
+            if (endDate && e.date > endDate) return false;
             return true;
         });
     }, [generalExpenses, filterStoreId, filterCategory, monthFilter, startDate, endDate]);

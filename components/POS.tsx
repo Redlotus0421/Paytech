@@ -137,7 +137,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
 
         // 3. Generate Receipt Data
         const receipt = {
-            date: new Date().toLocaleString(),
+            date: `${date} ${new Date().toLocaleTimeString()}`,
             storeName: stores.find(s => s.id === activeStoreId)?.name || 'Store',
             items: [...cart],
             total: cartTotal,

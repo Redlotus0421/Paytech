@@ -493,17 +493,17 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                         </div>
                         <div className="flex-1 min-w-[120px]">
                           <label className="text-xs text-gray-500 mb-1 block">Category</label>
-                          <input 
-                            list={`category-list-${item.id}`}
+                          <select 
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-900" 
                             value={item.category} 
                             onChange={e => updateTransaction(item.id, 'category', e.target.value)} 
-                            onBlur={e => handleCategoryBlur(e.target.value)}
-                            placeholder="Select or type..."
-                          />
-                          <datalist id={`category-list-${item.id}`}>
-                            {transactionCategories.map(cat => <option key={cat} value={cat}/>)}
-                          </datalist>
+                          >
+                            <option value="" disabled>Select...</option>
+                            {transactionCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            {item.category && !transactionCategories.includes(item.category) && (
+                                <option value={item.category}>{item.category}</option>
+                            )}
+                          </select>
                         </div>
                         <div className="flex-1 min-w-[100px]">
                           <label className="text-xs text-gray-500 mb-1 block">Cost (Optional)</label>

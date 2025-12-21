@@ -198,7 +198,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                 {isLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="animate-spin text-blue-600" size={32}/></div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
                         {items.filter(item => 
                             !searchTerm.trim() || 
                             item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -208,26 +208,22 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                                 key={item.id}
                                 onClick={() => addToCart(item)}
                                 disabled={item.stock === 0}
-                                className={`text-left p-3 rounded-lg border shadow-sm transition-all flex flex-col justify-between h-full ${
+                                className={`text-left p-2 rounded-lg border shadow-sm transition-all flex flex-col h-24 relative overflow-hidden ${
                                     item.stock === 0
                                         ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
                                         : 'bg-white border-gray-200 hover:border-blue-400 hover:shadow-md'
                                 }`}
                             >
-                                <div className="w-full mb-2">
-                                    <div className="font-bold text-gray-900 line-clamp-2">{item.name}</div>
-                                    {item.category && <div className="text-xs text-gray-500 mt-1 inline-block bg-gray-100 px-2 py-0.5 rounded">{item.category}</div>}
+                                <div className="w-full mb-1">
+                                    <div className="font-bold text-gray-900 text-sm leading-tight line-clamp-2">{item.name}</div>
+                                    {item.category && <div className="text-[10px] text-gray-500 mt-0.5 inline-block bg-gray-100 px-1.5 py-0.5 rounded">{item.category}</div>}
                                 </div>
                                 
-                                <div className="w-full flex justify-between items-end mt-auto pt-2 border-t border-gray-50">
-                                    <div>
-                                        <div className={`text-xs font-bold ${item.stock === 0 ? 'text-red-500' : item.stock < 5 ? 'text-orange-500' : 'text-green-600'}`}>
-                                            {item.stock === 0 ? 'OUT OF STOCK' : `${item.stock} Left`}
-                                        </div>
+                                <div className="absolute bottom-2 left-2 right-2 flex justify-between items-end">
+                                    <div className={`text-[10px] font-bold ${item.stock === 0 ? 'text-red-500' : item.stock < 5 ? 'text-orange-500' : 'text-green-600'}`}>
+                                        {item.stock === 0 ? 'NO STOCK' : `${item.stock}`}
                                     </div>
-                                    <div className="text-right">
-                                        <div className="font-bold text-blue-600 text-lg">₱{item.price.toFixed(2)}</div>
-                                    </div>
+                                    <div className="font-bold text-blue-600 text-sm">₱{item.price.toFixed(2)}</div>
                                 </div>
                             </button>
                         ))}

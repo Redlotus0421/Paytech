@@ -91,10 +91,20 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
 
         // Calculate changes for log
         const changes = [];
-        if (editingItem.stock !== updatedItem.stock) changes.push(`Stock: ${editingItem.stock} -> ${updatedItem.stock}`);
-        if (editingItem.price !== updatedItem.price) changes.push(`Price: ${editingItem.price} -> ${updatedItem.price}`);
-        if (editingItem.cost !== updatedItem.cost) changes.push(`Cost: ${editingItem.cost} -> ${updatedItem.cost}`);
+        const oldStock = Number(editingItem.stock);
+        const newStock = Number(updatedItem.stock);
+        if (oldStock !== newStock) changes.push(`Stock: ${oldStock} -> ${newStock}`);
+        
+        const oldPrice = Number(editingItem.price);
+        const newPrice = Number(updatedItem.price);
+        if (oldPrice !== newPrice) changes.push(`Price: ${oldPrice} -> ${newPrice}`);
+        
+        const oldCost = Number(editingItem.cost);
+        const newCost = Number(updatedItem.cost);
+        if (oldCost !== newCost) changes.push(`Cost: ${oldCost} -> ${newCost}`);
+        
         if (editingItem.name !== updatedItem.name) changes.push(`Name: ${editingItem.name} -> ${updatedItem.name}`);
+        if (editingItem.category !== updatedItem.category) changes.push(`Category: ${editingItem.category} -> ${updatedItem.category}`);
         
         const logDetails = changes.length > 0 
             ? `Updated ${updatedItem.name}: ${changes.join(', ')}`

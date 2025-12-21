@@ -162,6 +162,13 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCategoryInput, setNewCategoryInput] = useState('');
 
+  // Refresh categories when modal opens
+  useEffect(() => {
+    if (isCategoryModalOpen) {
+        storageService.fetchTransactionCategories().then(setTransactionCategories);
+    }
+  }, [isCategoryModalOpen]);
+
   // Load stores and categories asynchronously
   useEffect(() => {
     storageService.fetchStores().then(data => {

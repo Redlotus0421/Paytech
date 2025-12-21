@@ -394,10 +394,10 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
       {/* TABS HEADER */}
       <div className="flex rounded-lg bg-gray-200 p-1 mb-6">
           <button onClick={() => setActiveTab('sod')} className={`flex-1 py-3 text-sm font-bold rounded-md transition-all ${activeTab === 'sod' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            1. Start of Day (SOD) {selectedStoreName && <span className="ml-1 font-normal text-xs opacity-80">({selectedStoreName})</span>}
+            1. Start of Day (SOD) {selectedStoreName && <span className="ml-1 font-normal">({selectedStoreName})</span>}
           </button>
           <button onClick={() => isSodSaved && setActiveTab('eod')} disabled={!isSodSaved} className={`flex-1 py-3 text-sm font-bold rounded-md transition-all flex items-center justify-center gap-2 ${activeTab === 'eod' ? 'bg-white text-blue-600 shadow-sm' : !isSodSaved ? 'text-gray-400 cursor-not-allowed' : 'text-gray-500 hover:text-gray-700'}`}>
-            {!isSodSaved && <Lock size={14} />} 2. End of Day (EOD) {selectedStoreName && <span className="ml-1 font-normal text-xs opacity-80">({selectedStoreName})</span>}
+            {!isSodSaved && <Lock size={14} />} 2. End of Day (EOD) {selectedStoreName && <span className="ml-1 font-normal">({selectedStoreName})</span>}
           </button>
       </div>
 

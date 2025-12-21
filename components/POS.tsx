@@ -195,42 +195,63 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                 />
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+            <div className="flex-1 overflow-y-auto bg-white">
                 {isLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="animate-spin text-blue-600" size={32}/></div>
                 ) : (
-                    <div className="flex flex-col divide-y divide-gray-100">
-                        {items.filter(item => 
-                            !searchTerm.trim() || 
-                            item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
-                        ).map(item => (
-                            <button
-                                key={item.id}
-                                onClick={() => addToCart(item)}
-                                disabled={item.stock === 0}
-                                className={`text-left py-3 px-2 hover:bg-gray-50 flex justify-between items-center transition-colors ${
-                                    item.stock === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                                }`}
-                            >
-                                <div className="flex-1 min-w-0 pr-4">
-                                    <div className="font-bold text-gray-900 text-sm truncate">{item.name}</div>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        {item.category && <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{item.category}</span>}
-                                        <span className={`text-[10px] font-bold ${item.stock === 0 ? 'text-red-500' : item.stock < 5 ? 'text-orange-500' : 'text-green-600'}`}>
-                                            {item.stock === 0 ? 'NO STOCK' : `${item.stock} Left`}
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm border-b border-gray-200">
+                            <tr>
+                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Item Name</th>
+                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
+                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Stock</th>
+                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Price</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {items.filter(item => 
+                                !searchTerm.trim() || 
+                                item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
+                            ).map(item => (
+                                <tr 
+                                    key={item.id}
+                                    onClick={() => item.stock > 0 && addToCart(item)}
+                                    className={`cursor-pointer transition-colors hover:bg-blue-50 ${item.stock === 0 ? 'opacity-50 bg-gray-50 cursor-not-allowed' : ''}`}
+                                >
+                                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.name}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-500">
+                                        {item.category ? (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                                {item.category}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400 italic text-xs">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-center">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                                            item.stock === 0 ? 'bg-red-100 text-red-800' : 
+                                            item.stock < 5 ? 'bg-orange-100 text-orange-800' : 
+                                            'bg-green-100 text-green-800'
+                                        }`}>
+                                            {item.stock}
                                         </span>
-                                    </div>
-                                </div>
-                                <div className="font-bold text-blue-600 text-sm whitespace-nowrap">₱{item.price.toFixed(2)}</div>
-                            </button>
-                        ))}
-                        {items.length === 0 && !isLoading && (
-                            <div className="text-center py-10 text-gray-400 italic">
-                                No items available in this store.
-                            </div>
-                        )}
-                    </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right">
+                                        ₱{item.price.toFixed(2)}
+                                    </td>
+                                </tr>
+                            ))}
+                            {items.length === 0 && !isLoading && (
+                                <tr>
+                                    <td colSpan={4} className="px-4 py-10 text-center text-gray-400 italic">
+                                        No items available in this store.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 )}
             </div>
        </div>

@@ -21,6 +21,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
     const [editingPrice, setEditingPrice] = useState<string>('');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -123,7 +124,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
         const transaction: PosTransaction = {
             id: uuidv4(),
             storeId: activeStoreId,
-            date: new Date().toISOString().split('T')[0],
+            date: date,
             timestamp: Date.now(),
             items: [...cart],
             totalAmount: cartTotal,
@@ -238,6 +239,17 @@ export const POS: React.FC<POSProps> = ({ user }) => {
     <div className="w-full md:w-96 bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col h-full min-w-0">
             <div className="p-4 bg-slate-900 text-white font-bold flex items-center gap-2 rounded-t-lg">
                 <ShoppingCart size={20}/> Current Order
+            </div>
+
+            {/* Date Selection */}
+            <div className="px-4 pt-4 pb-2 border-b border-gray-100">
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Transaction Date</label>
+                <input 
+                    type="date" 
+                    value={date} 
+                    onChange={(e) => setDate(e.target.value)} 
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm font-medium text-gray-900"
+                />
             </div>
 
             {/* Cart Items */}

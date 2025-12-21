@@ -217,7 +217,9 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     if (draft) {
         try {
             const data = JSON.parse(draft);
-            if (data.date === new Date().toISOString().split('T')[0]) {
+            // Allow loading draft from any date
+            if (data.date) {
+                setDate(data.date);
                 setSodGpo(data.sodGpo);
                 setSodGcash(data.sodGcash);
                 setSodPettyCash(data.sodPettyCash);
@@ -234,8 +236,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                 }
                 if (data.salesTransactions) setSalesTransactions(data.salesTransactions);
                 setIsSodSaved(true);
-            } else {
-                localStorage.removeItem(draftKey);
             }
         } catch (e) { console.error("Failed to parse draft", e); }
     }
@@ -394,6 +394,19 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
 
     return (
         <div className="space-y-6 min-h-0 w-full min-w-0">
+      
+      {/* Date Selection */}
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-4">
+          <label className="text-sm font-bold text-gray-700">Report Date:</label>
+          <input 
+            type="date" 
+            value={date} 
+            onChange={(e) => setDate(e.target.value)} 
+            className="border border-gray-300 rounded px-3 py-2 text-sm font-medium text-gray-900"
+          />
+          <span className="text-xs text-gray-500 italic">Changing this will load POS data for the selected date.</span>
+      </div>
+
       {/* TABS HEADER */}
       <div className="flex rounded-lg bg-gray-200 p-1 mb-6">
           <button onClick={() => setActiveTab('sod')} className={`flex-1 py-3 text-sm font-bold rounded-md transition-all ${activeTab === 'sod' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>

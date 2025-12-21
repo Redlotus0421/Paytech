@@ -380,9 +380,11 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
         const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
         localStorage.removeItem(draftKey);
         onSuccess();
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to save report:", error);
-        alert("Failed to save report to database. Please check your connection and try again.");
+        const errorMessage = error?.message || "Unknown error";
+        const errorDetails = error?.details || "";
+        alert(`Failed to save report to database.\nError: ${errorMessage}\n${errorDetails}\nPlease check your connection and try again.`);
     } finally {
         setIsSubmitting(false);
     }

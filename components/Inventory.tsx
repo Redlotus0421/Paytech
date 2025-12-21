@@ -117,18 +117,14 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   };
 
   const handleEditClick = (item: InventoryItem) => {
-      setAuthTitle('Admin Authentication Required to Edit');
-      setPendingAction(() => () => {
-          setEditingItem(item);
-          setNewItemName(item.name);
-          setNewItemCost(item.cost.toString());
-          setNewItemPrice(item.price.toString());
-          setNewItemStock(item.stock.toString());
-          setNewItemStoreId(item.storeId);
-          setNewItemCategory(item.category || '');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-      setIsAuthModalOpen(true);
+      setEditingItem(item);
+      setNewItemName(item.name);
+      setNewItemCost(item.cost.toString());
+      setNewItemPrice(item.price.toString());
+      setNewItemStock(item.stock.toString());
+      setNewItemStoreId(item.storeId);
+      setNewItemCategory(item.category || '');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDeleteClick = (item: InventoryItem) => {

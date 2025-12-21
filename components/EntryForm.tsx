@@ -294,7 +294,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const actualCashSales = totalEndAssets - totalStartFund;
     
     // Derived GCash Net = Growth (Actual Cash Sales) - Total Sales Revenue
-    const derivedGcashNet = actualCashSales - totalSalesRevenue;
+    const rawDerivedGcashNet = actualCashSales - totalSalesRevenue;
+    const derivedGcashNet = Math.abs(rawDerivedGcashNet) < 0.005 ? 0 : rawDerivedGcashNet;
     
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
     const hasNotebookEntry = gcashNotebook !== '';
@@ -305,7 +306,9 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const totalEodSales = effectiveGcashNet + totalSalesRevenue;
     
     // Notebook Difference = Derived Net - Notebook Value
-    const notebookDifference = hasNotebookEntry ? derivedGcashNet - notebookGcashVal : 0;
+    const rawNotebookDifference = hasNotebookEntry ? derivedGcashNet - notebookGcashVal : 0;
+    // Fix negative zero display issue by treating very small differences as 0
+    const notebookDifference = Math.abs(rawNotebookDifference) < 0.005 ? 0 : rawNotebookDifference;
     
     // Profit Calculation: Effective Net + Sales Net - Expenses
     const eodNetSales = effectiveGcashNet + totalSalesNet - totalExpenses;

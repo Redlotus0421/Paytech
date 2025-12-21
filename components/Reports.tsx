@@ -32,14 +32,14 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [allStores, allReports, allUsers, allExpenses] = await Promise.all([
+            const [allStores, allReports, allUsers, allExpenses, transCats] = await Promise.all([
                 storageService.fetchStores(),
                 storageService.fetchReports(),
                 storageService.fetchUsers(),
-                storageService.fetchGeneralExpenses()
+                storageService.fetchGeneralExpenses(),
+                storageService.fetchTransactionCategories()
             ]);
             const cats = storageService.getExpenseCategories();
-            const transCats = storageService.getTransactionCategories();
             setCategories(cats);
             setTransactionCategories(transCats);
             setStores(allStores);

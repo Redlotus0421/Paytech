@@ -326,25 +326,56 @@ export const storageService = {
     await supabase.from('stores').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     localStorage.removeItem(KEYS.POS_TRANSACTIONS);
   },
-  // Transaction Categories - stored locally and synced
-  getTransactionCategories: (): string[] => {
-    const cats = localStorage.getItem(KEYS.TRANSACTION_CATEGORIES);
-    return cats ? JSON.parse(cats) : ['Printing Services', 'Repair Services', 'Accessories', 'Coffee', 'Other'];
-  },
-  addTransactionCategory: (category: string): string[] => {
-    const cats = storageService.getTransactionCategories();
-    const trimmed = category.trim();
-    if (trimmed && !cats.includes(trimmed)) {
-      cats.push(trimmed);
-      localStorage.setItem(KEYS.TRANSACTION_CATEGORIES, JSON.stringify(cats));
+  // Transaction Categories - stored in Supabase
+  fetchTransactionCategories: async (): Promise<string[]> => {
+    const { data, error } = await supabase
+      .from('transaction_categories')
+      .select('name')
+      .order('name');
+    
+    if (error) {
+      console.error('Error fetching transaction categories:', error);
+      // Fallback to defaults if offline or error
+      return ['Printing Services', 'Repair Services', 'Accessories', 'Coffee', 'Other'];
     }
-    return cats;
+    
+    return data.map(d => d.name);
   },
-  removeTransactionCategory: (category: string): string[] => {
-    let cats = storageService.getTransactionCategories();
-    cats = cats.filter(c => c !== category);
-    localStorage.setItem(KEYS.TRANSACTION_CATEGORIES, JSON.stringify(cats));
-    return cats;
+
+  addTransactionCategory: async (category: string): Promise<string[]> => {
+    const trimmed = category.trim();
+    if (!trimmed) return storageService.fetchTransactionCategories();
+
+    const { error } = await supabase
+      .from('transaction_categories')
+      .insert([{ name: trimmed }]);
+      
+    if (error) {
+        // Ignore duplicate errors
+        if (error.code !== '23505') {
+            console.error('Error adding transaction category:', error);
+        }
+    }
+    
+    return storageService.fetchTransactionCategories();
+  },
+
+  removeTransactionCategory: async (category: string): Promise<string[]> => {
+    const { error } = await supabase
+      .from('transaction_categories')
+      .delete()
+      .eq('name', category);
+
+    if (error) {
+      console.error('Error removing transaction category:', error);
+    }
+
+    return storageService.fetchTransactionCategories();
+  },
+
+  // Deprecated sync method for backward compatibility during migration
+  getTransactionCategories: (): string[] => {
+     return ['Printing Services', 'Repair Services', 'Accessories', 'Coffee', 'Other'];
   },
 
   // Expense Categories

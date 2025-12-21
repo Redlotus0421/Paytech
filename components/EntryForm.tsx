@@ -173,7 +173,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
         }
     });
     // Load saved transaction categories
-    setTransactionCategories(storageService.getTransactionCategories());
+    storageService.fetchTransactionCategories().then(setTransactionCategories);
   }, [user.storeId]);
 
   // --- AUTO LOAD POS DATA ---
@@ -243,24 +243,24 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     setSalesTransactions(salesTransactions.map(t => t.id === id ? { ...t, [field]: val } : t));
   };
 
-  const handleCategoryBlur = (val: string) => {
+  const handleCategoryBlur = async (val: string) => {
     if (val && !transactionCategories.includes(val)) {
-        const updated = storageService.addTransactionCategory(val);
+        const updated = await storageService.addTransactionCategory(val);
         setTransactionCategories(updated);
     }
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (newCategoryInput.trim()) {
-        const updated = storageService.addTransactionCategory(newCategoryInput);
+        const updated = await storageService.addTransactionCategory(newCategoryInput);
         setTransactionCategories(updated);
         setNewCategoryInput('');
     }
   };
 
-  const handleRemoveCategory = (cat: string) => {
+  const handleRemoveCategory = async (cat: string) => {
     if (confirm(`Are you sure you want to remove category "${cat}"?`)) {
-        const updated = storageService.removeTransactionCategory(cat);
+        const updated = await storageService.removeTransactionCategory(cat);
         setTransactionCategories(updated);
     }
   };

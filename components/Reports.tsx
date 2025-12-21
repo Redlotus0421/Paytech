@@ -7,6 +7,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const [activeTab, setActiveTab] = useState<'daily-reports' | 'expense-summary' | 'sod-eod' | 'bank-transfer-fees' | 'other-transactions' | 'pos-sales'>('daily-reports');
     const [reports, setReports] = useState<ReportData[]>([]);
     const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
+    const [posTransactions, setPosTransactions] = useState<any[]>([]);
     const [stores, setStores] = useState<Store[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [selectedReport, setSelectedReport] = useState<ReportData | null>(null);
@@ -32,12 +33,13 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [allStores, allReports, allUsers, allExpenses, transCats] = await Promise.all([
+            const [allStores, allReports, allUsers, allExpenses, transCats, allPosTransactions] = await Promise.all([
                 storageService.fetchStores(),
                 storageService.fetchReports(),
                 storageService.fetchUsers(),
                 storageService.fetchGeneralExpenses(),
-                storageService.fetchTransactionCategories()
+                storageService.fetchTransactionCategories(),
+                storageService.fetchTransactions()
             ]);
             const cats = storageService.getExpenseCategories();
             setCategories(cats);
@@ -45,6 +47,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             setStores(allStores);
             setUsers(allUsers);
             setGeneralExpenses(allExpenses);
+            setPosTransactions(allPosTransactions);
             let filtered = allReports;
             if (user.role === UserRole.EMPLOYEE) {
                 filtered = allReports.filter(r => r.storeId === user.storeId);
@@ -894,15 +897,29 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
 
         {activeTab === 'pos-sales' && (() => {
             const posItems: any[] = [];
-            filteredReports.forEach(r => {
-                if (r.posSalesDetails) {
-                    r.posSalesDetails.forEach((item: any) => {
+            
+            // Filter transactions based on current filters
+            const filteredTransactions = posTransactions.filter(t => {
+                if (filterStoreId && t.storeId !== filterStoreId) return false;
+                if (monthFilter) {
+                    const m = new Date(t.date).getMonth() + 1;
+                    if (m !== Number(monthFilter)) return false;
+                }
+                // Use string comparison for dates (YYYY-MM-DD) to avoid timezone issues
+                if (startDate && t.date < startDate) return false;
+                if (endDate && t.date > endDate) return false;
+                return true;
+            });
+
+            filteredTransactions.forEach(t => {
+                if (t.items) {
+                    t.items.forEach((item: any) => {
                         if (filterCategory && item.category !== filterCategory) return;
                         posItems.push({
                             ...item,
-                            date: r.date,
-                            storeId: r.storeId,
-                            reportId: r.id
+                            date: t.date,
+                            storeId: t.storeId,
+                            reportId: t.reportId || t.id // Use transaction ID if report ID is missing
                         });
                     });
                 }

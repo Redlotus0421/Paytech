@@ -293,27 +293,22 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const totalExpenses = Number(bankFees || 0) + operationalExpensesOnly;
     const actualCashSales = totalEndAssets - totalStartFund;
     
-    // UPDATED: GCash Net is now simply the Total Asset Growth (EOD - SOD)
-    const derivedGcashNet = actualCashSales;
+    // Derived GCash Net = Growth (Actual Cash Sales) - Total Sales Revenue
+    const derivedGcashNet = actualCashSales - totalSalesRevenue;
     
     const notebookGcashVal = gcashNotebook ? Number(gcashNotebook) : 0;
     const hasNotebookEntry = gcashNotebook !== '';
     const effectiveGcashNet = hasNotebookEntry ? notebookGcashVal : derivedGcashNet;
     
-    // Total EOD Sales Calculation (Client Formula: GCash Net + Total Sales Revenue)
-    // Note: Using effectiveGcashNet (which is either Derived or Notebook)
-    // Since effectiveGcashNet is now Growth, this formula might need adjustment if client meant something else,
-    // but based on previous request, we keep it or revert to actualCashSales if redundant.
-    // Actually, if GCash Net = Growth, then Growth + Sales = Double Counting?
-    // Let's stick to the previous definition for Total EOD Sales box: Just the Growth (actualCashSales).
-    const totalEodSales = actualCashSales;
+    // Total EOD Sales (Actual Total EOD Sale) = Effective GCash Net + Total Sales Revenue
+    // This represents the Total Asset Growth (adjusted by Notebook if present)
+    const totalEodSales = effectiveGcashNet + totalSalesRevenue;
     
-    // REVERSED AS REQUESTED: System Derived - Notebook
-    // Updated: Since derivedGcashNet is now Growth, we compare directly with Notebook (assuming Notebook is also Growth)
+    // Notebook Difference = Derived Net - Notebook Value
     const notebookDifference = hasNotebookEntry ? derivedGcashNet - notebookGcashVal : 0;
     
-    // Profit Calculation: Growth - Cost - Expenses
-    const eodNetSales = effectiveGcashNet - totalSalesCost - totalExpenses;
+    // Profit Calculation: Effective Net + Sales Net - Expenses
+    const eodNetSales = effectiveGcashNet + totalSalesNet - totalExpenses;
 
     return {
       totalStartFund, totalEndAssets, totalSalesRevenue, totalExpenses, actualCashSales,

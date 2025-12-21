@@ -302,7 +302,8 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                   // Over/Negative: Difference between System Derived GCash and Notebook Record
                   // Updated to include operational expenses in the derived net for comparison
                   const operationalExpenses = Number(report.operationalExpenses || 0);
-                  const overNegative = notebookGcash !== undefined ? ((derivedGcashNet + operationalExpenses) - notebookGcash) : 0;
+                  const rawOverNegative = notebookGcash !== undefined ? ((derivedGcashNet + operationalExpenses) - notebookGcash) : 0;
+                  const overNegative = Math.abs(rawOverNegative) < 0.005 ? 0 : rawOverNegative;
                   
                   const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
                   const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);

@@ -924,16 +924,23 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
           const manualNet = (selectedReport.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
           const posNet = (selectedReport.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
           const totalItemsNet = manualNet + posNet;
+
+          const currentExpenses = (isEditing && (editReportData as any)?.expenses) 
+              ? (editReportData as any).expenses 
+              : (selectedReport.expenses || []);
+          const expensesSum = currentExpenses.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+
           const totalExpenses = Number((isEditing && editReportData && (editReportData as any).bankTransferFees !== undefined) ? (editReportData as any).bankTransferFees : (selectedReport.bankTransferFees || 0)) + 
                                 Number((isEditing && editReportData && (editReportData as any).otherTransactionFees !== undefined) ? (editReportData as any).otherTransactionFees : (selectedReport.otherTransactionFees || 0)) +
-                                Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
+                                (currentExpenses.length > 0 ? expensesSum : Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0)));
+          
           const grossSalesIncome = usedGcashNet + totalItemsNet;
           const finalEodNet = grossSalesIncome - totalExpenses;
           const actualEodSales = usedGcashNet + totalSalesRevenue;
           
           // Difference Calculation: System Derived - Notebook
           // Updated to include operational expenses in the derived net for comparison
-          const operationalExpenses = Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
+          const operationalExpenses = currentExpenses.length > 0 ? expensesSum : Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
           const difference = notebookGcash !== undefined ? ((derivedGcashNet + operationalExpenses) - notebookGcash) : 0;
 
           return (
@@ -1178,15 +1185,40 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                             </td>
                                         </tr>
                                         )}
-                                        {selectedReport.expenses && selectedReport.expenses.length > 0 ? (
-                                            selectedReport.expenses.map((exp, i) => (
+                                        {currentExpenses.length > 0 ? (
+                                            currentExpenses.map((exp: any, i: number) => (
                                                 <tr key={`exp-${i}`} className="bg-white">
                                                     <td className="p-2 pl-3 text-gray-700">
                                                         <div className="font-medium">Other Expense</div>
-                                                        <div className="text-xs text-gray-600 mt-0.5">{exp.description}</div>
+                                                        {isEditing ? (
+                                                            <input 
+                                                                type="text" 
+                                                                value={exp.description} 
+                                                                onChange={e => {
+                                                                    const newExpenses = currentExpenses.map((item: any, idx: number) => idx === i ? { ...item, description: e.target.value } : item);
+                                                                    setEditReportData(prev => ({ ...(prev||{}), expenses: newExpenses }));
+                                                                }}
+                                                                className="w-full text-xs border border-gray-300 rounded px-2 py-1 mt-0.5"
+                                                                placeholder="Description"
+                                                            />
+                                                        ) : (
+                                                            <div className="text-xs text-gray-600 mt-0.5">{exp.description}</div>
+                                                        )}
                                                     </td>
                                                     <td className="p-2 pr-3 text-right font-mono text-gray-900">
-                                                        {formatMoney(Number(exp.amount))}
+                                                        {isEditing ? (
+                                                            <input 
+                                                                type="number" 
+                                                                value={exp.amount} 
+                                                                onChange={e => {
+                                                                    const newExpenses = currentExpenses.map((item: any, idx: number) => idx === i ? { ...item, amount: Number(e.target.value) } : item);
+                                                                    setEditReportData(prev => ({ ...(prev||{}), expenses: newExpenses }));
+                                                                }}
+                                                                className="w-24 text-right border border-gray-300 rounded px-2 py-1"
+                                                            />
+                                                        ) : (
+                                                            formatMoney(Number(exp.amount))
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))

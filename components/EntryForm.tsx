@@ -376,6 +376,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     try {
         await storageService.saveReport(report);
         await storageService.markPosTransactionsAsReported(selectedStoreId, date, reportId);
+        await storageService.logActivity('Report Submitted', `Daily report submitted for ${selectedStoreName} (${date})`, user.id, user.name);
         const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
         localStorage.removeItem(draftKey);
         onSuccess();

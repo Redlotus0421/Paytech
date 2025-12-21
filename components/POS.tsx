@@ -84,6 +84,10 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   };
 
   const removeFromCart = (itemId: string) => {
+      const item = cart.find(c => c.id === itemId);
+      if (item) {
+          storageService.logActivity('Void Item', `Removed ${item.quantity}x ${item.name} from cart`, user.id, user.name);
+      }
       setCart(prev => prev.filter(c => c.id !== itemId));
   };
 
@@ -127,6 +131,8 @@ export const POS: React.FC<POSProps> = ({ user }) => {
             cashierName: user.name
         };
         await storageService.savePosTransaction(transaction); // <--- AWAIT HERE
+        
+        await storageService.logActivity('POS Transaction', `Processed sale of ₱${cartTotal.toFixed(2)} (${cart.length} items)`, user.id, user.name);
 
         // 3. Generate Receipt Data
         const receipt = {

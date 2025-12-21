@@ -63,6 +63,10 @@ export const storageService = {
 
       // Accept user (no password provided or matches)
       localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(appUser));
+      
+      // Log login activity (fire and forget)
+      storageService.logActivity('Login', 'User logged in', appUser.id, appUser.name);
+      
       return appUser;
     } catch (e) {
       console.error('Login fallback failed:', e);

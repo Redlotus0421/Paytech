@@ -88,6 +88,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             category: newItemCategory
         };
         result = await storageService.updateInventoryItem(updatedItem);
+        await storageService.logActivity('Update Inventory', `Updated item: ${updatedItem.name} (Stock: ${updatedItem.stock}, Price: ${updatedItem.price})`, user.id, user.name);
     } else {
         const item: InventoryItem = {
             id: uuidv4(),
@@ -99,6 +100,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             category: newItemCategory
         };
         result = await storageService.addInventoryItem(item);
+        await storageService.logActivity('Add Inventory', `Added new item: ${item.name} to ${stores.find(s => s.id === newItemStoreId)?.name}`, user.id, user.name);
     }
 
     if (!result.success) {
@@ -136,6 +138,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
               setIsLoading(true);
               try {
                   await storageService.deleteInventoryItem(item.id);
+                  await storageService.logActivity('Delete Inventory', `Deleted item: ${item.name}`, user.id, user.name);
                   await refreshInventory();
               } catch (e) {
                   console.error(e);

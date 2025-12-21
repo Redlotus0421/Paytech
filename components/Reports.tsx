@@ -76,6 +76,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             setShowAdminAuth(false);
             if (adminAction === 'delete') {
                 await storageService.deleteReport(adminTargetReportId);
+                await storageService.logActivity('Delete Report', `Deleted report ID: ${adminTargetReportId}`, auth.id, auth.name);
                 alert('Report deleted');
                 await loadData();
             } else if (adminAction === 'edit') {
@@ -98,6 +99,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         try {
             const merged: ReportData = { ...selectedReport, ...(editReportData as ReportData) } as ReportData;
             await storageService.saveReport(merged);
+            await storageService.logActivity('Update Report', `Updated report for ${getStoreName(merged.storeId)} (${merged.date})`, user.id, user.name);
             alert('Report updated');
             setIsEditing(false);
             setSelectedReport(null);

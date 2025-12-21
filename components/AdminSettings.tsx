@@ -114,6 +114,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     try {
         const store: Store = { id: uuidv4(), name: newStoreName, location: newStoreLoc };
         await storageService.addStore(store);
+        await storageService.logActivity('Add Store', `Added new store: ${store.name}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
         await loadStores(); // Refresh list
         setNewStoreName('');
         setNewStoreLoc('');
@@ -140,6 +141,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     setIsStoreLoading(true);
     try {
         await storageService.deleteStoreAndData(storeId);
+        await storageService.logActivity('Delete Store', `Deleted store: ${stores.find(s => s.id === storeId)?.name}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
         await loadStores();
         alert("Store and all associated data deleted successfully.");
     } catch (e: any) {
@@ -229,6 +231,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
             .eq('id', userId);
 
         if (error) throw error;
+        await storageService.logActivity('Delete User', `Deactivated user: ${users.find(u => u.id === userId)?.username}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
         await fetchSupabaseUsers();
 
         if (editingUser?.id === userId) {
@@ -323,11 +326,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                 .update(userData)
                 .eq('id', editingUser.id);
             if (error) throw error;
+            await storageService.logActivity('Update User', `Updated user: ${userData.username}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
         } else {
             const { error } = await supabase
                 .from('users')
                 .insert([{ ...userData, id: uuidv4() }]);
             if (error) throw error;
+            await storageService.logActivity('Add User', `Added new user: ${userData.username}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
         }
         await fetchSupabaseUsers();
         cancelEditUser();

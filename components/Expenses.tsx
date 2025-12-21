@@ -110,6 +110,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
         // I'll check storageService in a moment. For now let's write the logic to call a function I'll ensure exists.
         
         await storageService.updateGeneralExpense(updatedExpense);
+        await storageService.logActivity('Update Expense', `Updated expense: ${updatedExpense.description} (₱${updatedExpense.amount})`, user.id, user.name);
         alert("Expense updated successfully");
         setIsEditing(false);
         setEditingExpenseId(null);
@@ -125,6 +126,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
             recordedBy: user.id
         };
         await storageService.addGeneralExpense(newExpense);
+        await storageService.logActivity('Add Expense', `Added expense: ${newExpense.description} (₱${newExpense.amount})`, user.id, user.name);
       }
 
       await loadData(); // Refresh list
@@ -172,10 +174,12 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
         if (auth && auth.role === UserRole.ADMIN) {
             if (adminAction === 'delete-category') {
                 const updatedCats = storageService.removeExpenseCategory(targetId);
+                await storageService.logActivity('Delete Expense Category', `Deleted category: ${targetId}`, user.id, user.name);
                 setCategories(updatedCats);
                 setCategory(updatedCats[0] || '');
             } else if (adminAction === 'delete-expense') {
                 await storageService.deleteGeneralExpense(targetId);
+                await storageService.logActivity('Delete Expense', `Deleted expense ID: ${targetId}`, user.id, user.name);
                 setExpenses(prev => prev.filter(e => e.id !== targetId));
             } else if (adminAction === 'edit-expense') {
                 const expenseToEdit = expenses.find(e => e.id === targetId);

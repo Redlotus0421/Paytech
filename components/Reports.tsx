@@ -1196,21 +1196,21 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                             </td>
                                         </tr>
 
-                                        {notebookGcash !== undefined && (
+                                        {(notebookGcash !== undefined || isEditing) && (
                                              <tr className="bg-purple-50">
                                                 <td className="p-2 pl-3 text-purple-900 font-bold">GCash Net <span className="text-xs font-normal text-purple-600">(Notebook)</span></td>
                                                 <td className="p-2 pr-3 text-right font-mono font-bold text-purple-900">
                                                     {isEditing ? (
-                                                        <input type="number" value={(editReportData as any)?.gcashNotebook ?? notebookGcash} onChange={e => setEditReportData(prev => ({ ...(prev||{}), gcashNotebook: Number(e.target.value) }))} className="w-28 text-right border border-gray-300 rounded px-2 py-1" />
+                                                        <input type="number" value={(editReportData as any)?.gcashNotebook ?? notebookGcash ?? ''} onChange={e => setEditReportData(prev => ({ ...(prev||{}), gcashNotebook: Number(e.target.value) }))} className="w-28 text-right border border-gray-300 rounded px-2 py-1" placeholder="0.00" />
                                                     ) : (
-                                                        formatMoney(notebookGcash)
+                                                        formatMoney(notebookGcash!)
                                                     )}
                                                 </td>
                                             </tr>
                                         )}
 
                                         {/* NEW DIFFERENCE ROW */}
-                                        {notebookGcash !== undefined && (
+                                        {(notebookGcash !== undefined || isEditing) && (
                                             <tr className={`${difference > 0 ? 'bg-green-50' : (difference < 0 ? 'bg-red-50' : 'bg-gray-50')}`}>
                                                 <td className="p-2 pl-3 font-bold text-gray-700">Difference <span className="text-xs font-normal text-gray-400">(Sys - Note)</span></td>
                                                 <td className={`p-2 pr-3 text-right font-bold font-mono ${difference > 0 ? 'text-green-600' : (difference < 0 ? 'text-red-600' : 'text-gray-600')}`}>

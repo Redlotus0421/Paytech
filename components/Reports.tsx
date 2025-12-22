@@ -1058,7 +1058,8 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
           // Difference Calculation: System Derived - Notebook
           // Updated to include operational expenses in the derived net for comparison
           const operationalExpenses = currentExpenses.length > 0 ? expensesSum : Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
-          const difference = notebookGcash !== undefined ? ((derivedGcashNet + operationalExpenses) - notebookGcash) : 0;
+          const rawDifference = notebookGcash !== undefined ? ((derivedGcashNet + operationalExpenses) - notebookGcash) : 0;
+          const difference = Math.abs(rawDifference) < 0.005 ? 0 : rawDifference;
 
           return (
             <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">

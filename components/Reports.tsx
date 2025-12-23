@@ -1473,6 +1473,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             type="text" 
                             value={adminUsername} 
                             onChange={e => setAdminUsername(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && confirmAdminAuth()}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         />
                     </div>
@@ -1482,6 +1483,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             type="password" 
                             value={adminPassword} 
                             onChange={e => setAdminPassword(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && confirmAdminAuth()}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         />
                     </div>

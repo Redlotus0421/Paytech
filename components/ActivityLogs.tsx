@@ -36,10 +36,7 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
     const uniqueActions = Array.from(new Set(logs.map(l => l.action))).sort();
 
     const filteredLogs = logs.filter(log => {
-        const logUser = usersMap[log.userId];
-        const displayName = logUser ? `${logUser.name} (${logUser.username})` : log.userName;
-        
-        if (filterUser && !displayName.toLowerCase().includes(filterUser.toLowerCase())) return false;
+        if (filterUser && log.userId !== filterUser) return false;
         if (filterAction && log.action !== filterAction) return false;
         return true;
     });
@@ -62,14 +59,16 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col min-h-0 flex-1">
                 <div className="p-4 border-b border-gray-100 flex gap-4 shrink-0">
                     <div className="relative flex-1 max-w-xs">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <input 
-                            type="text" 
-                            placeholder="Filter by User..." 
+                        <select 
                             value={filterUser}
                             onChange={e => setFilterUser(e.target.value)}
-                            className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm w-full"
-                        />
+                            className="pl-3 pr-8 py-2 border border-gray-300 rounded-md text-sm w-full appearance-none bg-white"
+                        >
+                            <option value="">All Users</option>
+                            {Object.values(usersMap).map(u => (
+                                <option key={u.id} value={u.id}>{u.name} ({u.username})</option>
+                            ))}
+                        </select>
                     </div>
                     <div className="relative flex-1 max-w-xs">
                         <select 

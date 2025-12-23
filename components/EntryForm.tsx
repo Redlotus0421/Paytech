@@ -211,6 +211,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   }, [selectedStoreId, date, activeTab]); 
 
   // --- RESTORE DRAFT IF EXISTS ---
+  // Draft restoration removed to clear data on refresh
+  /*
   useEffect(() => {
     const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
     const draft = localStorage.getItem(draftKey);
@@ -240,6 +242,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
         } catch (e) { console.error("Failed to parse draft", e); }
     }
   }, [user.id, selectedStoreId]);
+  */
 
   // --- HELPERS ---
   const num = (val: string) => parseFloat(val) || 0;
@@ -323,12 +326,15 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   // --- SAVE HANDLERS ---
   const handleSaveSod = () => {
     if (!selectedStoreId) return alert("Please select a store");
+    // Draft saving removed
+    /*
     const draftData = {
         date, sodGpo, sodGcash, sodPettyCash, sodPettyCashNote, fundIn, cashAtm, bankFees, expenses,
         salesTransactions 
     };
     const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
     localStorage.setItem(draftKey, JSON.stringify(draftData));
+    */
     setIsSodSaved(true);
     setActiveTab('eod');
   };
@@ -378,8 +384,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
         await storageService.saveReport(report);
         await storageService.markPosTransactionsAsReported(selectedStoreId, date, reportId);
         await storageService.logActivity('Report Submitted', `Daily report submitted for ${selectedStoreName} (${date})`, user.id, user.name);
-        const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
-        localStorage.removeItem(draftKey);
+        // const draftKey = `cfs_draft_${user.id}_${selectedStoreId}`;
+        // localStorage.removeItem(draftKey);
         onSuccess();
     } catch (error: any) {
         console.error("Failed to save report:", error);

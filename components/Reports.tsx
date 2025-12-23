@@ -1180,7 +1180,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         </div>
                     </section>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                         
                         {/* LEFT COLUMN: SALES & NET SALES */}
                         <div className="flex flex-col gap-6 h-full">
@@ -1234,11 +1234,11 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                         {isEditing && currentCustomSales.length > 0 && (
                                             <tr className="bg-gray-50">
                                                 <td colSpan={2} className="p-2">
-                                                    <div className="flex gap-2 text-xs font-bold text-gray-500 px-1">
+                                                    <div className="flex gap-1 text-xs font-bold text-gray-500 px-1">
                                                         <div className="flex-1">Description</div>
-                                                        <div className="w-24">Category</div>
-                                                        <div className="w-20 text-right">Cost</div>
-                                                        <div className="w-24 text-right">Price</div>
+                                                        <div className="w-20">Category</div>
+                                                        <div className="w-14 text-right">Cost</div>
+                                                        <div className="w-16 text-right">Price</div>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1247,7 +1247,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                             <tr key={`manual-${i}`} className="bg-white">
                                                 {isEditing ? (
                                                     <td colSpan={2} className="p-2">
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1">
                                                             <input 
                                                                 type="text" 
                                                                 value={s.name} 
@@ -1265,7 +1265,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                                                     const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, category: e.target.value } : item);
                                                                     setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
                                                                 }}
-                                                                className="w-24 text-xs border border-gray-300 rounded px-2 py-1"
+                                                                className="w-20 text-xs border border-gray-300 rounded px-2 py-1"
                                                                 placeholder="Category"
                                                             />
                                                             <input 
@@ -1275,7 +1275,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                                                     const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, cost: Number(e.target.value) } : item);
                                                                     setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
                                                                 }}
-                                                                className="w-20 text-xs border border-gray-300 rounded px-2 py-1 text-right"
+                                                                className="w-14 text-xs border border-gray-300 rounded px-2 py-1 text-right"
                                                                 placeholder="Cost"
                                                             />
                                                             <input 
@@ -1285,7 +1285,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                                                     const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, amount: Number(e.target.value) } : item);
                                                                     setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
                                                                 }}
-                                                                className="w-24 text-xs border border-gray-300 rounded px-2 py-1 text-right"
+                                                                className="w-16 text-xs border border-gray-300 rounded px-2 py-1 text-right"
                                                                 placeholder="Price"
                                                             />
                                                         </div>

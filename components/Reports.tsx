@@ -1466,43 +1466,44 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 <p className="text-sm text-gray-600 mb-4">
                     Please enter admin credentials to {adminAction} this report.
                 </p>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                        <input 
-                            type="text" 
-                            value={adminUsername} 
-                            onChange={e => setAdminUsername(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && confirmAdminAuth()}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        />
+                <form onSubmit={(e) => { e.preventDefault(); confirmAdminAuth(); }}>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                            <input 
+                                type="text" 
+                                value={adminUsername} 
+                                onChange={e => setAdminUsername(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <input 
+                                type="password" 
+                                value={adminPassword} 
+                                onChange={e => setAdminPassword(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            />
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                        <input 
-                            type="password" 
-                            value={adminPassword} 
-                            onChange={e => setAdminPassword(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && confirmAdminAuth()}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        />
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button 
+                            type="button"
+                            onClick={() => setShowAdminAuth(false)}
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            type="submit"
+                            disabled={isAuthenticating}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {isAuthenticating ? 'Verifying...' : 'Confirm'}
+                        </button>
                     </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                    <button 
-                        onClick={() => setShowAdminAuth(false)}
-                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        onClick={confirmAdminAuth}
-                        disabled={isAuthenticating}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                    >
-                        {isAuthenticating ? 'Verifying...' : 'Confirm'}
-                    </button>
-                </div>
+                </form>
             </div>
         </div>
       )}

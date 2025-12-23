@@ -5,6 +5,7 @@ import { History, Search, RefreshCw, Loader2 } from 'lucide-react';
 
 export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
     const [logs, setLogs] = useState<ActivityLog[]>([]);
+    const [usersMap, setUsersMap] = useState<Record<string, User>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [filterUser, setFilterUser] = useState('');
     const [filterAction, setFilterAction] = useState('');
@@ -12,8 +13,15 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
     const loadLogs = async () => {
         setIsLoading(true);
         try {
-            const data = await storageService.fetchActivityLogs();
-            setLogs(data);
+            const [logsData, usersData] = await Promise.all([
+                storageService.fetchActivityLogs(),
+                storageService.fetchUsers()
+            ]);
+            setLogs(logsData);
+            
+            const uMap: Record<string, User> = {};
+            usersData.forEach(u => { uMap[u.id] = u; });
+            setUsersMap(uMap);
         } catch (error) {
             console.error('Failed to load logs', error);
         } finally {
@@ -25,9 +33,14 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
         loadLogs();
     }, []);
 
+    const uniqueActions = Array.from(new Set(logs.map(l => l.action))).sort();
+
     const filteredLogs = logs.filter(log => {
-        if (filterUser && !log.userName.toLowerCase().includes(filterUser.toLowerCase())) return false;
-        if (filterAction && !log.action.toLowerCase().includes(filterAction.toLowerCase())) return false;
+        const logUser = usersMap[log.userId];
+        const displayName = logUser ? `${logUser.name} (${logUser.username})` : log.userName;
+        
+        if (filterUser && !displayName.toLowerCase().includes(filterUser.toLowerCase())) return false;
+        if (filterAction && log.action !== filterAction) return false;
         return true;
     });
 
@@ -59,14 +72,18 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
                         />
                     </div>
                     <div className="relative flex-1 max-w-xs">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                        <input 
-                            type="text" 
-                            placeholder="Filter by Action..." 
+                        <select 
                             value={filterAction}
                             onChange={e => setFilterAction(e.target.value)}
-                            className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm w-full"
-                        />
+                            className="pl-3 pr-8 py-2 border border-gray-300 rounded-md text-sm w-full appearance-none bg-white"
+                            style={{ backgroundImage: 'none' }} // Remove default arrow to use custom if needed, or just let it be standard select
+                        >
+                            <option value="">All Actions</option>
+                            {uniqueActions.map(action => (
+                                <option key={action} value={action}>{action}</option>
+                            ))}
+                        </select>
+                        {/* Add a custom arrow or just rely on browser default */}
                     </div>
                 </div>
 
@@ -86,12 +103,16 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
                             ) : filteredLogs.length === 0 ? (
                                 <tr><td colSpan={4} className="p-8 text-center text-gray-500">No activity logs found.</td></tr>
                             ) : (
-                                filteredLogs.map(log => (
+                                filteredLogs.map(log => {
+                                    const logUser = usersMap[log.userId];
+                                    const displayName = logUser ? `${logUser.name} (${logUser.username})` : log.userName;
+                                    
+                                    return (
                                     <tr key={log.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-3 text-gray-500 whitespace-nowrap">
                                             {new Date(log.timestamp).toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-3 font-medium text-gray-900">{log.userName}</td>
+                                        <td className="px-6 py-3 font-medium text-gray-900">{displayName}</td>
                                         <td className="px-6 py-3">
                                             <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                                 {log.action}
@@ -99,7 +120,8 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
                                         </td>
                                         <td className="px-6 py-3 text-gray-600">{log.details}</td>
                                     </tr>
-                                ))
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>

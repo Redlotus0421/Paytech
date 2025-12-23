@@ -1231,11 +1231,23 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                             </tr>
                                         ))}
 
+                                        {isEditing && currentCustomSales.length > 0 && (
+                                            <tr className="bg-gray-50">
+                                                <td colSpan={2} className="p-2">
+                                                    <div className="flex gap-2 text-xs font-bold text-gray-500 px-1">
+                                                        <div className="flex-1">Description</div>
+                                                        <div className="w-24">Category</div>
+                                                        <div className="w-20 text-right">Cost</div>
+                                                        <div className="w-24 text-right">Price</div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
                                         {currentCustomSales.map((s: any, i: number) => (
                                             <tr key={`manual-${i}`} className="bg-white">
-                                                <td className="p-2 pl-3 text-gray-700 pl-6">
-                                                    {isEditing ? (
-                                                        <div className="flex flex-col gap-1">
+                                                {isEditing ? (
+                                                    <td colSpan={2} className="p-2">
+                                                        <div className="flex items-center gap-2">
                                                             <input 
                                                                 type="text" 
                                                                 value={s.name} 
@@ -1243,56 +1255,53 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                                                     const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, name: e.target.value } : item);
                                                                     setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
                                                                 }}
-                                                                className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                                                                placeholder="Name"
+                                                                className="flex-1 min-w-0 text-xs border border-gray-300 rounded px-2 py-1"
+                                                                placeholder="Description"
                                                             />
-                                                            <div className="flex gap-1">
-                                                                <input 
-                                                                    type="text" 
-                                                                    value={s.category || ''} 
-                                                                    onChange={e => {
-                                                                        const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, category: e.target.value } : item);
-                                                                        setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
-                                                                    }}
-                                                                    className="w-1/2 text-xs border border-gray-300 rounded px-2 py-1"
-                                                                    placeholder="Category"
-                                                                />
-                                                                <input 
-                                                                    type="number" 
-                                                                    value={s.cost || 0} 
-                                                                    onChange={e => {
-                                                                        const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, cost: Number(e.target.value) } : item);
-                                                                        setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
-                                                                    }}
-                                                                    className="w-1/2 text-xs border border-gray-300 rounded px-2 py-1"
-                                                                    placeholder="Cost"
-                                                                />
-                                                            </div>
+                                                            <input 
+                                                                type="text" 
+                                                                value={s.category || ''} 
+                                                                onChange={e => {
+                                                                    const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, category: e.target.value } : item);
+                                                                    setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
+                                                                }}
+                                                                className="w-24 text-xs border border-gray-300 rounded px-2 py-1"
+                                                                placeholder="Category"
+                                                            />
+                                                            <input 
+                                                                type="number" 
+                                                                value={s.cost || 0} 
+                                                                onChange={e => {
+                                                                    const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, cost: Number(e.target.value) } : item);
+                                                                    setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
+                                                                }}
+                                                                className="w-20 text-xs border border-gray-300 rounded px-2 py-1 text-right"
+                                                                placeholder="Cost"
+                                                            />
+                                                            <input 
+                                                                type="number" 
+                                                                value={s.amount || 0} 
+                                                                onChange={e => {
+                                                                    const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, amount: Number(e.target.value) } : item);
+                                                                    setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
+                                                                }}
+                                                                className="w-24 text-xs border border-gray-300 rounded px-2 py-1 text-right"
+                                                                placeholder="Price"
+                                                            />
                                                         </div>
-                                                    ) : (
-                                                        <>
+                                                    </td>
+                                                ) : (
+                                                    <>
+                                                        <td className="p-2 pl-3 text-gray-700 pl-6">
                                                             {s.name} 
                                                             {s.category && <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{s.category}</span>}
                                                             <span className="text-xs text-gray-400 ml-1">(Net)</span>
-                                                        </>
-                                                    )}
-                                                </td>
-                                                <td className="p-2 pr-3 text-right font-mono text-gray-900 align-top">
-                                                    {isEditing ? (
-                                                        <input 
-                                                            type="number" 
-                                                            value={s.amount || 0} 
-                                                            onChange={e => {
-                                                                const newSales = currentCustomSales.map((item: any, idx: number) => idx === i ? { ...item, amount: Number(e.target.value) } : item);
-                                                                setEditReportData(prev => ({ ...(prev||{}), customSales: newSales }));
-                                                            }}
-                                                            className="w-24 text-right border border-gray-300 rounded px-2 py-1"
-                                                            placeholder="Amount"
-                                                        />
-                                                    ) : (
-                                                        formatMoney((Number(s.amount) || 0) - (Number(s.cost) || 0))
-                                                    )}
-                                                </td>
+                                                        </td>
+                                                        <td className="p-2 pr-3 text-right font-mono text-gray-900 align-top">
+                                                            {formatMoney((Number(s.amount) || 0) - (Number(s.cost) || 0))}
+                                                        </td>
+                                                    </>
+                                                )}
                                             </tr>
                                         ))}
 

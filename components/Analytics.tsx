@@ -253,7 +253,41 @@ export const Analytics: React.FC = () => {
       {/* Spacer to prevent overlap with absolute button on mobile if needed, though usually fine on desktop */}
       <div className="h-8 md:hidden"></div> 
 
-      {/* Tabs */}
+      {/* 1. Performance Chart Area (Dynamic based on activeTab) */}
+      <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
+        {activeTab === 'sales' && (
+            <>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Performance Chart ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
+                {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="grossSales" name="Gross Sales" stroke="#3b82f6" strokeWidth={2} /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /></LineChart></ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center text-gray-400 h-full">No data for this {filterType === 'month' ? 'month' : 'date'}</div>
+                )}
+            </>
+        )}
+        {activeTab === 'expenses' && (
+            <>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Expenses Trend ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
+                {expensesChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%"><BarChart data={expensesChartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="amount" name="Expense Amount" fill="#ef4444" /></BarChart></ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center text-gray-400 h-full">No expenses for this {filterType === 'month' ? 'month' : 'date'}</div>
+                )}
+            </>
+        )}
+        {activeTab === 'fundin' && (
+            <>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Fund In Trend ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
+                {chartData.some(d => d.fundIn > 0) ? (
+                    <ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="fundIn" name="Fund In Amount" fill="#3b82f6" /></BarChart></ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center text-gray-400 h-full">No fund in records for this {filterType === 'month' ? 'month' : 'date'}</div>
+                )}
+            </>
+        )}
+      </div>
+
+      {/* 2. Tabs */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-4">
         <button
             onClick={() => setActiveTab('sales')}
@@ -284,25 +318,35 @@ export const Analytics: React.FC = () => {
         </button>
       </div>
 
-      {/* SALES REPORT TAB */}
-      {activeTab === 'sales' && (
-        <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
+      {/* 3. Cards Area */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
+        {activeTab === 'sales' && (
+            <>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Net Sales</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.runningProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">OVERALL GPO FUNDIN</p></div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Performance ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
-                {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="grossSales" name="Gross Sales" stroke="#3b82f6" strokeWidth={2} /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /></LineChart></ResponsiveContainer>
-                ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No data for this {filterType === 'month' ? 'month' : 'date'}</div>
-                )}
-            </div>
+            </>
+        )}
+        {activeTab === 'expenses' && (
+            <>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Expenses</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeExpenses.length}</h3><p className="text-sm text-gray-500">Total Transactions</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeExpenses.length > 0 ? (stats.totalExpenses / storeExpenses.length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Expense</p></div>
+            </>
+        )}
+        {activeTab === 'fundin' && (
+            <>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Fund In</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeReports.filter(r => (r.fundIn || 0) > 0).length}</h3><p className="text-sm text-gray-500">Fund In Events</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (stats.totalFundIn / storeReports.filter(r => (r.fundIn || 0) > 0).length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Fund In</p></div>
+            </>
+        )}
+      </div>
 
+      {/* 4. Table Area */}
+      {activeTab === 'sales' && (
+        <>
             {/* Recent Activity Table (Filtered by Month) */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
@@ -354,21 +398,6 @@ export const Analytics: React.FC = () => {
       {/* GENERAL EXPENSES TAB */}
       {activeTab === 'expenses' && (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 pt-2">
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Expenses</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeExpenses.length}</h3><p className="text-sm text-gray-500">Total Transactions</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeExpenses.length > 0 ? (stats.totalExpenses / storeExpenses.length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Expense</p></div>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Expenses Trend ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
-                {expensesChartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%"><BarChart data={expensesChartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="amount" name="Expense Amount" fill="#ef4444" /></BarChart></ResponsiveContainer>
-                ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No expenses for this {filterType === 'month' ? 'month' : 'date'}</div>
-                )}
-            </div>
-
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
                 <h3 className="font-bold text-gray-900">Expenses History ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
@@ -409,21 +438,6 @@ export const Analytics: React.FC = () => {
       {/* GPO FUNDIN TAB */}
       {activeTab === 'fundin' && (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 pt-2">
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Fund In</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeReports.filter(r => (r.fundIn || 0) > 0).length}</h3><p className="text-sm text-gray-500">Fund In Events</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (stats.totalFundIn / storeReports.filter(r => (r.fundIn || 0) > 0).length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Fund In</p></div>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Fund In Trend ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
-                {chartData.some(d => d.fundIn > 0) ? (
-                    <ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="fundIn" name="Fund In Amount" fill="#3b82f6" /></BarChart></ResponsiveContainer>
-                ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No fund in records for this {filterType === 'month' ? 'month' : 'date'}</div>
-                )}
-            </div>
-
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
                 <h3 className="font-bold text-gray-900">Fund In History ({filterType === 'month' ? selectedMonth : selectedDate})</h3>

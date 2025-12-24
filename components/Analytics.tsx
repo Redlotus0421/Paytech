@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Store, ReportData, User, UserRole, GeneralExpense } from '../types';
 import { storageService } from '../services/storageService';
-import { XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LineChart, Line, CartesianGrid, BarChart, Bar } from 'recharts';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LineChart, Line, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
 import { TrendingUp, AlertOctagon, DollarSign, Loader2, Store as StoreIcon, ArrowLeft, Calendar, FileText, CreditCard, Wallet } from 'lucide-react';
 
 export const Analytics: React.FC = () => {
@@ -122,16 +122,37 @@ export const Analytics: React.FC = () => {
   }, [storeReports, storeExpenses]);
 
   const chartData = useMemo(() => {
-    // Show all data for the selected month
-    return storeReports.map(r => ({
-      date: r.date.substring(5), // mm-dd
-      profit: r.recordedProfit,
-      grossSales: r.totalNetSales + r.discrepancy,
-      discrepancy: r.discrepancy,
-      sales: r.totalNetSales,
-      fundIn: r.fundIn || 0
-    }));
-  }, [storeReports]);
+    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
+
+    // Aggregate reports
+    storeReports.forEach(r => {
+        const date = r.date;
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
+        dataByDate[date].netSales += (r.totalNetSales + r.discrepancy);
+        dataByDate[date].fundIn += (r.fundIn || 0);
+    });
+
+    // Aggregate expenses
+    storeExpenses.forEach(e => {
+        const date = e.date;
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
+        dataByDate[date].expenses += e.amount;
+    });
+
+    // Sort dates
+    const sortedDates = Object.keys(dataByDate).sort();
+
+    return sortedDates.map(date => {
+        const d = dataByDate[date];
+        return {
+            date: date.substring(5), // MM-DD
+            netSales: d.netSales,
+            expenses: d.expenses,
+            runningProfit: d.netSales - d.expenses,
+            fundIn: d.fundIn
+        };
+    });
+  }, [storeReports, storeExpenses]);
 
   const expensesChartData = useMemo(() => {
     // Group expenses by date
@@ -239,6 +260,18 @@ export const Analytics: React.FC = () => {
                         className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
                     />
                 ) : (
+                        <BarChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                            <XAxis dataKey="date" />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <ReferenceLine y={0} stroke="#000" />
+                            <Bar dataKey="netSales" name="Net Sales" fill="#3b82f6" />
+                            <Bar dataKey="expenses" name="Expenses" fill="#ef4444" />
+                            <Bar dataKey="runningProfit" name="Running Profit" fill="#10b981" />
+                        </BarChart>
+                    
                     <input 
                         type="date" 
                         value={selectedDate} 

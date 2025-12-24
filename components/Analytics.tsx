@@ -17,6 +17,10 @@ export const Analytics: React.FC = () => {
 
   // Month Filter State (YYYY-MM format)
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  // Date Filter State (YYYY-MM-DD format)
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  // Filter Type State
+  const [filterType, setFilterType] = useState<'month' | 'date'>('month');
 
   useEffect(() => {
     const user = storageService.getCurrentUser();
@@ -52,8 +56,9 @@ export const Analytics: React.FC = () => {
   const handleStoreClick = (store: Store) => {
     setSelectedStore(store);
     setView('detail');
-    // Reset month to current when selecting a store
+    // Reset month/date to current when selecting a store
     setSelectedMonth(new Date().toISOString().slice(0, 7));
+    setSelectedDate(new Date().toISOString().slice(0, 10));
   };
 
   const handleBack = () => {
@@ -61,7 +66,7 @@ export const Analytics: React.FC = () => {
     setView('list');
   };
 
-  // Filter reports by store AND month
+  // Filter reports by store AND month/date
   const storeReports = useMemo(() => {
     if (!selectedStore && !currentUser?.storeId) return [];
     
@@ -70,13 +75,15 @@ export const Analytics: React.FC = () => {
     return reports
       .filter(r => {
           const isStoreMatch = r.storeId === targetStoreId;
-          const isMonthMatch = r.date.startsWith(selectedMonth);
-          return isStoreMatch && isMonthMatch;
+          const isDateMatch = filterType === 'month' 
+            ? r.date.startsWith(selectedMonth)
+            : r.date === selectedDate;
+          return isStoreMatch && isDateMatch;
       })
       .sort((a, b) => a.timestamp - b.timestamp);
-  }, [reports, selectedStore, currentUser, selectedMonth]);
+  }, [reports, selectedStore, currentUser, selectedMonth, selectedDate, filterType]);
 
-  // Filter expenses by store AND month
+  // Filter expenses by store AND month/date
   const storeExpenses = useMemo(() => {
     if (!selectedStore && !currentUser?.storeId) return [];
     const targetStoreId = selectedStore?.id || currentUser?.storeId;
@@ -84,11 +91,13 @@ export const Analytics: React.FC = () => {
     return generalExpenses
       .filter(e => {
           const isStoreMatch = e.storeId === targetStoreId;
-          const isMonthMatch = e.date.startsWith(selectedMonth);
-          return isStoreMatch && isMonthMatch;
+          const isDateMatch = filterType === 'month' 
+            ? e.date.startsWith(selectedMonth)
+            : e.date === selectedDate;
+          return isStoreMatch && isDateMatch;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [generalExpenses, selectedStore, currentUser, selectedMonth]);
+  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, filterType]);
 
   const stats = useMemo(() => {
     // Use the filtered storeReports directly for stats
@@ -195,22 +204,53 @@ export const Analytics: React.FC = () => {
             </div>
           </div>
           
-          {/* Month Filter - Positioned absolutely to force top layer */}
-          <div className="absolute top-0 right-0 z-[100] group bg-white border border-gray-300 hover:border-blue-400 rounded-lg shadow-sm transition-colors">
-            {/* Visual part (Underneath) */}
-            <div className="flex items-center px-3 py-2 pointer-events-none">
-              <Calendar size={18} className="text-gray-500 mr-2 group-hover:text-blue-500" />
-              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 min-w-[80px]">{selectedMonth}</span>
+          {/* Filter Controls */}
+          <div className="flex items-center gap-2">
+            {/* Filter Type Toggle */}
+            <div className="bg-gray-100 p-1 rounded-lg flex text-xs font-medium">
+                <button 
+                    onClick={() => setFilterType('month')}
+                    className={`px-3 py-1 rounded-md transition-all ${filterType === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Month
+                </button>
+                <button 
+                    onClick={() => setFilterType('date')}
+                    className={`px-3 py-1 rounded-md transition-all ${filterType === 'date' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Date
+                </button>
             </div>
-            
-            {/* Functional part (Overlay) - Ensures native picker trigger */}
-            <input 
-                type="month" 
-                value={selectedMonth} 
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                style={{ appearance: 'none' }} 
-            />
+
+            {/* Date/Month Picker */}
+            <div className="relative z-[100] group bg-white border border-gray-300 hover:border-blue-400 rounded-lg shadow-sm transition-colors">
+                {/* Visual part (Underneath) */}
+                <div className="flex items-center px-3 py-2 pointer-events-none">
+                <Calendar size={18} className="text-gray-500 mr-2 group-hover:text-blue-500" />
+                <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 min-w-[80px]">
+                    {filterType === 'month' ? selectedMonth : selectedDate}
+                </span>
+                </div>
+                
+                {/* Functional part (Overlay) - Ensures native picker trigger */}
+                {filterType === 'month' ? (
+                    <input 
+                        type="month" 
+                        value={selectedMonth} 
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        style={{ appearance: 'none' }} 
+                    />
+                ) : (
+                    <input 
+                        type="date" 
+                        value={selectedDate} 
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        style={{ appearance: 'none' }} 
+                    />
+                )}
+            </div>
           </div>
       </div>
       
@@ -259,18 +299,18 @@ export const Analytics: React.FC = () => {
             </div>
             
             <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Performance ({selectedMonth})</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Performance ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
                 {chartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="grossSales" name="Gross Sales" stroke="#3b82f6" strokeWidth={2} /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /></LineChart></ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No data for this month</div>
+                    <div className="flex items-center justify-center text-gray-400 h-full">No data for this {filterType === 'month' ? 'month' : 'date'}</div>
                 )}
             </div>
 
             {/* Recent Activity Table (Filtered by Month) */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="font-bold text-gray-900">Reports History ({selectedMonth})</h3>
+                <h3 className="font-bold text-gray-900">Reports History ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
@@ -306,7 +346,7 @@ export const Analytics: React.FC = () => {
                             </tr>
                         ))
                     ) : (
-                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No reports found for this month.</td></tr>
+                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No reports found for this {filterType === 'month' ? 'month' : 'date'}.</td></tr>
                     )}
                     </tbody>
                 </table>
@@ -325,17 +365,17 @@ export const Analytics: React.FC = () => {
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Expenses Trend ({selectedMonth})</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Expenses Trend ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
                 {expensesChartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%"><BarChart data={expensesChartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="amount" name="Expense Amount" fill="#ef4444" /></BarChart></ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No expenses for this month</div>
+                    <div className="flex items-center justify-center text-gray-400 h-full">No expenses for this {filterType === 'month' ? 'month' : 'date'}</div>
                 )}
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="font-bold text-gray-900">Expenses History ({selectedMonth})</h3>
+                <h3 className="font-bold text-gray-900">Expenses History ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeExpenses.length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
@@ -361,7 +401,7 @@ export const Analytics: React.FC = () => {
                             </tr>
                         ))
                     ) : (
-                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No expenses found for this month.</td></tr>
+                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No expenses found for this {filterType === 'month' ? 'month' : 'date'}.</td></tr>
                     )}
                     </tbody>
                 </table>
@@ -380,17 +420,17 @@ export const Analytics: React.FC = () => {
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Fund In Trend ({selectedMonth})</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Fund In Trend ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
                 {chartData.some(d => d.fundIn > 0) ? (
                     <ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="fundIn" name="Fund In Amount" fill="#3b82f6" /></BarChart></ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No fund in records for this month</div>
+                    <div className="flex items-center justify-center text-gray-400 h-full">No fund in records for this {filterType === 'month' ? 'month' : 'date'}</div>
                 )}
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="font-bold text-gray-900">Fund In History ({selectedMonth})</h3>
+                <h3 className="font-bold text-gray-900">Fund In History ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.filter(r => (r.fundIn || 0) > 0).length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
@@ -422,7 +462,7 @@ export const Analytics: React.FC = () => {
                             </tr>
                         ))
                     ) : (
-                        <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund in records found for this month.</td></tr>
+                        <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund in records found for this {filterType === 'month' ? 'month' : 'date'}.</td></tr>
                     )}
                     </tbody>
                 </table>

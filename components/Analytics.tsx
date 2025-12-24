@@ -309,6 +309,32 @@ export const Analytics: React.FC = () => {
       {/* Spacer to prevent overlap with absolute button on mobile if needed, though usually fine on desktop */}
       <div className="h-8 md:hidden"></div> 
 
+      {/* 3. Cards Area */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
+        {activeTab === 'sales' && (
+            <>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Net Sales</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.runningProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">OVERALL GPO FUNDIN</p></div>
+            </>
+        )}
+        {activeTab === 'expenses' && (
+            <>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Expenses</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeExpenses.length}</h3><p className="text-sm text-gray-500">Total Transactions</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeExpenses.length > 0 ? (stats.totalExpenses / storeExpenses.length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Expense</p></div>
+            </>
+        )}
+        {activeTab === 'fundin' && (
+            <>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Fund In</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeReports.filter(r => (r.fundIn || 0) > 0).length}</h3><p className="text-sm text-gray-500">Fund In Events</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (stats.totalFundIn / storeReports.filter(r => (r.fundIn || 0) > 0).length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Fund In</p></div>
+            </>
+        )}
+      </div>
+
       {/* 1. Performance Chart Area (Dynamic based on activeTab) */}
       <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
         {activeTab === 'sales' && (
@@ -386,31 +412,7 @@ export const Analytics: React.FC = () => {
         </button>
       </div>
 
-      {/* 3. Cards Area */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
-        {activeTab === 'sales' && (
-            <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Net Sales</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.runningProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">OVERALL GPO FUNDIN</p></div>
-            </>
-        )}
-        {activeTab === 'expenses' && (
-            <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Expenses</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeExpenses.length}</h3><p className="text-sm text-gray-500">Total Transactions</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeExpenses.length > 0 ? (stats.totalExpenses / storeExpenses.length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Expense</p></div>
-            </>
-        )}
-        {activeTab === 'fundin' && (
-            <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Fund In</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeReports.filter(r => (r.fundIn || 0) > 0).length}</h3><p className="text-sm text-gray-500">Fund In Events</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (stats.totalFundIn / storeReports.filter(r => (r.fundIn || 0) > 0).length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Fund In</p></div>
-            </>
-        )}
-      </div>
+
 
       {/* 4. Table Area */}
       {activeTab === 'sales' && (

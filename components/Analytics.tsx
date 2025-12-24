@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Store, ReportData, User, UserRole } from '../types';
+import { Store, ReportData, User, UserRole, GeneralExpense } from '../types';
 import { storageService } from '../services/storageService';
-import { XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LineChart, Line, CartesianGrid } from 'recharts';
-import { TrendingUp, AlertOctagon, DollarSign, Loader2, Store as StoreIcon, ArrowLeft, Calendar } from 'lucide-react';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, LineChart, Line, CartesianGrid, BarChart, Bar } from 'recharts';
+import { TrendingUp, AlertOctagon, DollarSign, Loader2, Store as StoreIcon, ArrowLeft, Calendar, FileText, CreditCard, Wallet } from 'lucide-react';
 
 export const Analytics: React.FC = () => {
   const [view, setView] = useState<'list' | 'detail'>('list');
+  const [activeTab, setActiveTab] = useState<'sales' | 'expenses' | 'fundin'>('sales');
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [reports, setReports] = useState<ReportData[]>([]);
+  const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,12 +26,14 @@ export const Analytics: React.FC = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const [allStores, allReports] = await Promise.all([
+        const [allStores, allReports, allExpenses] = await Promise.all([
           storageService.fetchStores(),
-          storageService.fetchReports()
+          storageService.fetchReports(),
+          storageService.fetchGeneralExpenses()
         ]);
         console.log('Analytics: fetched reports count', (allReports || []).length);
         setStores(allStores);
+        setGeneralExpenses(allExpenses);
         
         if (user && user.role === UserRole.EMPLOYEE && user.storeId) {
             setReports(allReports.filter(r => r.storeId === user.storeId));
@@ -72,14 +76,35 @@ export const Analytics: React.FC = () => {
       .sort((a, b) => a.timestamp - b.timestamp);
   }, [reports, selectedStore, currentUser, selectedMonth]);
 
+  // Filter expenses by store AND month
+  const storeExpenses = useMemo(() => {
+    if (!selectedStore && !currentUser?.storeId) return [];
+    const targetStoreId = selectedStore?.id || currentUser?.storeId;
+
+    return generalExpenses
+      .filter(e => {
+          const isStoreMatch = e.storeId === targetStoreId;
+          const isMonthMatch = e.date.startsWith(selectedMonth);
+          return isStoreMatch && isMonthMatch;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [generalExpenses, selectedStore, currentUser, selectedMonth]);
+
   const stats = useMemo(() => {
     // Use the filtered storeReports directly for stats
     const totalProfit = storeReports.reduce((acc, r) => acc + r.recordedProfit, 0);
     const totalShortage = storeReports.reduce((acc, r) => r.discrepancy < 0 ? acc + r.discrepancy : acc, 0);
     const totalSurplus = storeReports.reduce((acc, r) => r.discrepancy > 0 ? acc + r.discrepancy : acc, 0);
     const balanceCount = storeReports.filter(r => r.status === 'BALANCED').length;
-    return { totalProfit, totalShortage, totalSurplus, balanceCount, reportCount: storeReports.length };
-  }, [storeReports]);
+    
+    // Expenses stats
+    const totalExpenses = storeExpenses.reduce((acc, e) => acc + e.amount, 0);
+    
+    // Fund In stats
+    const totalFundIn = storeReports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
+
+    return { totalProfit, totalShortage, totalSurplus, balanceCount, reportCount: storeReports.length, totalExpenses, totalFundIn };
+  }, [storeReports, storeExpenses]);
 
   const chartData = useMemo(() => {
     // Show all data for the selected month
@@ -87,9 +112,23 @@ export const Analytics: React.FC = () => {
       date: r.date.substring(5), // mm-dd
       profit: r.recordedProfit,
       discrepancy: r.discrepancy,
-      sales: r.totalNetSales
+      sales: r.totalNetSales,
+      fundIn: r.fundIn || 0
     }));
   }, [storeReports]);
+
+  const expensesChartData = useMemo(() => {
+    // Group expenses by date
+    const grouped = storeExpenses.reduce((acc, e) => {
+        const date = e.date.substring(5);
+        acc[date] = (acc[date] || 0) + e.amount;
+        return acc;
+    }, {} as Record<string, number>);
+    
+    return Object.entries(grouped)
+        .map(([date, amount]) => ({ date, amount }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+  }, [storeExpenses]);
 
   // Debug: log storeReports and chartData to help diagnose missing chart
   useEffect(() => {
@@ -177,67 +216,219 @@ export const Analytics: React.FC = () => {
       {/* Spacer to prevent overlap with absolute button on mobile if needed, though usually fine on desktop */}
       <div className="h-8 md:hidden"></div> 
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
-        <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.totalProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Net Sales</p></div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{Math.abs(stats.totalShortage).toLocaleString()}</h3><p className="text-sm text-gray-500">Total Shortage</p></div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalSurplus.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Surplus</p></div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">{stats.balanceCount} <span className="text-sm">/ {stats.reportCount}</span></h3><p className="text-sm text-gray-500">Perfect Reports</p></div>
-      </div>
-      
-      <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
-        <h3 className="text-lg font-bold text-gray-900 mb-6">Performance ({selectedMonth})</h3>
-        {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /><Line type="monotone" dataKey="discrepancy" name="Variance" stroke="#ef4444" strokeWidth={2} /></LineChart></ResponsiveContainer>
-        ) : (
-            <div className="flex items-center justify-center text-gray-400 h-full">No data for this month</div>
-        )}
+      {/* Tabs */}
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-4">
+        <button
+            onClick={() => setActiveTab('sales')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${activeTab === 'sales' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+            <div className="flex items-center justify-center gap-2">
+                <TrendingUp size={16} />
+                Sales Report
+            </div>
+        </button>
+        <button
+            onClick={() => setActiveTab('expenses')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${activeTab === 'expenses' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+            <div className="flex items-center justify-center gap-2">
+                <FileText size={16} />
+                General Expenses
+            </div>
+        </button>
+        <button
+            onClick={() => setActiveTab('fundin')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${activeTab === 'fundin' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+            <div className="flex items-center justify-center gap-2">
+                <Wallet size={16} />
+                GPO Fundin
+            </div>
+        </button>
       </div>
 
-      {/* Recent Activity Table (Filtered by Month) */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-          <h3 className="font-bold text-gray-900">Reports History ({selectedMonth})</h3>
-          <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.length} records found</span>
-        </div>
-        <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-              <tr>
-                <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3 text-right">GROSS SALES</th>
-                <th className="px-6 py-3 text-right">NET PROFIT</th>
-                <th className="px-6 py-3 text-right">Variance</th>
-                <th className="px-6 py-3 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {storeReports.length > 0 ? (
-                  storeReports.slice().reverse().map(report => (
-                    <tr key={report.id} className="hover:bg-gray-50 transition-colors text-gray-900">
-                      <td className="px-6 py-3 font-medium">{report.date}</td>
-                      <td className="px-6 py-3 text-right">₱{(report.totalNetSales + report.discrepancy).toLocaleString()}</td>
-                      <td className="px-6 py-3 text-right font-bold text-emerald-600">₱{report.recordedProfit.toLocaleString()}</td>
-                      <td className={`px-6 py-3 text-right font-bold ${report.discrepancy < 0 ? 'text-red-500' : (report.discrepancy > 0 ? 'text-blue-500' : 'text-gray-400')}`}>
-                        {report.discrepancy > 0 ? '+' : ''}{report.discrepancy.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-3 text-center">
-                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                          report.status === 'BALANCED' ? 'bg-green-100 text-green-700' :
-                          report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' :
-                          'bg-blue-100 text-blue-700'
-                        }`}>
-                          {report.status}
-                        </span>
-                      </td>
+      {/* SALES REPORT TAB */}
+      {activeTab === 'sales' && (
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.totalProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Net Sales</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{Math.abs(stats.totalShortage).toLocaleString()}</h3><p className="text-sm text-gray-500">Total Shortage</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalSurplus.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Surplus</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">{stats.balanceCount} <span className="text-sm">/ {stats.reportCount}</span></h3><p className="text-sm text-gray-500">Perfect Reports</p></div>
+            </div>
+            
+            <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Performance ({selectedMonth})</h3>
+                {chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /><Line type="monotone" dataKey="discrepancy" name="Variance" stroke="#ef4444" strokeWidth={2} /></LineChart></ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center text-gray-400 h-full">No data for this month</div>
+                )}
+            </div>
+
+            {/* Recent Activity Table (Filtered by Month) */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
+                <h3 className="font-bold text-gray-900">Reports History ({selectedMonth})</h3>
+                <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.length} records found</span>
+                </div>
+                <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+                    <tr>
+                        <th className="px-6 py-3">Date</th>
+                        <th className="px-6 py-3 text-right">GROSS SALES</th>
+                        <th className="px-6 py-3 text-right">NET PROFIT</th>
+                        <th className="px-6 py-3 text-right">Variance</th>
+                        <th className="px-6 py-3 text-center">Status</th>
                     </tr>
-                  ))
-              ) : (
-                  <tr><td colSpan={5} className="p-8 text-center text-gray-400">No reports found for this month.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                    {storeReports.length > 0 ? (
+                        storeReports.slice().reverse().map(report => (
+                            <tr key={report.id} className="hover:bg-gray-50 transition-colors text-gray-900">
+                            <td className="px-6 py-3 font-medium">{report.date}</td>
+                            <td className="px-6 py-3 text-right">₱{(report.totalNetSales + report.discrepancy).toLocaleString()}</td>
+                            <td className="px-6 py-3 text-right font-bold text-emerald-600">₱{report.recordedProfit.toLocaleString()}</td>
+                            <td className={`px-6 py-3 text-right font-bold ${report.discrepancy < 0 ? 'text-red-500' : (report.discrepancy > 0 ? 'text-blue-500' : 'text-gray-400')}`}>
+                                {report.discrepancy > 0 ? '+' : ''}{report.discrepancy.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-3 text-center">
+                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                report.status === 'BALANCED' ? 'bg-green-100 text-green-700' :
+                                report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' :
+                                'bg-blue-100 text-blue-700'
+                                }`}>
+                                {report.status}
+                                </span>
+                            </td>
+                            </tr>
+                        ))
+                    ) : (
+                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No reports found for this month.</td></tr>
+                    )}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </>
+      )}
+
+      {/* GENERAL EXPENSES TAB */}
+      {activeTab === 'expenses' && (
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 pt-2">
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Expenses</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeExpenses.length}</h3><p className="text-sm text-gray-500">Total Transactions</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeExpenses.length > 0 ? (stats.totalExpenses / storeExpenses.length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Expense</p></div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Expenses Trend ({selectedMonth})</h3>
+                {expensesChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%"><BarChart data={expensesChartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="amount" name="Expense Amount" fill="#ef4444" /></BarChart></ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center text-gray-400 h-full">No expenses for this month</div>
+                )}
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
+                <h3 className="font-bold text-gray-900">Expenses History ({selectedMonth})</h3>
+                <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeExpenses.length} records found</span>
+                </div>
+                <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+                    <tr>
+                        <th className="px-6 py-3">Date</th>
+                        <th className="px-6 py-3">Category</th>
+                        <th className="px-6 py-3">Description</th>
+                        <th className="px-6 py-3 text-right">Amount</th>
+                        <th className="px-6 py-3 text-right">Recorded By</th>
+                    </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                    {storeExpenses.length > 0 ? (
+                        storeExpenses.map(expense => (
+                            <tr key={expense.id} className="hover:bg-gray-50 transition-colors text-gray-900">
+                            <td className="px-6 py-3 font-medium">{expense.date}</td>
+                            <td className="px-6 py-3"><span className="px-2 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600">{expense.category}</span></td>
+                            <td className="px-6 py-3 text-gray-500">{expense.description || '-'}</td>
+                            <td className="px-6 py-3 text-right font-bold text-red-600">₱{expense.amount.toLocaleString()}</td>
+                            <td className="px-6 py-3 text-right text-xs text-gray-400">{expense.recordedBy || 'Unknown'}</td>
+                            </tr>
+                        ))
+                    ) : (
+                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No expenses found for this month.</td></tr>
+                    )}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </>
+      )}
+
+      {/* GPO FUNDIN TAB */}
+      {activeTab === 'fundin' && (
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10 pt-2">
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Fund In</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeReports.filter(r => (r.fundIn || 0) > 0).length}</h3><p className="text-sm text-gray-500">Fund In Events</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (stats.totalFundIn / storeReports.filter(r => (r.fundIn || 0) > 0).length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Fund In</p></div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Fund In Trend ({selectedMonth})</h3>
+                {chartData.some(d => d.fundIn > 0) ? (
+                    <ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="fundIn" name="Fund In Amount" fill="#3b82f6" /></BarChart></ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center text-gray-400 h-full">No fund in records for this month</div>
+                )}
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
+                <h3 className="font-bold text-gray-900">Fund In History ({selectedMonth})</h3>
+                <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.filter(r => (r.fundIn || 0) > 0).length} records found</span>
+                </div>
+                <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+                    <tr>
+                        <th className="px-6 py-3">Date</th>
+                        <th className="px-6 py-3 text-right">Fund In Amount</th>
+                        <th className="px-6 py-3 text-right">Total Start Fund</th>
+                        <th className="px-6 py-3 text-center">Status</th>
+                    </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                    {storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (
+                        storeReports.filter(r => (r.fundIn || 0) > 0).slice().reverse().map(report => (
+                            <tr key={report.id} className="hover:bg-gray-50 transition-colors text-gray-900">
+                            <td className="px-6 py-3 font-medium">{report.date}</td>
+                            <td className="px-6 py-3 text-right font-bold text-blue-600">₱{report.fundIn.toLocaleString()}</td>
+                            <td className="px-6 py-3 text-right text-gray-500">₱{report.totalStartFund.toLocaleString()}</td>
+                            <td className="px-6 py-3 text-center">
+                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                report.status === 'BALANCED' ? 'bg-green-100 text-green-700' :
+                                report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' :
+                                'bg-blue-100 text-blue-700'
+                                }`}>
+                                {report.status}
+                                </span>
+                            </td>
+                            </tr>
+                        ))
+                    ) : (
+                        <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund in records found for this month.</td></tr>
+                    )}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </>
+      )}
     </div>
   );
 };

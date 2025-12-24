@@ -111,6 +111,7 @@ export const Analytics: React.FC = () => {
     return storeReports.map(r => ({
       date: r.date.substring(5), // mm-dd
       profit: r.recordedProfit,
+      grossSales: r.totalNetSales + r.discrepancy,
       discrepancy: r.discrepancy,
       sales: r.totalNetSales,
       fundIn: r.fundIn || 0
@@ -260,7 +261,7 @@ export const Analytics: React.FC = () => {
             <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Performance ({selectedMonth})</h3>
                 {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /><Line type="monotone" dataKey="discrepancy" name="Variance" stroke="#ef4444" strokeWidth={2} /></LineChart></ResponsiveContainer>
+                    <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="grossSales" name="Gross Sales" stroke="#3b82f6" strokeWidth={2} /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /></LineChart></ResponsiveContainer>
                 ) : (
                     <div className="flex items-center justify-center text-gray-400 h-full">No data for this month</div>
                 )}

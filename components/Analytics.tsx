@@ -315,7 +315,7 @@ export const Analytics: React.FC = () => {
       <div className="h-8 md:hidden"></div> 
 
       {/* 3. Cards Area */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative z-10 pt-2">
         {activeTab === 'sales' && (
             <>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall EOD Sales (Gross)</p></div>

@@ -454,7 +454,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      {/* SPLIT FIELDS */}
-                    <InputRow label="GPO FUND in" value={fundIn} setter={setFundIn} prefix="₱" />
+                    <InputRow label="GPO FUNDIN" value={fundIn} setter={setFundIn} prefix="₱" />
                     <InputRow label="Additional Cash (ATM)" value={cashAtm} setter={setCashAtm} prefix="₱" />
                 </div>
                 <div className="pt-4 border-t border-gray-100 text-right">

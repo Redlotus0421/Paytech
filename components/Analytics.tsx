@@ -260,18 +260,6 @@ export const Analytics: React.FC = () => {
                         className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
                     />
                 ) : (
-                        <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                            <XAxis dataKey="date" />
-                            <YAxis />
-                            <Tooltip />
-                            <Legend />
-                            <ReferenceLine y={0} stroke="#000" />
-                            <Bar dataKey="netSales" name="Net Sales" fill="#3b82f6" />
-                            <Bar dataKey="expenses" name="Expenses" fill="#ef4444" />
-                            <Bar dataKey="runningProfit" name="Running Profit" fill="#10b981" />
-                        </BarChart>
-                    
                     <input 
                         type="date" 
                         value={selectedDate} 
@@ -292,7 +280,19 @@ export const Analytics: React.FC = () => {
             <>
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Performance Chart ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
                 {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><ReferenceLine y={0} stroke="#000" /><Line type="monotone" dataKey="grossSales" name="Gross Sales" stroke="#3b82f6" strokeWidth={2} /><Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2} /></LineChart></ResponsiveContainer>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                            <XAxis dataKey="date" />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <ReferenceLine y={0} stroke="#000" />
+                            <Bar dataKey="netSales" name="Net Sales" fill="#3b82f6" />
+                            <Bar dataKey="expenses" name="Expenses" fill="#ef4444" />
+                            <Bar dataKey="runningProfit" name="Running Profit" fill="#10b981" />
+                        </BarChart>
+                    </ResponsiveContainer>
                 ) : (
                     <div className="flex items-center justify-center text-gray-400 h-full">No data for this {filterType === 'month' ? 'month' : 'date'}</div>
                 )}

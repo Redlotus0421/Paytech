@@ -148,7 +148,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <Bar dataKey="netSales" fill="#3b82f6" name="Net Sales" />
             <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
             <Bar dataKey="runningProfit" fill="#10b981" name="Running Profit" />
-            <Bar dataKey="fundIn" fill="#6366f1" name="GPO Fundin" />
           </BarChart>
         </ResponsiveContainer>
       </div>

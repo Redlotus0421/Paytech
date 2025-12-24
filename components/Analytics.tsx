@@ -204,8 +204,8 @@ export const Analytics: React.FC = () => {
             <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
               <tr>
                 <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3 text-right">Gross Sales</th>
-                <th className="px-6 py-3 text-right">Net Profit</th>
+                <th className="px-6 py-3 text-right">GROSS SALES</th>
+                <th className="px-6 py-3 text-right">NET PROFIT</th>
                 <th className="px-6 py-3 text-right">Variance</th>
                 <th className="px-6 py-3 text-center">Status</th>
               </tr>
@@ -215,7 +215,7 @@ export const Analytics: React.FC = () => {
                   storeReports.slice().reverse().map(report => (
                     <tr key={report.id} className="hover:bg-gray-50 transition-colors text-gray-900">
                       <td className="px-6 py-3 font-medium">{report.date}</td>
-                      <td className="px-6 py-3 text-right">₱{report.totalNetSales.toLocaleString()}</td>
+                      <td className="px-6 py-3 text-right">₱{(report.totalNetSales + report.discrepancy).toLocaleString()}</td>
                       <td className="px-6 py-3 text-right font-bold text-emerald-600">₱{report.recordedProfit.toLocaleString()}</td>
                       <td className={`px-6 py-3 text-right font-bold ${report.discrepancy < 0 ? 'text-red-500' : (report.discrepancy > 0 ? 'text-blue-500' : 'text-gray-400')}`}>
                         {report.discrepancy > 0 ? '+' : ''}{report.discrepancy.toLocaleString()}

@@ -19,8 +19,11 @@ export const Analytics: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   // Date Filter State (YYYY-MM-DD format)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  // Range Filter State
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
   // Filter Type State
-  const [filterType, setFilterType] = useState<'month' | 'date'>('month');
+  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
 
   useEffect(() => {
     const user = storageService.getCurrentUser();
@@ -66,7 +69,7 @@ export const Analytics: React.FC = () => {
     setView('list');
   };
 
-  // Filter reports by store AND month/date
+  // Filter reports by store AND month/date/range
   const storeReports = useMemo(() => {
     if (!selectedStore && !currentUser?.storeId) return [];
     
@@ -75,15 +78,20 @@ export const Analytics: React.FC = () => {
     return reports
       .filter(r => {
           const isStoreMatch = r.storeId === targetStoreId;
-          const isDateMatch = filterType === 'month' 
-            ? r.date.startsWith(selectedMonth)
-            : r.date === selectedDate;
+          let isDateMatch = false;
+          if (filterType === 'month') {
+            isDateMatch = r.date.startsWith(selectedMonth);
+          } else if (filterType === 'date') {
+            isDateMatch = r.date === selectedDate;
+          } else if (filterType === 'range') {
+            isDateMatch = r.date >= startDate && r.date <= endDate;
+          }
           return isStoreMatch && isDateMatch;
       })
       .sort((a, b) => a.timestamp - b.timestamp);
-  }, [reports, selectedStore, currentUser, selectedMonth, selectedDate, filterType]);
+  }, [reports, selectedStore, currentUser, selectedMonth, selectedDate, startDate, endDate, filterType]);
 
-  // Filter expenses by store AND month/date
+  // Filter expenses by store AND month/date/range
   const storeExpenses = useMemo(() => {
     if (!selectedStore && !currentUser?.storeId) return [];
     const targetStoreId = selectedStore?.id || currentUser?.storeId;
@@ -91,13 +99,18 @@ export const Analytics: React.FC = () => {
     return generalExpenses
       .filter(e => {
           const isStoreMatch = e.storeId === targetStoreId;
-          const isDateMatch = filterType === 'month' 
-            ? e.date.startsWith(selectedMonth)
-            : e.date === selectedDate;
+          let isDateMatch = false;
+          if (filterType === 'month') {
+            isDateMatch = e.date.startsWith(selectedMonth);
+          } else if (filterType === 'date') {
+            isDateMatch = e.date === selectedDate;
+          } else if (filterType === 'range') {
+            isDateMatch = e.date >= startDate && e.date <= endDate;
+          }
           return isStoreMatch && isDateMatch;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, filterType]);
+  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, startDate, endDate, filterType]);
 
   const stats = useMemo(() => {
     // Use the filtered storeReports directly for stats
@@ -122,21 +135,20 @@ export const Analytics: React.FC = () => {
   }, [storeReports, storeExpenses]);
 
   const chartData = useMemo(() => {
-    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number, recordedProfit: number }> = {};
+    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
 
     // Aggregate reports
     storeReports.forEach(r => {
         const date = r.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
         dataByDate[date].netSales += (r.totalNetSales + r.discrepancy);
         dataByDate[date].fundIn += (r.fundIn || 0);
-        dataByDate[date].recordedProfit += r.recordedProfit;
     });
 
     // Aggregate expenses
     storeExpenses.forEach(e => {
         const date = e.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
         dataByDate[date].expenses += e.amount;
     });
 
@@ -150,8 +162,7 @@ export const Analytics: React.FC = () => {
             netSales: d.netSales,
             expenses: d.expenses,
             runningProfit: d.netSales - d.expenses,
-            fundIn: d.fundIn,
-            recordedProfit: d.recordedProfit
+            fundIn: d.fundIn
         };
     });
   }, [storeReports, storeExpenses]);
@@ -234,7 +245,7 @@ export const Analytics: React.FC = () => {
           </div>
           
           {/* Filter Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Filter Type Toggle */}
             <div className="bg-gray-100 p-1 rounded-lg flex text-xs font-medium">
                 <button 
@@ -249,6 +260,12 @@ export const Analytics: React.FC = () => {
                 >
                     Date
                 </button>
+                <button 
+                    onClick={() => setFilterType('range')}
+                    className={`px-3 py-1 rounded-md transition-all ${filterType === 'range' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Range
+                </button>
             </div>
 
             {/* Date/Month Picker */}
@@ -261,13 +278,29 @@ export const Analytics: React.FC = () => {
                         onChange={(e) => setSelectedMonth(e.target.value)}
                         className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
                     />
-                ) : (
+                ) : filterType === 'date' ? (
                     <input 
                         type="date" 
                         value={selectedDate} 
                         onChange={(e) => setSelectedDate(e.target.value)}
                         className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
                     />
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="date" 
+                            value={startDate} 
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer w-32"
+                        />
+                        <span className="text-gray-400 text-xs">to</span>
+                        <input 
+                            type="date" 
+                            value={endDate} 
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer w-32"
+                        />
+                    </div>
                 )}
             </div>
           </div>
@@ -276,37 +309,11 @@ export const Analytics: React.FC = () => {
       {/* Spacer to prevent overlap with absolute button on mobile if needed, though usually fine on desktop */}
       <div className="h-8 md:hidden"></div> 
 
-      {/* 1. Cards Area */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2 mb-6">
-        {activeTab === 'sales' && (
-            <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Net Sales</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.runningProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">OVERALL GPO FUNDIN</p></div>
-            </>
-        )}
-        {activeTab === 'expenses' && (
-            <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Expenses</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeExpenses.length}</h3><p className="text-sm text-gray-500">Total Transactions</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeExpenses.length > 0 ? (stats.totalExpenses / storeExpenses.length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Expense</p></div>
-            </>
-        )}
-        {activeTab === 'fundin' && (
-            <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Fund In</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeReports.filter(r => (r.fundIn || 0) > 0).length}</h3><p className="text-sm text-gray-500">Fund In Events</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (stats.totalFundIn / storeReports.filter(r => (r.fundIn || 0) > 0).length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Fund In</p></div>
-            </>
-        )}
-      </div>
-
-      {/* 2. Performance Chart Area (Dynamic based on activeTab) */}
+      {/* 1. Performance Chart Area (Dynamic based on activeTab) */}
       <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
         {activeTab === 'sales' && (
             <>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Performance Chart ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Performance Chart ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 {chartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData}>
@@ -316,38 +323,39 @@ export const Analytics: React.FC = () => {
                             <Tooltip />
                             <Legend />
                             <ReferenceLine y={0} stroke="#000" />
-                            <Bar dataKey="netSales" name="Gross (EOD Sales)" fill="#3b82f6" />
-                            <Bar dataKey="recordedProfit" name="Profit (EOD Net)" fill="#10b981" />
+                            <Bar dataKey="netSales" name="Net Sales" fill="#3b82f6" />
+                            <Bar dataKey="expenses" name="Expenses" fill="#ef4444" />
+                            <Bar dataKey="runningProfit" name="Running Profit" fill="#10b981" />
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No data for this {filterType === 'month' ? 'month' : 'date'}</div>
+                    <div className="flex items-center justify-center text-gray-400 h-full">No data for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}</div>
                 )}
             </>
         )}
         {activeTab === 'expenses' && (
             <>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Expenses Trend ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Expenses Trend ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 {expensesChartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%"><BarChart data={expensesChartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="amount" name="Expense Amount" fill="#ef4444" /></BarChart></ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No expenses for this {filterType === 'month' ? 'month' : 'date'}</div>
+                    <div className="flex items-center justify-center text-gray-400 h-full">No expenses for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}</div>
                 )}
             </>
         )}
         {activeTab === 'fundin' && (
             <>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Fund In Trend ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Fund In Trend ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 {chartData.some(d => d.fundIn > 0) ? (
                     <ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="fundIn" name="Fund In Amount" fill="#3b82f6" /></BarChart></ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No fund in records for this {filterType === 'month' ? 'month' : 'date'}</div>
+                    <div className="flex items-center justify-center text-gray-400 h-full">No fund in records for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}</div>
                 )}
             </>
         )}
       </div>
 
-      {/* 3. Tabs */}
+      {/* 2. Tabs */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-4">
         <button
             onClick={() => setActiveTab('sales')}
@@ -378,13 +386,39 @@ export const Analytics: React.FC = () => {
         </button>
       </div>
 
+      {/* 3. Cards Area */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
+        {activeTab === 'sales' && (
+            <>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Net Sales</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.runningProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">OVERALL GPO FUNDIN</p></div>
+            </>
+        )}
+        {activeTab === 'expenses' && (
+            <>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Expenses</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeExpenses.length}</h3><p className="text-sm text-gray-500">Total Transactions</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeExpenses.length > 0 ? (stats.totalExpenses / storeExpenses.length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Expense</p></div>
+            </>
+        )}
+        {activeTab === 'fundin' && (
+            <>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Fund In</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeReports.filter(r => (r.fundIn || 0) > 0).length}</h3><p className="text-sm text-gray-500">Fund In Events</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (stats.totalFundIn / storeReports.filter(r => (r.fundIn || 0) > 0).length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Fund In</p></div>
+            </>
+        )}
+      </div>
+
       {/* 4. Table Area */}
       {activeTab === 'sales' && (
         <>
             {/* Recent Activity Table (Filtered by Month) */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="font-bold text-gray-900">Reports History ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
+                <h3 className="font-bold text-gray-900">Reports History ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
@@ -420,7 +454,7 @@ export const Analytics: React.FC = () => {
                             </tr>
                         ))
                     ) : (
-                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No reports found for this {filterType === 'month' ? 'month' : 'date'}.</td></tr>
+                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No reports found for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}.</td></tr>
                     )}
                     </tbody>
                 </table>
@@ -434,7 +468,7 @@ export const Analytics: React.FC = () => {
         <>
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="font-bold text-gray-900">Expenses History ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
+                <h3 className="font-bold text-gray-900">Expenses History ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeExpenses.length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
@@ -460,7 +494,7 @@ export const Analytics: React.FC = () => {
                             </tr>
                         ))
                     ) : (
-                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No expenses found for this {filterType === 'month' ? 'month' : 'date'}.</td></tr>
+                        <tr><td colSpan={5} className="p-8 text-center text-gray-400">No expenses found for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}.</td></tr>
                     )}
                     </tbody>
                 </table>
@@ -474,7 +508,7 @@ export const Analytics: React.FC = () => {
         <>
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="font-bold text-gray-900">Fund In History ({filterType === 'month' ? selectedMonth : selectedDate})</h3>
+                <h3 className="font-bold text-gray-900">Fund In History ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.filter(r => (r.fundIn || 0) > 0).length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
@@ -506,7 +540,7 @@ export const Analytics: React.FC = () => {
                             </tr>
                         ))
                     ) : (
-                        <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund in records found for this {filterType === 'month' ? 'month' : 'date'}.</td></tr>
+                        <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund in records found for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}.</td></tr>
                     )}
                     </tbody>
                 </table>

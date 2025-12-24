@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { User, UserRole, ReportData, Store, GeneralExpense } from '../types';
 import { storageService } from '../services/storageService';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { TrendingUp, AlertOctagon, DollarSign, Loader2, CreditCard } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
+import { TrendingUp, AlertOctagon, DollarSign, Loader2, CreditCard, Wallet, FileText } from 'lucide-react';
 
 interface DashboardProps {
   user: User;
@@ -53,24 +53,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, [generalExpenses, user]);
 
   const stats = useMemo(() => {
-    const totalProfit = filteredReports.reduce((acc, r) => acc + r.recordedProfit, 0);
-    const totalShortage = filteredReports.reduce((acc, r) => r.discrepancy < 0 ? acc + r.discrepancy : acc, 0);
-    const balanceCount = filteredReports.filter(r => r.status === 'BALANCED').length;
+    // Overall Net Sales = totalNetSales + discrepancy
+    const overallNetSales = filteredReports.reduce((acc, r) => acc + (r.totalNetSales + r.discrepancy), 0);
     
-    const reportExpenses = filteredReports.reduce((acc, r) => acc + (r.totalExpenses || 0), 0);
-    const genExpenses = filteredGeneralExpenses.reduce((acc, e) => acc + e.amount, 0);
-    const totalExpenses = reportExpenses + genExpenses;
+    // Overall General Expenses
+    const overallGeneralExpenses = filteredGeneralExpenses.reduce((acc, e) => acc + e.amount, 0);
+    
+    // Running Profit
+    const runningProfit = overallNetSales - overallGeneralExpenses;
+    
+    // Overall GPO Fundin
+    const overallFundIn = filteredReports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
 
-    return { totalProfit, totalShortage, balanceCount, totalExpenses };
+    return { overallNetSales, overallGeneralExpenses, runningProfit, overallFundIn };
   }, [filteredReports, filteredGeneralExpenses]);
 
   const chartData = useMemo(() => {
-    return filteredReports.slice(0, 7).reverse().map(r => ({
-      date: r.date.substring(5),
-      profit: r.recordedProfit,
-      discrepancy: r.discrepancy
-    }));
-  }, [filteredReports]);
+    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
+
+    // Aggregate reports
+    filteredReports.forEach(r => {
+        const date = r.date;
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
+        dataByDate[date].netSales += (r.totalNetSales + r.discrepancy);
+        dataByDate[date].fundIn += (r.fundIn || 0);
+    });
+
+    // Aggregate expenses
+    filteredGeneralExpenses.forEach(e => {
+        const date = e.date;
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
+        dataByDate[date].expenses += e.amount;
+    });
+
+    // Sort dates and take last 7
+    const sortedDates = Object.keys(dataByDate).sort();
+    const last7Dates = sortedDates.slice(-7);
+
+    return last7Dates.map(date => {
+        const d = dataByDate[date];
+        return {
+            date: date.substring(5), // MM-DD
+            netSales: d.netSales,
+            expenses: d.expenses,
+            runningProfit: d.netSales - d.expenses,
+            fundIn: d.fundIn
+        };
+    });
+  }, [filteredReports, filteredGeneralExpenses]);
 
   useEffect(() => {
     try {
@@ -101,21 +131,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         {user.role === UserRole.ADMIN ? 'Global Overview' : 'Store Performance'}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Net Sales" value={`₱${stats.totalProfit.toLocaleString()}`} color="text-emerald-600" icon={TrendingUp} />
-        <StatCard label="Total Expenses" value={`₱${stats.totalExpenses.toLocaleString()}`} color="text-orange-600" icon={CreditCard} />
-        <StatCard label="Total Shortage/Surplus" value={`₱${Math.abs(stats.totalShortage).toLocaleString()}`} color="text-red-600" icon={AlertOctagon} />
-        <StatCard label="Balanced Reports" value={stats.balanceCount} color="text-blue-600" icon={DollarSign} />
+        <StatCard label="Overall Net Sales" value={`₱${stats.overallNetSales.toLocaleString()}`} color="text-blue-600" icon={DollarSign} />
+        <StatCard label="Overall General Expenses" value={`₱${stats.overallGeneralExpenses.toLocaleString()}`} color="text-red-600" icon={FileText} />
+        <StatCard label="Running Profit" value={`₱${stats.runningProfit.toLocaleString()}`} color="text-emerald-600" icon={TrendingUp} />
+        <StatCard label="OVERALL GPO FUNDIN" value={`₱${stats.overallFundIn.toLocaleString()}`} color="text-indigo-600" icon={Wallet} />
       </div>
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col flex-shrink-0" style={{height: '380px'}}>
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Net Sales vs Total EOD Sales (Last 7 Entries)</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">Performance Overview (Last 7 Days)</h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <XAxis dataKey="date" fontSize={12} stroke="#374151" />
             <YAxis fontSize={12} stroke="#374151" />
             <Tooltip />
+            <Legend />
             <ReferenceLine y={0} stroke="#9ca3af" />
-            <Bar dataKey="profit" fill="#10b981" name="Net Sales" />
-            <Bar dataKey="discrepancy" fill="#ef4444" name="Total EOD Sales" />
+            <Bar dataKey="netSales" fill="#3b82f6" name="Net Sales" />
+            <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
+            <Bar dataKey="runningProfit" fill="#10b981" name="Running Profit" />
+            <Bar dataKey="fundIn" fill="#6366f1" name="GPO Fundin" />
           </BarChart>
         </ResponsiveContainer>
       </div>

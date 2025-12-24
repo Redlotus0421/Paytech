@@ -106,13 +106,19 @@ export const Analytics: React.FC = () => {
     const totalSurplus = storeReports.reduce((acc, r) => r.discrepancy > 0 ? acc + r.discrepancy : acc, 0);
     const balanceCount = storeReports.filter(r => r.status === 'BALANCED').length;
     
+    // Calculate Gross Sales (Net Sales + Discrepancy)
+    const totalNetSalesWithDiscrepancy = storeReports.reduce((acc, r) => acc + (r.totalNetSales + r.discrepancy), 0);
+
     // Expenses stats
     const totalExpenses = storeExpenses.reduce((acc, e) => acc + e.amount, 0);
     
     // Fund In stats
     const totalFundIn = storeReports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
 
-    return { totalProfit, totalShortage, totalSurplus, balanceCount, reportCount: storeReports.length, totalExpenses, totalFundIn };
+    // Running Profit
+    const runningProfit = totalNetSalesWithDiscrepancy - totalExpenses;
+
+    return { totalProfit, totalShortage, totalSurplus, balanceCount, reportCount: storeReports.length, totalExpenses, totalFundIn, totalNetSalesWithDiscrepancy, runningProfit };
   }, [storeReports, storeExpenses]);
 
   const chartData = useMemo(() => {
@@ -282,10 +288,10 @@ export const Analytics: React.FC = () => {
       {activeTab === 'sales' && (
         <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.totalProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Net Sales</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{Math.abs(stats.totalShortage).toLocaleString()}</h3><p className="text-sm text-gray-500">Total Shortage</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalSurplus.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Surplus</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">{stats.balanceCount} <span className="text-sm">/ {stats.reportCount}</span></h3><p className="text-sm text-gray-500">Perfect Reports</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Net Sales</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.runningProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">OVERALL GPO FUNDIN</p></div>
             </div>
             
             <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>

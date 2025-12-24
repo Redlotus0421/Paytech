@@ -223,31 +223,21 @@ export const Analytics: React.FC = () => {
             </div>
 
             {/* Date/Month Picker */}
-            <div className="relative z-[100] group bg-white border border-gray-300 hover:border-blue-400 rounded-lg shadow-sm transition-colors">
-                {/* Visual part (Underneath) */}
-                <div className="flex items-center px-3 py-2 pointer-events-none">
-                <Calendar size={18} className="text-gray-500 mr-2 group-hover:text-blue-500" />
-                <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 min-w-[80px]">
-                    {filterType === 'month' ? selectedMonth : selectedDate}
-                </span>
-                </div>
-                
-                {/* Functional part (Overlay) - Ensures native picker trigger */}
+            <div className="bg-white border border-gray-300 hover:border-blue-400 rounded-lg shadow-sm transition-colors flex items-center px-3 py-2">
+                <Calendar size={18} className="text-gray-500 mr-2" />
                 {filterType === 'month' ? (
                     <input 
                         type="month" 
                         value={selectedMonth} 
                         onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        style={{ appearance: 'none' }} 
+                        className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
                     />
                 ) : (
                     <input 
                         type="date" 
                         value={selectedDate} 
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        style={{ appearance: 'none' }} 
+                        className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
                     />
                 )}
             </div>

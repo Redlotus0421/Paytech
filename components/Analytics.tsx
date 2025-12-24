@@ -121,6 +121,9 @@ export const Analytics: React.FC = () => {
     
     // Calculate Gross Sales (Net Sales + Discrepancy)
     const totalNetSalesWithDiscrepancy = storeReports.reduce((acc, r) => acc + (r.totalNetSales + r.discrepancy), 0);
+    
+    // Calculate Raw Net Sales (without discrepancy)
+    const totalNetSales = storeReports.reduce((acc, r) => acc + r.totalNetSales, 0);
 
     // Expenses stats
     const totalExpenses = storeExpenses.reduce((acc, e) => acc + e.amount, 0);
@@ -131,24 +134,25 @@ export const Analytics: React.FC = () => {
     // Running Profit
     const runningProfit = totalNetSalesWithDiscrepancy - totalExpenses;
 
-    return { totalProfit, totalShortage, totalSurplus, balanceCount, reportCount: storeReports.length, totalExpenses, totalFundIn, totalNetSalesWithDiscrepancy, runningProfit };
+    return { totalProfit, totalShortage, totalSurplus, balanceCount, reportCount: storeReports.length, totalExpenses, totalFundIn, totalNetSalesWithDiscrepancy, totalNetSales, runningProfit };
   }, [storeReports, storeExpenses]);
 
   const chartData = useMemo(() => {
-    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
+    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number, recordedProfit: number }> = {};
 
     // Aggregate reports
     storeReports.forEach(r => {
         const date = r.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         dataByDate[date].netSales += (r.totalNetSales + r.discrepancy);
         dataByDate[date].fundIn += (r.fundIn || 0);
+        dataByDate[date].recordedProfit += r.recordedProfit;
     });
 
     // Aggregate expenses
     storeExpenses.forEach(e => {
         const date = e.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         dataByDate[date].expenses += e.amount;
     });
 
@@ -162,7 +166,8 @@ export const Analytics: React.FC = () => {
             netSales: d.netSales,
             expenses: d.expenses,
             runningProfit: d.netSales - d.expenses,
-            fundIn: d.fundIn
+            fundIn: d.fundIn,
+            recordedProfit: d.recordedProfit
         };
     });
   }, [storeReports, storeExpenses]);
@@ -313,7 +318,9 @@ export const Analytics: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10 pt-2">
         {activeTab === 'sales' && (
             <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Net Sales</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Gross Sales</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">EOD Sales</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-500">₱{stats.totalNetSales.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Net Sales</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.runningProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">OVERALL GPO FUNDIN</p></div>
@@ -349,9 +356,8 @@ export const Analytics: React.FC = () => {
                             <Tooltip />
                             <Legend />
                             <ReferenceLine y={0} stroke="#000" />
-                            <Bar dataKey="netSales" name="Net Sales" fill="#3b82f6" />
-                            <Bar dataKey="expenses" name="Expenses" fill="#ef4444" />
-                            <Bar dataKey="runningProfit" name="Running Profit" fill="#10b981" />
+                            <Bar dataKey="netSales" name="Gross Sales (EOD Sales)" fill="#3b82f6" />
+                            <Bar dataKey="recordedProfit" name="Net Profit (EOD Net)" fill="#10b981" />
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (

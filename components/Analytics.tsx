@@ -122,20 +122,21 @@ export const Analytics: React.FC = () => {
   }, [storeReports, storeExpenses]);
 
   const chartData = useMemo(() => {
-    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
+    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number, recordedProfit: number }> = {};
 
     // Aggregate reports
     storeReports.forEach(r => {
         const date = r.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         dataByDate[date].netSales += (r.totalNetSales + r.discrepancy);
         dataByDate[date].fundIn += (r.fundIn || 0);
+        dataByDate[date].recordedProfit += r.recordedProfit;
     });
 
     // Aggregate expenses
     storeExpenses.forEach(e => {
         const date = e.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         dataByDate[date].expenses += e.amount;
     });
 
@@ -149,7 +150,8 @@ export const Analytics: React.FC = () => {
             netSales: d.netSales,
             expenses: d.expenses,
             runningProfit: d.netSales - d.expenses,
-            fundIn: d.fundIn
+            fundIn: d.fundIn,
+            recordedProfit: d.recordedProfit
         };
     });
   }, [storeReports, storeExpenses]);
@@ -288,9 +290,8 @@ export const Analytics: React.FC = () => {
                             <Tooltip />
                             <Legend />
                             <ReferenceLine y={0} stroke="#000" />
-                            <Bar dataKey="netSales" name="Net Sales" fill="#3b82f6" />
-                            <Bar dataKey="expenses" name="Expenses" fill="#ef4444" />
-                            <Bar dataKey="runningProfit" name="Running Profit" fill="#10b981" />
+                            <Bar dataKey="netSales" name="Gross (EOD Sales)" fill="#3b82f6" />
+                            <Bar dataKey="recordedProfit" name="Profit (EOD Net)" fill="#10b981" />
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (

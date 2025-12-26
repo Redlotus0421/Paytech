@@ -342,8 +342,8 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* 1. Performance Chart Area (Dynamic based on activeTab) */}
+      {activeTab === 'sales' && (
       <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
-        {activeTab === 'sales' && (
             <>
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Performance Chart ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 {chartData.length > 0 ? (
@@ -363,28 +363,8 @@ export const Analytics: React.FC = () => {
                     <div className="flex items-center justify-center text-gray-400 h-full">No data for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}</div>
                 )}
             </>
-        )}
-        {activeTab === 'expenses' && (
-            <>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Expenses Trend ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
-                {expensesChartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%"><BarChart data={expensesChartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="amount" name="Expense Amount" fill="#ef4444" /></BarChart></ResponsiveContainer>
-                ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No expenses for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}</div>
-                )}
-            </>
-        )}
-        {activeTab === 'fundin' && (
-            <>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Fund In Trend ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
-                {chartData.some(d => d.fundIn > 0) ? (
-                    <ResponsiveContainer width="100%" height="100%"><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="date" /><YAxis /><Tooltip /><Bar dataKey="fundIn" name="Fund In Amount" fill="#3b82f6" /></BarChart></ResponsiveContainer>
-                ) : (
-                    <div className="flex items-center justify-center text-gray-400 h-full">No fund in records for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}</div>
-                )}
-            </>
-        )}
       </div>
+      )}
 
       {/* 2. Tabs */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-4">

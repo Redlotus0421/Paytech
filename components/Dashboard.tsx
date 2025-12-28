@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { User, UserRole, ReportData, Store, GeneralExpense } from '../types';
 import { storageService } from '../services/storageService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
-import { TrendingUp, AlertOctagon, DollarSign, Loader2, CreditCard, Wallet, FileText } from 'lucide-react';
+import { TrendingUp, AlertOctagon, DollarSign, Loader2, CreditCard, Wallet, FileText, Calendar, Filter } from 'lucide-react';
 
 interface DashboardProps {
   user: User;
@@ -13,6 +13,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filter State
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const [filterType, setFilterType] = useState<'month' | 'range'>('month');
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [rangeStartMonth, setRangeStartMonth] = useState(currentMonth);
+  const [rangeStartYear, setRangeStartYear] = useState(currentYear);
+  const [rangeEndMonth, setRangeEndMonth] = useState(currentMonth);
+  const [rangeEndYear, setRangeEndYear] = useState(currentYear);
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const years = Array.from({length: 5}, (_, i) => currentYear - i);
 
   useEffect(() => {
     const loadData = async () => {
@@ -60,29 +77,59 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     return data;
   }, [generalExpenses, user]);
 
+  const dateFilteredData = useMemo(() => {
+    let startDate: Date, endDate: Date;
+    
+    if (filterType === 'month') {
+        startDate = new Date(selectedYear, selectedMonth, 1);
+        endDate = new Date(selectedYear, selectedMonth + 1, 0);
+    } else {
+        startDate = new Date(rangeStartYear, rangeStartMonth, 1);
+        endDate = new Date(rangeEndYear, rangeEndMonth + 1, 0);
+    }
+    // Set times to cover full days
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    const isInRange = (dateStr: string) => {
+        const d = new Date(dateStr);
+        // Compare timestamps or date objects
+        return d >= startDate && d <= endDate;
+    };
+
+    return {
+        reports: filteredReports.filter(r => isInRange(r.date)),
+        expenses: validExpenses.filter(e => isInRange(e.date)),
+        fundIns: fundInTransactions.filter(e => isInRange(e.date))
+    };
+  }, [filterType, selectedMonth, selectedYear, rangeStartMonth, rangeStartYear, rangeEndMonth, rangeEndYear, filteredReports, validExpenses, fundInTransactions]);
+
   const stats = useMemo(() => {
+    const { reports, expenses, fundIns } = dateFilteredData;
+
     // Overall Net Sales = totalNetSales + discrepancy
-    const overallNetSales = filteredReports.reduce((acc, r) => acc + (r.totalNetSales + r.discrepancy), 0);
+    const overallNetSales = reports.reduce((acc, r) => acc + (r.totalNetSales + r.discrepancy), 0);
     
     // Overall General Expenses (excluding GPO Fund-in)
-    const overallGeneralExpenses = validExpenses.reduce((acc, e) => acc + e.amount, 0);
+    const overallGeneralExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
     
     // Running Profit
     const runningProfit = overallNetSales - overallGeneralExpenses;
     
     // Overall GPO Fundin (from reports + expenses)
-    const fundInFromReports = filteredReports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
-    const fundInFromExpenses = fundInTransactions.reduce((acc, e) => acc + e.amount, 0);
+    const fundInFromReports = reports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
+    const fundInFromExpenses = fundIns.reduce((acc, e) => acc + e.amount, 0);
     const overallFundIn = fundInFromReports + fundInFromExpenses;
 
     return { overallNetSales, overallGeneralExpenses, runningProfit, overallFundIn };
-  }, [filteredReports, validExpenses, fundInTransactions]);
+  }, [dateFilteredData]);
 
   const chartData = useMemo(() => {
+    const { reports, expenses, fundIns } = dateFilteredData;
     const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
 
     // Aggregate reports
-    filteredReports.forEach(r => {
+    reports.forEach(r => {
         const date = r.date;
         if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
         dataByDate[date].netSales += (r.totalNetSales + r.discrepancy);
@@ -90,34 +137,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     });
 
     // Aggregate expenses (valid only)
-    validExpenses.forEach(e => {
+    expenses.forEach(e => {
         const date = e.date;
         if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
         dataByDate[date].expenses += e.amount;
     });
 
     // Aggregate fund-in from expenses
-    fundInTransactions.forEach(e => {
+    fundIns.forEach(e => {
         const date = e.date;
         if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
         dataByDate[date].fundIn += e.amount;
     });
 
-    // Sort dates and take last 7
+    // Sort dates
     const sortedDates = Object.keys(dataByDate).sort();
-    const last7Dates = sortedDates.slice(-7);
-
-    return last7Dates.map(date => {
+    // No longer slicing last 7, showing all in range
+    
+    return sortedDates.map(date => {
         const d = dataByDate[date];
         return {
             date: date.substring(5), // MM-DD
+            fullDate: date,
             netSales: d.netSales,
             expenses: d.expenses,
             runningProfit: d.netSales - d.expenses,
             fundIn: d.fundIn
         };
     });
-  }, [filteredReports, validExpenses, fundInTransactions]);
+  }, [dateFilteredData]);
 
   useEffect(() => {
     try {
@@ -144,9 +192,84 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   return (
     <div className="flex flex-col gap-6 w-full">
-      <h2 className="text-xl font-bold text-gray-900">
-        {user.role === UserRole.ADMIN ? 'Global Overview' : 'Store Performance'}
-      </h2>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-xl font-bold text-gray-900">
+            {user.role === UserRole.ADMIN ? 'Global Overview' : 'Store Performance'}
+        </h2>
+        
+        <div className="flex flex-col sm:flex-row gap-3 bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex bg-gray-100 p-1 rounded-md">
+                <button 
+                    onClick={() => setFilterType('month')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${filterType === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Monthly
+                </button>
+                <button 
+                    onClick={() => setFilterType('range')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${filterType === 'range' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Range
+                </button>
+            </div>
+
+            {filterType === 'month' ? (
+                <div className="flex gap-2">
+                    <select 
+                        value={selectedMonth} 
+                        onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                        className="px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
+                    >
+                        {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                    </select>
+                    <select 
+                        value={selectedYear} 
+                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        className="px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
+                    >
+                        {years.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                </div>
+            ) : (
+                <div className="flex flex-col sm:flex-row gap-2 items-center">
+                    <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500">From</span>
+                        <select 
+                            value={rangeStartMonth} 
+                            onChange={(e) => setRangeStartMonth(parseInt(e.target.value))}
+                            className="w-24 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
+                        >
+                            {months.map((m, i) => <option key={i} value={i}>{m.substring(0,3)}</option>)}
+                        </select>
+                        <select 
+                            value={rangeStartYear} 
+                            onChange={(e) => setRangeStartYear(parseInt(e.target.value))}
+                            className="w-20 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
+                        >
+                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500">To</span>
+                        <select 
+                            value={rangeEndMonth} 
+                            onChange={(e) => setRangeEndMonth(parseInt(e.target.value))}
+                            className="w-24 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
+                        >
+                            {months.map((m, i) => <option key={i} value={i}>{m.substring(0,3)}</option>)}
+                        </select>
+                        <select 
+                            value={rangeEndYear} 
+                            onChange={(e) => setRangeEndYear(parseInt(e.target.value))}
+                            className="w-20 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
+                        >
+                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                </div>
+            )}
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Overall Net Sales" value={`₱${stats.overallNetSales.toLocaleString()}`} color="text-blue-600" icon={DollarSign} />
         <StatCard label="Overall General Expenses" value={`₱${stats.overallGeneralExpenses.toLocaleString()}`} color="text-red-600" icon={FileText} />
@@ -154,7 +277,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         <StatCard label="OVERALL GPO FUNDIN" value={`₱${stats.overallFundIn.toLocaleString()}`} color="text-indigo-600" icon={Wallet} />
       </div>
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col flex-shrink-0" style={{height: '380px'}}>
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">Performance Overview (Last 7 Days)</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-4">
+            Performance Overview ({filterType === 'month' ? `${months[selectedMonth]} ${selectedYear}` : `${months[rangeStartMonth].substring(0,3)} ${rangeStartYear} - ${months[rangeEndMonth].substring(0,3)} ${rangeEndYear}`})
+        </h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
             <XAxis dataKey="date" fontSize={12} stroke="#374151" />

@@ -21,10 +21,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedYearOnly, setSelectedYearOnly] = useState(currentYear);
-  const [rangeStartMonth, setRangeStartMonth] = useState(currentMonth);
-  const [rangeStartYear, setRangeStartYear] = useState(currentYear);
-  const [rangeEndMonth, setRangeEndMonth] = useState(currentMonth);
-  const [rangeEndYear, setRangeEndYear] = useState(currentYear);
+  // Date Range State
+  const [startDate, setStartDate] = useState(new Date(currentYear, currentMonth, 1).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -79,26 +78,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, [generalExpenses, user]);
 
   const dateFilteredData = useMemo(() => {
-    let startDate: Date, endDate: Date;
+    let startDateObj: Date, endDateObj: Date;
     
     if (filterType === 'month') {
-        startDate = new Date(selectedYear, selectedMonth, 1);
-        endDate = new Date(selectedYear, selectedMonth + 1, 0);
+        startDateObj = new Date(selectedYear, selectedMonth, 1);
+        endDateObj = new Date(selectedYear, selectedMonth + 1, 0);
     } else if (filterType === 'year') {
-        startDate = new Date(selectedYearOnly, 0, 1);
-        endDate = new Date(selectedYearOnly, 11, 31);
+        startDateObj = new Date(selectedYearOnly, 0, 1);
+        endDateObj = new Date(selectedYearOnly, 11, 31);
     } else {
-        startDate = new Date(rangeStartYear, rangeStartMonth, 1);
-        endDate = new Date(rangeEndYear, rangeEndMonth + 1, 0);
+        startDateObj = new Date(startDate);
+        endDateObj = new Date(endDate);
     }
     // Set times to cover full days
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(23, 59, 59, 999);
+    startDateObj.setHours(0, 0, 0, 0);
+    endDateObj.setHours(23, 59, 59, 999);
 
     const isInRange = (dateStr: string) => {
         const d = new Date(dateStr);
         // Compare timestamps or date objects
-        return d >= startDate && d <= endDate;
+        return d >= startDateObj && d <= endDateObj;
     };
 
     return {
@@ -106,7 +105,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         expenses: validExpenses.filter(e => isInRange(e.date)),
         fundIns: fundInTransactions.filter(e => isInRange(e.date))
     };
-  }, [filterType, selectedMonth, selectedYear, selectedYearOnly, rangeStartMonth, rangeStartYear, rangeEndMonth, rangeEndYear, filteredReports, validExpenses, fundInTransactions]);
+  }, [filterType, selectedMonth, selectedYear, selectedYearOnly, startDate, endDate, filteredReports, validExpenses, fundInTransactions]);
 
   const stats = useMemo(() => {
     const { reports, expenses, fundIns } = dateFilteredData;
@@ -283,37 +282,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 <div className="flex flex-col sm:flex-row gap-2 items-center">
                     <div className="flex items-center gap-1">
                         <span className="text-xs text-gray-500">From</span>
-                        <select 
-                            value={rangeStartMonth} 
-                            onChange={(e) => setRangeStartMonth(parseInt(e.target.value))}
-                            className="w-24 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
-                        >
-                            {months.map((m, i) => <option key={i} value={i}>{m.substring(0,3)}</option>)}
-                        </select>
-                        <select 
-                            value={rangeStartYear} 
-                            onChange={(e) => setRangeStartYear(parseInt(e.target.value))}
-                            className="w-20 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
-                        >
-                            {years.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
+                        <input 
+                            type="date"
+                            value={startDate} 
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
+                        />
                     </div>
                     <div className="flex items-center gap-1">
                         <span className="text-xs text-gray-500">To</span>
-                        <select 
-                            value={rangeEndMonth} 
-                            onChange={(e) => setRangeEndMonth(parseInt(e.target.value))}
-                            className="w-24 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
-                        >
-                            {months.map((m, i) => <option key={i} value={i}>{m.substring(0,3)}</option>)}
-                        </select>
-                        <select 
-                            value={rangeEndYear} 
-                            onChange={(e) => setRangeEndYear(parseInt(e.target.value))}
-                            className="w-20 px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
-                        >
-                            {years.map(y => <option key={y} value={y}>{y}</option>)}
-                        </select>
+                        <input 
+                            type="date"
+                            value={endDate} 
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
+                        />
                     </div>
                 </div>
             )}
@@ -327,7 +310,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       </div>
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col flex-shrink-0" style={{height: '380px'}}>
         <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            Performance Overview ({filterType === 'month' ? `${months[selectedMonth]} ${selectedYear}` : filterType === 'year' ? `${selectedYearOnly}` : `${months[rangeStartMonth].substring(0,3)} ${rangeStartYear} - ${months[rangeEndMonth].substring(0,3)} ${rangeEndYear}`})
+            Performance Overview ({filterType === 'month' ? `${months[selectedMonth]} ${selectedYear}` : filterType === 'year' ? `${selectedYearOnly}` : `${startDate} to ${endDate}`})
         </h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>

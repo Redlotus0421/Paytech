@@ -171,7 +171,7 @@ export const storageService = {
     if (error) { console.error('Error fetching inventory:', error.message); return []; }
     return (data || []).map((i: any) => ({
         id: i.id, storeId: i.store_id, name: i.name, cost: Number(i.cost), price: Number(i.price), stock: Number(i.stock),
-        category: i.category || ''
+        category: i.category || '', isHidden: i.is_hidden
     }));
   },
   addInventoryItem: async (item: InventoryItem): Promise<{ success: boolean; error?: any }> => {
@@ -192,7 +192,8 @@ export const storageService = {
         cost: item.cost,
         price: item.price,
         stock: item.stock,
-        category: item.category && item.category.trim() ? item.category : null
+        category: item.category && item.category.trim() ? item.category : null,
+        is_hidden: item.isHidden || false
       };
       console.log('📤 Insert payload:', insertPayload);
       const { error } = await supabase.from('inventory').insert([insertPayload]);
@@ -218,7 +219,8 @@ export const storageService = {
         cost: item.cost,
         price: item.price,
         stock: item.stock,
-        category: item.category && item.category.trim() ? item.category : null
+        category: item.category && item.category.trim() ? item.category : null,
+        is_hidden: item.isHidden || false
       };
       console.log('📤 Update payload:', updatePayload);
       const { error } = await supabase.from('inventory').update(updatePayload).eq('id', item.id);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Store, InventoryItem, UserRole, ReportData } from '../types';
 import { storageService } from '../services/storageService';
-import { Package, Plus, X, Check, Loader2, Search, TrendingUp, DollarSign, ShoppingCart, BarChart3, Trash2, Lock } from 'lucide-react';
+import { Package, Plus, X, Check, Loader2, Search, TrendingUp, DollarSign, ShoppingCart, BarChart3, Trash2, Lock, Eye, EyeOff } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface InventoryProps {
@@ -28,6 +28,8 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   const [filterStoreId, setFilterStoreId] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterStockStatus, setFilterStockStatus] = useState<'all' | 'in-stock' | 'no-stock'>('all');
+  const [showHiddenItems, setShowHiddenItems] = useState(false);
 
   // Auth Modal State
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -223,11 +225,23 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
       }
   };
 
+  const handleToggleVisibility = async (item: InventoryItem) => {
+      const updatedItem = { ...item, isHidden: !item.isHidden };
+      const result = await storageService.updateInventoryItem(updatedItem);
+      if (result.success) {
+          await refreshInventory();
+      } else {
+          alert(`Failed to update item visibility: ${result.error?.message || 'Unknown error'}`);
+      }
+  };
+
   const filteredItems = useMemo(() => items.filter(i => 
       (!filterStoreId || i.storeId === filterStoreId) &&
       (!filterCategory || i.category === filterCategory) &&
-      (!searchQuery || i.name.toLowerCase().includes(searchQuery.toLowerCase()) || (i.category && i.category.toLowerCase().includes(searchQuery.toLowerCase())))
-  ), [items, filterStoreId, filterCategory, searchQuery]);
+      (!searchQuery || i.name.toLowerCase().includes(searchQuery.toLowerCase()) || (i.category && i.category.toLowerCase().includes(searchQuery.toLowerCase()))) &&
+      (filterStockStatus === 'all' || (filterStockStatus === 'in-stock' ? i.stock > 0 : i.stock === 0)) &&
+      (showHiddenItems || !i.isHidden)
+  ), [items, filterStoreId, filterCategory, searchQuery, filterStockStatus, showHiddenItems]);
 
   const uniqueCategories = Array.from(new Set(items.map(item => item.category).filter(Boolean))) as string[];
 
@@ -401,6 +415,27 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowHiddenItems(!showHiddenItems)}
+                            className={`p-2 rounded text-sm border ${showHiddenItems ? 'bg-blue-100 border-blue-300 text-blue-700' : 'bg-white border-gray-300 text-gray-600'}`}
+                            title={showHiddenItems ? "Exclude Hidden Items" : "Include Hidden Items"}
+                        >
+                            {showHiddenItems ? <Eye size={18}/> : <EyeOff size={18}/>}
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 whitespace-nowrap">Stock:</span>
+                        <select 
+                            value={filterStockStatus}
+                            onChange={e => setFilterStockStatus(e.target.value as any)}
+                            className="p-2 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                        >
+                            <option value="all">All</option>
+                            <option value="in-stock">In Stock</option>
+                            <option value="no-stock">No Stock</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-500 whitespace-nowrap">Store:</span>
                         <select 
                             value={filterStoreId}
@@ -444,8 +479,8 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                             <tr><td colSpan={8} className="p-8 text-center text-gray-500">Loading inventory...</td></tr>
                         ) : (
                             filteredItems.map(item => (
-                                <tr key={item.id} className={`hover:bg-gray-50 text-gray-900 ${editingItem?.id === item.id ? 'bg-blue-50' : ''}`}>
-                                    <td className="px-6 py-4 font-medium">{item.name}</td>
+                                <tr key={item.id} className={`hover:bg-gray-50 text-gray-900 ${editingItem?.id === item.id ? 'bg-blue-50' : ''} ${item.isHidden ? 'opacity-60 bg-gray-50' : ''}`}>
+                                    <td className="px-6 py-4 font-medium">{item.name} {item.isHidden && <span className="text-xs text-gray-500 italic">(Hidden)</span>}</td>
                                     <td className="px-6 py-4 text-gray-500">
                                         {stores.find(s => s.id === item.storeId)?.name}
                                     </td>
@@ -459,6 +494,13 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-center flex items-center justify-center gap-2">
+                                        <button 
+                                            onClick={() => handleToggleVisibility(item)}
+                                            className="text-gray-500 hover:text-gray-700 text-xs font-medium px-3 py-1 hover:bg-gray-100 rounded transition-colors"
+                                            title={item.isHidden ? "Unhide Item" : "Hide Item"}
+                                        >
+                                            {item.isHidden ? <Eye size={16}/> : <EyeOff size={16}/>}
+                                        </button>
                                         <button 
                                             onClick={() => handleEditClick(item)}
                                             className="text-blue-600 hover:text-blue-800 text-xs font-medium px-3 py-1 hover:bg-blue-100 rounded transition-colors"

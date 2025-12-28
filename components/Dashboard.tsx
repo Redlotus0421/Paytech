@@ -120,8 +120,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Overall General Expenses (excluding GPO Fund-in)
     const overallGeneralExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
     
+    // Overall Recorded Profit
+    const overallRecordedProfit = reports.reduce((acc, r) => acc + r.recordedProfit, 0);
+
     // Running Profit
-    const runningProfit = overallNetSales - overallGeneralExpenses;
+    const runningProfit = overallRecordedProfit - overallGeneralExpenses;
     
     // Overall GPO Fundin (from reports only)
     const fundInFromReports = reports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
@@ -132,7 +135,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const chartData = useMemo(() => {
     const { reports, expenses } = dateFilteredData;
-    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
+    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number, recordedProfit: number }> = {};
 
     // Helper to get key based on filter type
     const getKey = (dateStr: string) => {
@@ -147,15 +150,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Aggregate reports
     reports.forEach(r => {
         const key = getKey(r.date);
-        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0 };
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         dataByDate[key].netSales += (r.totalNetSales + r.discrepancy);
         dataByDate[key].fundIn += (r.fundIn || 0);
+        dataByDate[key].recordedProfit += r.recordedProfit;
     });
 
     // Aggregate expenses (valid only)
     expenses.forEach(e => {
         const key = getKey(e.date);
-        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0 };
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         dataByDate[key].expenses += e.amount;
     });
 
@@ -173,7 +177,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
     
     return sortedKeys.map(key => {
-        const d = dataByDate[key] || { netSales: 0, expenses: 0, fundIn: 0 };
+        const d = dataByDate[key] || { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         let displayDate = key;
         if (filterType === 'year') {
             // Convert YYYY-MM to Month Name
@@ -189,7 +193,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             fullDate: key,
             netSales: d.netSales,
             expenses: d.expenses,
-            runningProfit: d.netSales - d.expenses,
+            runningProfit: d.recordedProfit - d.expenses,
             fundIn: d.fundIn
         };
     });

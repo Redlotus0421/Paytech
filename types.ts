@@ -97,6 +97,7 @@ export interface InventoryItem {
   price: number;
   stock: number;
   category?: string;
+  isHidden?: boolean;
 }
 export interface CartItem extends InventoryItem {
   quantity: number;

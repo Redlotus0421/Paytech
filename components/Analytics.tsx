@@ -162,7 +162,7 @@ export const Analytics: React.FC = () => {
     const totalFundIn = storeReports.reduce((acc, r) => acc + (r.fundIn || 0), 0) + fundInTransactions.reduce((acc, e) => acc + e.amount, 0);
 
     // Running Profit
-    const runningProfit = totalNetSales - totalExpenses;
+    const runningProfit = totalProfit - totalExpenses;
 
     return { totalProfit, totalShortage, totalSurplus, balanceCount, reportCount: storeReports.length, totalExpenses, totalFundIn, totalNetSalesWithDiscrepancy, totalNetSales, runningProfit };
   }, [storeReports, storeExpenses, fundInTransactions]);
@@ -233,7 +233,7 @@ export const Analytics: React.FC = () => {
             fullDate: key,
             netSales: d.netSales,
             expenses: d.expenses,
-            runningProfit: d.netSales - d.expenses,
+            runningProfit: d.recordedProfit - d.expenses,
             fundIn: d.fundIn,
             recordedProfit: d.recordedProfit
         };

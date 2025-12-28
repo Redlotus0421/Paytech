@@ -24,6 +24,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   // Date Range State
   const [startDate, setStartDate] = useState(new Date(currentYear, currentMonth, 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [activeTab, setActiveTab] = useState<'sales' | 'expenses' | 'fundin'>('sales');
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',

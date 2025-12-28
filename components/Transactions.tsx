@@ -191,14 +191,6 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                 >
                     Refresh
                 </button>
-                {user.role === UserRole.ADMIN && (
-                    <button 
-                        onClick={handleCreateTestTransaction}
-                        className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold flex items-center gap-1 px-4 py-2 rounded transition-colors shadow-md"
-                    >
-                        + Test Tx
-                    </button>
-                )}
             </div>
         </div>
 

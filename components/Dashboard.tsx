@@ -123,16 +123,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Running Profit
     const runningProfit = overallNetSales - overallGeneralExpenses;
     
-    // Overall GPO Fundin (from reports + expenses)
+    // Overall GPO Fundin (from reports only)
     const fundInFromReports = reports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
-    const fundInFromExpenses = fundIns.reduce((acc, e) => acc + e.amount, 0);
-    const overallFundIn = fundInFromReports + fundInFromExpenses;
+    const overallFundIn = fundInFromReports;
 
     return { overallNetSales, overallGrossSales, overallGeneralExpenses, runningProfit, overallFundIn };
   }, [dateFilteredData]);
 
   const chartData = useMemo(() => {
-    const { reports, expenses, fundIns } = dateFilteredData;
+    const { reports, expenses } = dateFilteredData;
     const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
 
     // Helper to get key based on filter type
@@ -158,13 +157,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         const key = getKey(e.date);
         if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0 };
         dataByDate[key].expenses += e.amount;
-    });
-
-    // Aggregate fund-in from expenses
-    fundIns.forEach(e => {
-        const key = getKey(e.date);
-        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0 };
-        dataByDate[key].fundIn += e.amount;
     });
 
     // Sort dates
@@ -439,7 +431,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                 {[
-                    ...dateFilteredData.fundIns.map(f => ({ ...f, source: 'Expense Entry', type: 'expense' })),
                     ...dateFilteredData.reports.filter(r => (r.fundIn || 0) > 0).map(r => ({ 
                         id: r.id, 
                         date: r.date, 
@@ -456,7 +447,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     <td className="px-4 py-3 text-right text-xs text-gray-500">{item.source}</td>
                     </tr>
                 ))}
-                {(dateFilteredData.fundIns.length === 0 && dateFilteredData.reports.filter(r => (r.fundIn || 0) > 0).length === 0) && <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund-ins found</td></tr>}
+                {(dateFilteredData.reports.filter(r => (r.fundIn || 0) > 0).length === 0) && <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund-ins found</td></tr>}
                 </tbody>
             </table>
             </div>

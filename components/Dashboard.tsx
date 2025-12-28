@@ -44,10 +44,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     return data.sort((a, b) => b.timestamp - a.timestamp);
   }, [reports, user]);
 
-  const filteredGeneralExpenses = useMemo(() => {
-    let data = generalExpenses;
+  const validExpenses = useMemo(() => {
+    let data = generalExpenses.filter(e => e.category !== 'GPO Fund-in');
     if (user.role !== UserRole.ADMIN && user.storeId) {
-      data = generalExpenses.filter(e => e.storeId === user.storeId);
+      data = data.filter(e => e.storeId === user.storeId);
+    }
+    return data;
+  }, [generalExpenses, user]);
+
+  const fundInTransactions = useMemo(() => {
+    let data = generalExpenses.filter(e => e.category === 'GPO Fund-in');
+    if (user.role !== UserRole.ADMIN && user.storeId) {
+      data = data.filter(e => e.storeId === user.storeId);
     }
     return data;
   }, [generalExpenses, user]);
@@ -56,17 +64,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Overall Net Sales = totalNetSales + discrepancy
     const overallNetSales = filteredReports.reduce((acc, r) => acc + (r.totalNetSales + r.discrepancy), 0);
     
-    // Overall General Expenses
-    const overallGeneralExpenses = filteredGeneralExpenses.reduce((acc, e) => acc + e.amount, 0);
+    // Overall General Expenses (excluding GPO Fund-in)
+    const overallGeneralExpenses = validExpenses.reduce((acc, e) => acc + e.amount, 0);
     
     // Running Profit
     const runningProfit = overallNetSales - overallGeneralExpenses;
     
-    // Overall GPO Fundin
-    const overallFundIn = filteredReports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
+    // Overall GPO Fundin (from reports + expenses)
+    const fundInFromReports = filteredReports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
+    const fundInFromExpenses = fundInTransactions.reduce((acc, e) => acc + e.amount, 0);
+    const overallFundIn = fundInFromReports + fundInFromExpenses;
 
     return { overallNetSales, overallGeneralExpenses, runningProfit, overallFundIn };
-  }, [filteredReports, filteredGeneralExpenses]);
+  }, [filteredReports, validExpenses, fundInTransactions]);
 
   const chartData = useMemo(() => {
     const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
@@ -79,11 +89,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         dataByDate[date].fundIn += (r.fundIn || 0);
     });
 
-    // Aggregate expenses
-    filteredGeneralExpenses.forEach(e => {
+    // Aggregate expenses (valid only)
+    validExpenses.forEach(e => {
         const date = e.date;
         if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
         dataByDate[date].expenses += e.amount;
+    });
+
+    // Aggregate fund-in from expenses
+    fundInTransactions.forEach(e => {
+        const date = e.date;
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
+        dataByDate[date].fundIn += e.amount;
     });
 
     // Sort dates and take last 7
@@ -100,7 +117,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             fundIn: d.fundIn
         };
     });
-  }, [filteredReports, filteredGeneralExpenses]);
+  }, [filteredReports, validExpenses, fundInTransactions]);
 
   useEffect(() => {
     try {

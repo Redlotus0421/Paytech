@@ -331,7 +331,7 @@ export const Analytics: React.FC = () => {
                     onClick={() => setFilterType('month')}
                     className={`px-3 py-1 rounded-md transition-all ${filterType === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                    Month
+                    Monthly
                 </button>
                 <button 
                     onClick={() => setFilterType('date')}

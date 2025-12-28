@@ -342,7 +342,6 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* 1. Performance Chart Area (Dynamic based on activeTab) */}
-      {activeTab === 'sales' && (
       <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
             <>
                 <h3 className="text-lg font-bold text-gray-900 mb-6">Performance Chart ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
@@ -364,7 +363,6 @@ export const Analytics: React.FC = () => {
                 )}
             </>
       </div>
-      )}
 
       {/* 2. Tabs */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-4">

@@ -223,7 +223,7 @@ export const Analytics: React.FC = () => {
             // Convert YYYY-MM to Month Name
             const [y, m] = key.split('-');
             const dateObj = new Date(parseInt(y), parseInt(m) - 1, 1);
-            displayDate = dateObj.toLocaleString('default', { month: 'short' });
+            displayDate = dateObj.toLocaleString('default', { month: 'short', year: 'numeric' });
         } else {
             displayDate = key.substring(5); // MM-DD
         }

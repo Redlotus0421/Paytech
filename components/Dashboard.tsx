@@ -343,11 +343,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard label="Overall EOD Sales (Gross)" value={`₱${stats.overallGrossSales.toLocaleString()}`} color="text-purple-600" icon={DollarSign} />
-        <StatCard label="Overall Net Sales" value={`₱${stats.overallNetSales.toLocaleString()}`} color="text-blue-600" icon={DollarSign} />
-        <StatCard label="Overall General Expenses" value={`₱${stats.overallGeneralExpenses.toLocaleString()}`} color="text-red-600" icon={FileText} />
-        <StatCard label="Running Profit" value={`₱${stats.runningProfit.toLocaleString()}`} color="text-emerald-600" icon={TrendingUp} />
-        <StatCard label="OVERALL GPO FUNDIN" value={`₱${stats.overallFundIn.toLocaleString()}`} color="text-indigo-600" icon={Wallet} />
+        <StatCard label="Overall EOD Sales (Gross)" value={`₱${stats.overallGrossSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-purple-600" icon={DollarSign} />
+        <StatCard label="Overall Net Sales" value={`₱${stats.overallNetSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-blue-600" icon={DollarSign} />
+        <StatCard label="Overall General Expenses" value={`₱${stats.overallGeneralExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-red-600" icon={FileText} />
+        <StatCard label="Running Profit" value={`₱${stats.runningProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-emerald-600" icon={TrendingUp} />
+        <StatCard label="OVERALL GPO FUNDIN" value={`₱${stats.overallFundIn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-indigo-600" icon={Wallet} />
       </div>
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col flex-shrink-0" style={{height: '380px'}}>
         <h3 className="text-sm font-semibold text-gray-700 mb-4">
@@ -357,7 +357,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <BarChart data={chartData}>
             <XAxis dataKey="date" fontSize={12} stroke="#374151" />
             <YAxis fontSize={12} stroke="#374151" />
-            <Tooltip />
+            <Tooltip formatter={(value: number) => [`₱${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, undefined]} />
             <Legend />
             <ReferenceLine y={0} stroke="#9ca3af" />
             <Bar dataKey="netSales" fill="#3b82f6" name="Net Sales" />

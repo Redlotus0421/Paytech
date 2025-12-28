@@ -15,12 +15,19 @@ export const Analytics: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Month Filter State (YYYY-MM format)
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const currentYear = new Date().getFullYear();
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const years = Array.from({length: 5}, (_, i) => currentYear - i);
+
+  // Month Filter State
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState(new Date().getMonth());
   // Date Filter State (YYYY-MM-DD format)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
-  // Year Filter State
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // Year Filter State (Shared for Year filter and Month filter year)
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   // Range Filter State
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
@@ -62,7 +69,8 @@ export const Analytics: React.FC = () => {
     setSelectedStore(store);
     setView('detail');
     // Reset month/date to current when selecting a store
-    setSelectedMonth(new Date().toISOString().slice(0, 7));
+    setSelectedMonthIndex(new Date().getMonth());
+    setSelectedYear(new Date().getFullYear());
     setSelectedDate(new Date().toISOString().slice(0, 10));
   };
 
@@ -82,7 +90,8 @@ export const Analytics: React.FC = () => {
           const isStoreMatch = r.storeId === targetStoreId;
           let isDateMatch = false;
           if (filterType === 'month') {
-            isDateMatch = r.date.startsWith(selectedMonth);
+            const monthStr = `${selectedYear}-${(selectedMonthIndex + 1).toString().padStart(2, '0')}`;
+            isDateMatch = r.date.startsWith(monthStr);
           } else if (filterType === 'date') {
             isDateMatch = r.date === selectedDate;
           } else if (filterType === 'year') {
@@ -93,7 +102,7 @@ export const Analytics: React.FC = () => {
           return isStoreMatch && isDateMatch;
       })
       .sort((a, b) => a.timestamp - b.timestamp);
-  }, [reports, selectedStore, currentUser, selectedMonth, selectedDate, selectedYear, startDate, endDate, filterType]);
+  }, [reports, selectedStore, currentUser, selectedMonthIndex, selectedDate, selectedYear, startDate, endDate, filterType]);
 
   // Filter expenses by store AND month/date/range
   const storeExpenses = useMemo(() => {
@@ -105,7 +114,8 @@ export const Analytics: React.FC = () => {
           const isStoreMatch = e.storeId === targetStoreId;
           let isDateMatch = false;
           if (filterType === 'month') {
-            isDateMatch = e.date.startsWith(selectedMonth);
+            const monthStr = `${selectedYear}-${(selectedMonthIndex + 1).toString().padStart(2, '0')}`;
+            isDateMatch = e.date.startsWith(monthStr);
           } else if (filterType === 'date') {
             isDateMatch = e.date === selectedDate;
           } else if (filterType === 'year') {
@@ -117,7 +127,7 @@ export const Analytics: React.FC = () => {
           return isStoreMatch && isDateMatch && e.category !== 'GPO Fund-in';
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, selectedYear, startDate, endDate, filterType]);
+  }, [generalExpenses, selectedStore, currentUser, selectedMonthIndex, selectedDate, selectedYear, startDate, endDate, filterType]);
 
   // Filter GPO Fund-in transactions
   const fundInTransactions = useMemo(() => {
@@ -129,7 +139,8 @@ export const Analytics: React.FC = () => {
           const isStoreMatch = e.storeId === targetStoreId;
           let isDateMatch = false;
           if (filterType === 'month') {
-            isDateMatch = e.date.startsWith(selectedMonth);
+            const monthStr = `${selectedYear}-${(selectedMonthIndex + 1).toString().padStart(2, '0')}`;
+            isDateMatch = e.date.startsWith(monthStr);
           } else if (filterType === 'date') {
             isDateMatch = e.date === selectedDate;
           } else if (filterType === 'year') {
@@ -140,7 +151,7 @@ export const Analytics: React.FC = () => {
           return isStoreMatch && isDateMatch && e.category === 'GPO Fund-in';
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, selectedYear, startDate, endDate, filterType]);
+  }, [generalExpenses, selectedStore, currentUser, selectedMonthIndex, selectedDate, selectedYear, startDate, endDate, filterType]);
 
   const stats = useMemo(() => {
     // Use the filtered storeReports directly for stats
@@ -351,12 +362,22 @@ export const Analytics: React.FC = () => {
             <div className="bg-white border border-gray-300 hover:border-blue-400 rounded-lg shadow-sm transition-colors flex items-center px-3 py-2">
                 <Calendar size={18} className="text-gray-500 mr-2" />
                 {filterType === 'month' ? (
-                    <input 
-                        type="month" 
-                        value={selectedMonth} 
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
-                    />
+                    <div className="flex gap-2">
+                        <select 
+                            value={selectedMonthIndex} 
+                            onChange={(e) => setSelectedMonthIndex(parseInt(e.target.value))}
+                            className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
+                        >
+                            {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                        </select>
+                        <select 
+                            value={selectedYear} 
+                            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                            className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
+                        >
+                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
                 ) : filterType === 'date' ? (
                     <input 
                         type="date" 
@@ -402,25 +423,25 @@ export const Analytics: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative z-10 pt-2">
         {activeTab === 'sales' && (
             <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall EOD Sales (Gross)</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.totalProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Net Profit</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.runningProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall GPO Fundin</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h3><p className="text-sm text-gray-500">Overall EOD Sales (Gross)</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className={`text-2xl font-bold ${stats.totalProfit < 0 ? 'text-red-600' : stats.totalProfit > 0 ? 'text-emerald-600' : 'text-gray-900'}`}>₱{stats.totalProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h3><p className="text-sm text-gray-500">Net Profit</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className={`text-2xl font-bold ${stats.runningProfit < 0 ? 'text-red-600' : stats.runningProfit > 0 ? 'text-emerald-600' : 'text-gray-900'}`}>₱{stats.runningProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h3><p className="text-sm text-gray-500">Overall GPO Fundin</p></div>
             </>
         )}
         {activeTab === 'expenses' && (
             <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Expenses</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h3><p className="text-sm text-gray-500">Total Expenses</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeExpenses.length}</h3><p className="text-sm text-gray-500">Total Transactions</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeExpenses.length > 0 ? (stats.totalExpenses / storeExpenses.length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Expense</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeExpenses.length > 0 ? (stats.totalExpenses / storeExpenses.length).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Expense</p></div>
             </>
         )}
         {activeTab === 'fundin' && (
             <>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Total Fund In</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalFundIn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h3><p className="text-sm text-gray-500">Total Fund In</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">{storeReports.filter(r => (r.fundIn || 0) > 0).length}</h3><p className="text-sm text-gray-500">Fund In Events</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (stats.totalFundIn / storeReports.filter(r => (r.fundIn || 0) > 0).length).toLocaleString(undefined, {maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Fund In</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-gray-700">₱{storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (stats.totalFundIn / storeReports.filter(r => (r.fundIn || 0) > 0).length).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0}</h3><p className="text-sm text-gray-500">Avg. Fund In</p></div>
             </>
         )}
       </div>
@@ -428,14 +449,14 @@ export const Analytics: React.FC = () => {
       {/* 1. Performance Chart Area (Dynamic based on activeTab) */}
       <div className="bg-white p-6 rounded-lg shadow-sm border relative z-0 flex flex-col" style={{height: '400px'}}>
             <>
-                <h3 className="text-lg font-bold text-gray-900 mb-6">Performance Chart ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Performance Chart ({filterType === 'month' ? `${months[selectedMonthIndex]} ${selectedYear}` : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 {chartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                             <XAxis dataKey="date" />
                             <YAxis />
-                            <Tooltip />
+                            <Tooltip formatter={(value: number) => [`₱${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, undefined]} />
                             <Legend />
                             <ReferenceLine y={0} stroke="#000" />
                             <Bar dataKey="netSales" name="Gross Sales (EOD Sales)" fill="#3b82f6" />
@@ -487,7 +508,7 @@ export const Analytics: React.FC = () => {
             {/* Recent Activity Table (Filtered by Month) */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="font-bold text-gray-900">Reports History ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
+                <h3 className="font-bold text-gray-900">Reports History ({filterType === 'month' ? `${months[selectedMonthIndex]} ${selectedYear}` : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
@@ -506,10 +527,10 @@ export const Analytics: React.FC = () => {
                         storeReports.slice().reverse().map(report => (
                             <tr key={report.id} className="hover:bg-gray-50 transition-colors text-gray-900">
                             <td className="px-6 py-3 font-medium">{report.date}</td>
-                            <td className="px-6 py-3 text-right">₱{(report.totalNetSales + report.discrepancy).toLocaleString()}</td>
-                            <td className="px-6 py-3 text-right font-bold text-emerald-600">₱{report.recordedProfit.toLocaleString()}</td>
+                            <td className="px-6 py-3 text-right">₱{(report.totalNetSales + report.discrepancy).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td className={`px-6 py-3 text-right font-bold ${report.recordedProfit < 0 ? 'text-red-600' : report.recordedProfit > 0 ? 'text-emerald-600' : 'text-gray-900'}`}>₱{report.recordedProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td className={`px-6 py-3 text-right font-bold ${report.discrepancy < 0 ? 'text-red-500' : (report.discrepancy > 0 ? 'text-blue-500' : 'text-gray-400')}`}>
-                                {report.discrepancy > 0 ? '+' : ''}{report.discrepancy.toLocaleString()}
+                                {report.discrepancy > 0 ? '+' : ''}{report.discrepancy.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </td>
                             <td className="px-6 py-3 text-center">
                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${
@@ -537,7 +558,7 @@ export const Analytics: React.FC = () => {
         <>
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="font-bold text-gray-900">Expenses History ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
+                <h3 className="font-bold text-gray-900">Expenses History ({filterType === 'month' ? `${months[selectedMonthIndex]} ${selectedYear}` : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeExpenses.length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
@@ -558,7 +579,7 @@ export const Analytics: React.FC = () => {
                             <td className="px-6 py-3 font-medium">{expense.date}</td>
                             <td className="px-6 py-3"><span className="px-2 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600">{expense.category}</span></td>
                             <td className="px-6 py-3 text-gray-500">{expense.description || '-'}</td>
-                            <td className="px-6 py-3 text-right font-bold text-red-600">₱{expense.amount.toLocaleString()}</td>
+                            <td className="px-6 py-3 text-right font-bold text-red-600">₱{expense.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td className="px-6 py-3 text-right text-xs text-gray-400">{expense.recordedBy || 'Unknown'}</td>
                             </tr>
                         ))
@@ -577,7 +598,7 @@ export const Analytics: React.FC = () => {
         <>
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h3 className="font-bold text-gray-900">Fund In History ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
+                <h3 className="font-bold text-gray-900">Fund In History ({filterType === 'month' ? `${months[selectedMonthIndex]} ${selectedYear}` : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
                 <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.filter(r => (r.fundIn || 0) > 0).length + fundInTransactions.length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
@@ -617,8 +638,8 @@ export const Analytics: React.FC = () => {
                         return allEvents.map(event => (
                             <tr key={event.id} className="hover:bg-gray-50 transition-colors text-gray-900">
                             <td className="px-6 py-3 font-medium">{event.date}</td>
-                            <td className="px-6 py-3 text-right font-bold text-blue-600">₱{event.amount.toLocaleString()}</td>
-                            <td className="px-6 py-3 text-right text-gray-500">{event.startFund !== null ? `₱${(event.startFund || 0).toLocaleString()}` : '-'}</td>
+                            <td className="px-6 py-3 text-right font-bold text-blue-600">₱{event.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td className="px-6 py-3 text-right text-gray-500">{event.startFund !== null ? `₱${(event.startFund || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '-'}</td>
                             <td className="px-6 py-3 text-center">
                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                                 event.status === 'BALANCED' ? 'bg-green-100 text-green-700' :

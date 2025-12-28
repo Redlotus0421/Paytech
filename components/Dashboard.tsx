@@ -325,34 +325,128 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full">
-      <div className="p-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Recent Submissions</h3></div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-full text-sm text-left">
-            <thead className="bg-gray-50 text-gray-600 sticky top-0">
-              <tr>
-                <th className="px-4 py-3">Date</th>
-                {user.role === UserRole.ADMIN && <th className="px-4 py-3">Store</th>}
-                <th className="px-4 py-3">Net Sales</th>
-                <th className="px-4 py-3">Total EOD Sales</th>
-                <th className="px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredReports.map(report => (
-                <tr key={report.id} className="hover:bg-gray-50 text-gray-900">
-                  <td className="px-4 py-3">{report.date}</td>
-                  {user.role === UserRole.ADMIN && <td className="px-4 py-3 text-xs text-gray-700">{stores.find(s => s.id === report.storeId)?.name || 'Unknown'}</td>}
-                  <td className="px-4 py-3 font-medium">₱{report.recordedProfit.toFixed(0)}</td>
-                  <td className={`px-4 py-3 font-bold ${report.discrepancy < 0 ? 'text-red-600' : 'text-green-600'}`}>{report.discrepancy.toFixed(0)}</td>
-                  <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${report.status === 'BALANCED' ? 'bg-green-100 text-green-700' : report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{report.status === 'OVERAGE' ? 'SURPLUS' : report.status}</span></td>
-                </tr>
-              ))}
-              {filteredReports.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-400">No reports found</td></tr>}
-            </tbody>
-          </table>
-        </div>
+
+      {/* Tabs */}
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+        <button
+            onClick={() => setActiveTab('sales')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${activeTab === 'sales' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+            <div className="flex items-center justify-center gap-2">
+                <TrendingUp size={16} />
+                Sales Report
+            </div>
+        </button>
+        <button
+            onClick={() => setActiveTab('expenses')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${activeTab === 'expenses' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+            <div className="flex items-center justify-center gap-2">
+                <FileText size={16} />
+                General Expenses
+            </div>
+        </button>
+        <button
+            onClick={() => setActiveTab('fundin')}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${activeTab === 'fundin' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+            <div className="flex items-center justify-center gap-2">
+                <Wallet size={16} />
+                GPO Fundin
+            </div>
+        </button>
       </div>
+
+      {activeTab === 'sales' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full">
+        <div className="p-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">Sales Report</h3></div>
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-full text-sm text-left">
+                <thead className="bg-gray-50 text-gray-600 sticky top-0">
+                <tr>
+                    <th className="px-4 py-3">Date</th>
+                    {user.role === UserRole.ADMIN && <th className="px-4 py-3">Store</th>}
+                    <th className="px-4 py-3">Net Sales</th>
+                    <th className="px-4 py-3">Total EOD Sales</th>
+                    <th className="px-4 py-3">Status</th>
+                </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                {dateFilteredData.reports.map(report => (
+                    <tr key={report.id} className="hover:bg-gray-50 text-gray-900">
+                    <td className="px-4 py-3">{report.date}</td>
+                    {user.role === UserRole.ADMIN && <td className="px-4 py-3 text-xs text-gray-700">{stores.find(s => s.id === report.storeId)?.name || 'Unknown'}</td>}
+                    <td className="px-4 py-3 font-medium">₱{report.recordedProfit.toFixed(0)}</td>
+                    <td className={`px-4 py-3 font-bold ${report.discrepancy < 0 ? 'text-red-600' : 'text-green-600'}`}>{report.discrepancy.toFixed(0)}</td>
+                    <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${report.status === 'BALANCED' ? 'bg-green-100 text-green-700' : report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{report.status === 'OVERAGE' ? 'SURPLUS' : report.status}</span></td>
+                    </tr>
+                ))}
+                {dateFilteredData.reports.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-400">No reports found</td></tr>}
+                </tbody>
+            </table>
+            </div>
+        </div>
+      )}
+
+      {activeTab === 'expenses' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full">
+            <div className="p-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">General Expenses</h3></div>
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-full text-sm text-left">
+                <thead className="bg-gray-50 text-gray-600 sticky top-0">
+                <tr>
+                    <th className="px-4 py-3">Date</th>
+                    {user.role === UserRole.ADMIN && <th className="px-4 py-3">Store</th>}
+                    <th className="px-4 py-3">Category</th>
+                    <th className="px-4 py-3">Description</th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                {dateFilteredData.expenses.map(expense => (
+                    <tr key={expense.id} className="hover:bg-gray-50 text-gray-900">
+                    <td className="px-4 py-3">{expense.date}</td>
+                    {user.role === UserRole.ADMIN && <td className="px-4 py-3 text-xs text-gray-700">{stores.find(s => s.id === expense.storeId)?.name || 'Unknown'}</td>}
+                    <td className="px-4 py-3"><span className="px-2 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600">{expense.category}</span></td>
+                    <td className="px-4 py-3 text-gray-500">{expense.description || '-'}</td>
+                    <td className="px-4 py-3 text-right font-bold text-red-600">₱{expense.amount.toLocaleString()}</td>
+                    </tr>
+                ))}
+                {dateFilteredData.expenses.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-400">No expenses found</td></tr>}
+                </tbody>
+            </table>
+            </div>
+        </div>
+      )}
+
+      {activeTab === 'fundin' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden w-full">
+            <div className="p-4 border-b border-gray-100"><h3 className="text-sm font-semibold text-gray-700">GPO Fundin</h3></div>
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-full text-sm text-left">
+                <thead className="bg-gray-50 text-gray-600 sticky top-0">
+                <tr>
+                    <th className="px-4 py-3">Date</th>
+                    {user.role === UserRole.ADMIN && <th className="px-4 py-3">Store</th>}
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3 text-right">Source</th>
+                </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                {dateFilteredData.fundIns.map(fundIn => (
+                    <tr key={fundIn.id} className="hover:bg-gray-50 text-gray-900">
+                    <td className="px-4 py-3">{fundIn.date}</td>
+                    {user.role === UserRole.ADMIN && <td className="px-4 py-3 text-xs text-gray-700">{stores.find(s => s.id === fundIn.storeId)?.name || 'Unknown'}</td>}
+                    <td className="px-4 py-3 text-right font-bold text-blue-600">₱{fundIn.amount.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-500">Expense Entry</td>
+                    </tr>
+                ))}
+                {dateFilteredData.fundIns.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund-ins found</td></tr>}
+                </tbody>
+            </table>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

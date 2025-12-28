@@ -113,6 +113,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     // Overall Net Sales = totalNetSales + discrepancy
     const overallNetSales = reports.reduce((acc, r) => acc + (r.totalNetSales + r.discrepancy), 0);
+
+    // Overall EOD Sales (Gross)
+    const overallGrossSales = reports.reduce((acc, r) => acc + r.totalNetSales, 0);
     
     // Overall General Expenses (excluding GPO Fund-in)
     const overallGeneralExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
@@ -125,7 +128,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const fundInFromExpenses = fundIns.reduce((acc, e) => acc + e.amount, 0);
     const overallFundIn = fundInFromReports + fundInFromExpenses;
 
-    return { overallNetSales, overallGeneralExpenses, runningProfit, overallFundIn };
+    return { overallNetSales, overallGrossSales, overallGeneralExpenses, runningProfit, overallFundIn };
   }, [dateFilteredData]);
 
   const chartData = useMemo(() => {
@@ -303,8 +306,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             )}
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard label="Overall Net Sales" value={`₱${stats.overallNetSales.toLocaleString()}`} color="text-blue-600" icon={DollarSign} />
+        <StatCard label="Overall EOD Sales (Gross)" value={`₱${stats.overallGrossSales.toLocaleString()}`} color="text-purple-600" icon={DollarSign} />
         <StatCard label="Overall General Expenses" value={`₱${stats.overallGeneralExpenses.toLocaleString()}`} color="text-red-600" icon={FileText} />
         <StatCard label="Running Profit" value={`₱${stats.runningProfit.toLocaleString()}`} color="text-emerald-600" icon={TrendingUp} />
         <StatCard label="OVERALL GPO FUNDIN" value={`₱${stats.overallFundIn.toLocaleString()}`} color="text-indigo-600" icon={Wallet} />

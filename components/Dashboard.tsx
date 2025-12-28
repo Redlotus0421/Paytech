@@ -232,16 +232,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         <div className="flex flex-col sm:flex-row gap-3 bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
             <div className="flex bg-gray-100 p-1 rounded-md">
                 <button 
-                    onClick={() => setFilterType('month')}
-                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${filterType === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    Monthly
-                </button>
-                <button 
                     onClick={() => setFilterType('year')}
                     className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${filterType === 'year' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                     Yearly
+                </button>
+                <button 
+                    onClick={() => setFilterType('month')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${filterType === 'month' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Monthly
                 </button>
                 <button 
                     onClick={() => setFilterType('range')}

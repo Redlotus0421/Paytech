@@ -322,6 +322,12 @@ export const Analytics: React.FC = () => {
             {/* Filter Type Toggle */}
             <div className="bg-gray-100 p-1 rounded-lg flex text-xs font-medium">
                 <button 
+                    onClick={() => setFilterType('year')}
+                    className={`px-3 py-1 rounded-md transition-all ${filterType === 'year' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Yearly
+                </button>
+                <button 
                     onClick={() => setFilterType('month')}
                     className={`px-3 py-1 rounded-md transition-all ${filterType === 'month' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
@@ -332,12 +338,6 @@ export const Analytics: React.FC = () => {
                     className={`px-3 py-1 rounded-md transition-all ${filterType === 'date' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
                     Date
-                </button>
-                <button 
-                    onClick={() => setFilterType('year')}
-                    className={`px-3 py-1 rounded-md transition-all ${filterType === 'year' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    Yearly
                 </button>
                 <button 
                     onClick={() => setFilterType('range')}

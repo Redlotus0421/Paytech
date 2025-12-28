@@ -434,15 +434,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                {dateFilteredData.fundIns.map(fundIn => (
-                    <tr key={fundIn.id} className="hover:bg-gray-50 text-gray-900">
-                    <td className="px-4 py-3">{fundIn.date}</td>
-                    {user.role === UserRole.ADMIN && <td className="px-4 py-3 text-xs text-gray-700">{stores.find(s => s.id === fundIn.storeId)?.name || 'Unknown'}</td>}
-                    <td className="px-4 py-3 text-right font-bold text-blue-600">₱{fundIn.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-xs text-gray-500">Expense Entry</td>
+                {[
+                    ...dateFilteredData.fundIns.map(f => ({ ...f, source: 'Expense Entry', type: 'expense' })),
+                    ...dateFilteredData.reports.filter(r => (r.fundIn || 0) > 0).map(r => ({ 
+                        id: r.id, 
+                        date: r.date, 
+                        storeId: r.storeId, 
+                        amount: r.fundIn || 0, 
+                        source: 'Sales Report',
+                        type: 'report'
+                    }))
+                ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((item, idx) => (
+                    <tr key={`${item.type}-${item.id}-${idx}`} className="hover:bg-gray-50 text-gray-900">
+                    <td className="px-4 py-3">{item.date}</td>
+                    {user.role === UserRole.ADMIN && <td className="px-4 py-3 text-xs text-gray-700">{stores.find(s => s.id === item.storeId)?.name || 'Unknown'}</td>}
+                    <td className="px-4 py-3 text-right font-bold text-blue-600">₱{item.amount.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-500">{item.source}</td>
                     </tr>
                 ))}
-                {dateFilteredData.fundIns.length === 0 && <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund-ins found</td></tr>}
+                {(dateFilteredData.fundIns.length === 0 && dateFilteredData.reports.filter(r => (r.fundIn || 0) > 0).length === 0) && <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund-ins found</td></tr>}
                 </tbody>
             </table>
             </div>

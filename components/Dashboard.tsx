@@ -165,10 +165,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     });
 
     // Sort dates
-    const sortedKeys = Object.keys(dataByDate).sort();
+    let sortedKeys = Object.keys(dataByDate).sort();
+
+    // If Yearly filter, ensure all 12 months are present
+    if (filterType === 'year') {
+        const year = selectedYearOnly;
+        sortedKeys = Array.from({ length: 12 }, (_, i) => {
+            const monthNum = i + 1;
+            const monthStr = monthNum.toString().padStart(2, '0');
+            return `${year}-${monthStr}`;
+        });
+    }
     
     return sortedKeys.map(key => {
-        const d = dataByDate[key];
+        const d = dataByDate[key] || { netSales: 0, expenses: 0, fundIn: 0 };
         let displayDate = key;
         if (filterType === 'year') {
             // Convert YYYY-MM to Month Name
@@ -188,7 +198,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             fundIn: d.fundIn
         };
     });
-  }, [dateFilteredData, filterType]);
+  }, [dateFilteredData, filterType, selectedYearOnly]);
 
   useEffect(() => {
     try {

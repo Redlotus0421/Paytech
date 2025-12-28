@@ -465,12 +465,14 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                                         >
                                             Edit
                                         </button>
-                                        <button 
-                                            onClick={() => handleDeleteClick(item)}
-                                            className="text-red-600 hover:text-red-800 text-xs font-medium px-3 py-1 hover:bg-red-100 rounded transition-colors"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        {user.role === UserRole.ADMIN && (
+                                            <button 
+                                                onClick={() => handleDeleteClick(item)}
+                                                className="text-red-600 hover:text-red-800 text-xs font-medium px-3 py-1 hover:bg-red-100 rounded transition-colors"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))

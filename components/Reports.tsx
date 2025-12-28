@@ -435,19 +435,29 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                             <Eye size={18}/>
                                         </button>
                                         <button
-                                            onClick={() => openAdminAuth(report.id, 'edit')}
+                                            onClick={() => {
+                                                if (user.role === UserRole.EMPLOYEE) {
+                                                    setSelectedReport(report);
+                                                    setIsEditing(true);
+                                                    setEditReportData({ ...report });
+                                                } else {
+                                                    openAdminAuth(report.id, 'edit');
+                                                }
+                                            }}
                                             className="text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 p-2 rounded-lg transition-colors"
                                             title="Edit Report"
                                         >
                                             <Edit2 size={18}/>
                                         </button>
-                                        <button
-                                            onClick={() => openAdminAuth(report.id, 'delete')}
-                                            className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                                            title="Delete Report"
-                                        >
-                                            <Trash2 size={18}/>
-                                        </button>
+                                        {user.role === UserRole.ADMIN && (
+                                            <button
+                                                onClick={() => openAdminAuth(report.id, 'delete')}
+                                                className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                                title="Delete Report"
+                                            >
+                                                <Trash2 size={18}/>
+                                            </button>
+                                        )}
                                     </td>
                 </tr>
               );

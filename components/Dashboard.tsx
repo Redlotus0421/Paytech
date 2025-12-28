@@ -299,8 +299,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard label="Overall Net Sales" value={`₱${stats.overallNetSales.toLocaleString()}`} color="text-blue-600" icon={DollarSign} />
         <StatCard label="Overall EOD Sales (Gross)" value={`₱${stats.overallGrossSales.toLocaleString()}`} color="text-purple-600" icon={DollarSign} />
+        <StatCard label="Overall Net Sales" value={`₱${stats.overallNetSales.toLocaleString()}`} color="text-blue-600" icon={DollarSign} />
         <StatCard label="Overall General Expenses" value={`₱${stats.overallGeneralExpenses.toLocaleString()}`} color="text-red-600" icon={FileText} />
         <StatCard label="Running Profit" value={`₱${stats.runningProfit.toLocaleString()}`} color="text-emerald-600" icon={TrendingUp} />
         <StatCard label="OVERALL GPO FUNDIN" value={`₱${stats.overallFundIn.toLocaleString()}`} color="text-indigo-600" icon={Wallet} />
@@ -363,8 +363,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 <tr>
                     <th className="px-4 py-3">Date</th>
                     {user.role === UserRole.ADMIN && <th className="px-4 py-3">Store</th>}
-                    <th className="px-4 py-3">Net Sales</th>
                     <th className="px-4 py-3">Total EOD Sales</th>
+                    <th className="px-4 py-3">Net Sales</th>
                     <th className="px-4 py-3">Status</th>
                 </tr>
                 </thead>
@@ -373,8 +373,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     <tr key={report.id} className="hover:bg-gray-50 text-gray-900">
                     <td className="px-4 py-3">{report.date}</td>
                     {user.role === UserRole.ADMIN && <td className="px-4 py-3 text-xs text-gray-700">{stores.find(s => s.id === report.storeId)?.name || 'Unknown'}</td>}
-                    <td className="px-4 py-3 font-medium">₱{report.recordedProfit.toFixed(0)}</td>
-                    <td className={`px-4 py-3 font-bold ${report.discrepancy < 0 ? 'text-red-600' : 'text-green-600'}`}>{report.discrepancy.toFixed(0)}</td>
+                    <td className="px-4 py-3 font-medium">₱{report.totalNetSales.toLocaleString()}</td>
+                    <td className="px-4 py-3 font-bold text-blue-600">₱{(report.totalNetSales + report.discrepancy).toLocaleString()}</td>
                     <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${report.status === 'BALANCED' ? 'bg-green-100 text-green-700' : report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{report.status === 'OVERAGE' ? 'SURPLUS' : report.status}</span></td>
                     </tr>
                 ))}

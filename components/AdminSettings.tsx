@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { supabase } from '../services/supabaseClient';
 import { Store, User, UserRole, InventoryItem, ReportData } from '../types';
-import { Store as StoreIcon, User as UserIcon, Pencil, Trash2, X, RefreshCw, Loader2, Lock } from 'lucide-react';
+import { Store as StoreIcon, User as UserIcon, Pencil, Trash2, X, RefreshCw, Loader2, Lock, Ban } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface AdminSettingsProps {
@@ -211,16 +211,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     setNewUserPermissions(ALL_PERMISSIONS);
   };
 
-  // DELETE: Require password to delete
-  const initiateDeleteUser = (userId: string) => {
-      console.log('Initiating delete for user:', userId);
-      // Removed window.confirm to avoid double confirmation issues
-      setPendingAction(() => async () => executeDeleteUser(userId));
+  // DEACTIVATE: Require password to deactivate
+  const initiateDeactivateUser = (userId: string) => {
+      console.log('Initiating deactivate for user:', userId);
+      setPendingAction(() => async () => executeDeactivateUser(userId));
       setIsAuthModalOpen(true);
   };
 
-  const executeDeleteUser = async (userId: string) => {
-    console.log('Executing delete for user:', userId);
+  const executeDeactivateUser = async (userId: string) => {
+    console.log('Executing deactivate for user:', userId);
     // Optimistic update
     setUsers(prev => prev.filter(u => u.id !== userId));
 
@@ -231,7 +230,44 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
             .eq('id', userId);
 
         if (error) throw error;
-        await storageService.logActivity('Delete User', `Deactivated user: ${users.find(u => u.id === userId)?.username}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
+        await storageService.logActivity('Deactivate User', `Deactivated user: ${users.find(u => u.id === userId)?.username}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
+        await fetchSupabaseUsers();
+
+        if (editingUser?.id === userId) {
+            cancelEditUser();
+        }
+    } catch (err: any) {
+        console.error('Error deactivating user:', err);
+        const msg = formatError(err);
+        alert(`Failed to deactivate user: ${msg}`);
+        fetchSupabaseUsers();
+    }
+  };
+
+  // DELETE: Require password to delete (Hard Delete)
+  const initiateDeleteUser = (userId: string) => {
+      console.log('Initiating delete for user:', userId);
+      setPendingAction(() => async () => executeDeleteUser(userId));
+      setIsAuthModalOpen(true);
+  };
+
+  const executeDeleteUser = async (userId: string) => {
+    console.log('Executing hard delete for user:', userId);
+    if (!confirm("WARNING: This will PERMANENTLY delete the user. This action cannot be undone.\n\nAre you sure you want to proceed?")) {
+        return;
+    }
+    
+    // Optimistic update
+    setUsers(prev => prev.filter(u => u.id !== userId));
+
+    try {
+        const { error } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', userId);
+
+        if (error) throw error;
+        await storageService.logActivity('Delete User', `Permanently deleted user: ${users.find(u => u.id === userId)?.username}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
         await fetchSupabaseUsers();
 
         if (editingUser?.id === userId) {
@@ -501,16 +537,26 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                             >
                                 <Pencil size={16}/>
                             </button>
-                            {/* Allow delete if NOT the seed admin AND NOT the current user */}
+                            {/* Allow actions if NOT the seed admin AND NOT the current user */}
                             {(u.id !== 'u_admin' && u.id !== currentUser?.id) && (
-                                <button 
-                                    type="button"
-                                    onClick={() => initiateDeleteUser(u.id)}
-                                    className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
-                                    title="Delete User (Soft Delete)"
-                                >
-                                    <Trash2 size={16}/>
-                                </button>
+                                <>
+                                    <button 
+                                        type="button"
+                                        onClick={() => initiateDeactivateUser(u.id)}
+                                        className="p-1.5 text-orange-600 hover:bg-orange-100 rounded transition-colors"
+                                        title="Deactivate User"
+                                    >
+                                        <Ban size={16}/>
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => initiateDeleteUser(u.id)}
+                                        className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                        title="Delete User (Permanent)"
+                                    >
+                                        <Trash2 size={16}/>
+                                    </button>
+                                </>
                             )}
                         </div>
                     </li>

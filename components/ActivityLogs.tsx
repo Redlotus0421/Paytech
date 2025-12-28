@@ -169,8 +169,8 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-white text-gray-500 font-medium border-b border-gray-100 sticky top-0 z-10">
                             <tr>
-                                <th className="px-6 py-4 w-48 font-medium">Time</th>
-                                <th className="px-6 py-4 w-40 font-medium">Type</th>
+                                <th className="px-6 py-4 w-1/4 font-medium">Time</th>
+                                <th className="px-6 py-4 w-1/5 font-medium">Type</th>
                                 <th className="px-6 py-4 font-medium">Description</th>
                                 <th className="px-6 py-4 w-64 font-medium">Performed By</th>
                             </tr>

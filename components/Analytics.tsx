@@ -403,7 +403,7 @@ export const Analytics: React.FC = () => {
         {activeTab === 'sales' && (
             <>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-600">₱{stats.totalNetSalesWithDiscrepancy.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall EOD Sales (Gross)</p></div>
-                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-blue-500">₱{stats.totalNetSales.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall Net Sales</p></div>
+                <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.totalProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Net Profit</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-red-600">₱{stats.totalExpenses.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall General Expenses</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-emerald-600">₱{stats.runningProfit.toLocaleString()}</h3><p className="text-sm text-gray-500">Running Profit</p></div>
                 <div className="bg-white p-4 rounded-lg shadow-sm border h-full flex flex-col justify-between"><h3 className="text-2xl font-bold text-indigo-600">₱{stats.totalFundIn.toLocaleString()}</h3><p className="text-sm text-gray-500">Overall GPO Fundin</p></div>
@@ -496,7 +496,6 @@ export const Analytics: React.FC = () => {
                     <tr>
                         <th className="px-6 py-3">Date</th>
                         <th className="px-6 py-3 text-right">GROSS SALES</th>
-                        <th className="px-6 py-3 text-right">NET SALES</th>
                         <th className="px-6 py-3 text-right">NET PROFIT</th>
                         <th className="px-6 py-3 text-right">Variance</th>
                         <th className="px-6 py-3 text-center">Status</th>
@@ -508,7 +507,6 @@ export const Analytics: React.FC = () => {
                             <tr key={report.id} className="hover:bg-gray-50 transition-colors text-gray-900">
                             <td className="px-6 py-3 font-medium">{report.date}</td>
                             <td className="px-6 py-3 text-right">₱{(report.totalNetSales + report.discrepancy).toLocaleString()}</td>
-                            <td className="px-6 py-3 text-right text-blue-600">₱{report.totalNetSales.toLocaleString()}</td>
                             <td className="px-6 py-3 text-right font-bold text-emerald-600">₱{report.recordedProfit.toLocaleString()}</td>
                             <td className={`px-6 py-3 text-right font-bold ${report.discrepancy < 0 ? 'text-red-500' : (report.discrepancy > 0 ? 'text-blue-500' : 'text-gray-400')}`}>
                                 {report.discrepancy > 0 ? '+' : ''}{report.discrepancy.toLocaleString()}

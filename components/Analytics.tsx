@@ -107,7 +107,29 @@ export const Analytics: React.FC = () => {
           } else if (filterType === 'range') {
             isDateMatch = e.date >= startDate && e.date <= endDate;
           }
-          return isStoreMatch && isDateMatch;
+          // Exclude GPO Fund-in from expenses
+          return isStoreMatch && isDateMatch && e.category !== 'GPO Fund-in';
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, startDate, endDate, filterType]);
+
+  // Filter GPO Fund-in transactions
+  const fundInTransactions = useMemo(() => {
+    if (!selectedStore && !currentUser?.storeId) return [];
+    const targetStoreId = selectedStore?.id || currentUser?.storeId;
+
+    return generalExpenses
+      .filter(e => {
+          const isStoreMatch = e.storeId === targetStoreId;
+          let isDateMatch = false;
+          if (filterType === 'month') {
+            isDateMatch = e.date.startsWith(selectedMonth);
+          } else if (filterType === 'date') {
+            isDateMatch = e.date === selectedDate;
+          } else if (filterType === 'range') {
+            isDateMatch = e.date >= startDate && e.date <= endDate;
+          }
+          return isStoreMatch && isDateMatch && e.category === 'GPO Fund-in';
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, startDate, endDate, filterType]);
@@ -129,13 +151,13 @@ export const Analytics: React.FC = () => {
     const totalExpenses = storeExpenses.reduce((acc, e) => acc + e.amount, 0);
     
     // Fund In stats
-    const totalFundIn = storeReports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
+    const totalFundIn = storeReports.reduce((acc, r) => acc + (r.fundIn || 0), 0) + fundInTransactions.reduce((acc, e) => acc + e.amount, 0);
 
     // Running Profit
     const runningProfit = totalNetSales - totalExpenses;
 
     return { totalProfit, totalShortage, totalSurplus, balanceCount, reportCount: storeReports.length, totalExpenses, totalFundIn, totalNetSalesWithDiscrepancy, totalNetSales, runningProfit };
-  }, [storeReports, storeExpenses]);
+  }, [storeReports, storeExpenses, fundInTransactions]);
 
   const chartData = useMemo(() => {
     const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number, recordedProfit: number }> = {};
@@ -154,6 +176,13 @@ export const Analytics: React.FC = () => {
         const date = e.date;
         if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         dataByDate[date].expenses += e.amount;
+    });
+
+    // Aggregate fund in transactions
+    fundInTransactions.forEach(e => {
+        const date = e.date;
+        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
+        dataByDate[date].fundIn += e.amount;
     });
 
     // Sort dates
@@ -496,7 +525,7 @@ export const Analytics: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden relative z-0 w-full min-w-0 flex flex-col flex-1 min-h-0">
                 <div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
                 <h3 className="font-bold text-gray-900">Fund In History ({filterType === 'month' ? selectedMonth : filterType === 'date' ? selectedDate : `${startDate} to ${endDate}`})</h3>
-                <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.filter(r => (r.fundIn || 0) > 0).length} records found</span>
+                <span className="text-xs text-gray-500 flex items-center gap-1"><Calendar size={14}/> {storeReports.filter(r => (r.fundIn || 0) > 0).length + fundInTransactions.length} records found</span>
                 </div>
                 <div className="overflow-x-auto overflow-y-auto min-w-0 flex-1 min-h-0 max-h-[70vh]">
                 <table className="w-full text-sm text-left">
@@ -509,26 +538,47 @@ export const Analytics: React.FC = () => {
                     </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                    {storeReports.filter(r => (r.fundIn || 0) > 0).length > 0 ? (
-                        storeReports.filter(r => (r.fundIn || 0) > 0).slice().reverse().map(report => (
-                            <tr key={report.id} className="hover:bg-gray-50 transition-colors text-gray-900">
-                            <td className="px-6 py-3 font-medium">{report.date}</td>
-                            <td className="px-6 py-3 text-right font-bold text-blue-600">₱{report.fundIn.toLocaleString()}</td>
-                            <td className="px-6 py-3 text-right text-gray-500">₱{report.totalStartFund.toLocaleString()}</td>
+                    {(() => {
+                        const reportEvents = storeReports.filter(r => (r.fundIn || 0) > 0).map(r => ({
+                            id: r.id,
+                            date: r.date,
+                            amount: r.fundIn || 0,
+                            startFund: r.totalStartFund,
+                            status: r.status,
+                            type: 'report'
+                        }));
+                        const transactionEvents = fundInTransactions.map(t => ({
+                            id: t.id,
+                            date: t.date,
+                            amount: t.amount,
+                            startFund: null,
+                            status: 'Transaction',
+                            type: 'transaction'
+                        }));
+                        const allEvents = [...reportEvents, ...transactionEvents].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+                        if (allEvents.length === 0) {
+                            return <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund in records found for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}.</td></tr>;
+                        }
+
+                        return allEvents.map(event => (
+                            <tr key={event.id} className="hover:bg-gray-50 transition-colors text-gray-900">
+                            <td className="px-6 py-3 font-medium">{event.date}</td>
+                            <td className="px-6 py-3 text-right font-bold text-blue-600">₱{event.amount.toLocaleString()}</td>
+                            <td className="px-6 py-3 text-right text-gray-500">{event.startFund !== null ? `₱${(event.startFund || 0).toLocaleString()}` : '-'}</td>
                             <td className="px-6 py-3 text-center">
                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                report.status === 'BALANCED' ? 'bg-green-100 text-green-700' :
-                                report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' :
+                                event.status === 'BALANCED' ? 'bg-green-100 text-green-700' :
+                                event.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' :
+                                event.status === 'Transaction' ? 'bg-gray-100 text-gray-700' :
                                 'bg-blue-100 text-blue-700'
                                 }`}>
-                                {report.status}
+                                {event.status}
                                 </span>
                             </td>
                             </tr>
-                        ))
-                    ) : (
-                        <tr><td colSpan={4} className="p-8 text-center text-gray-400">No fund in records found for this {filterType === 'month' ? 'month' : filterType === 'date' ? 'date' : 'range'}.</td></tr>
-                    )}
+                        ));
+                    })()}
                     </tbody>
                 </table>
                 </div>

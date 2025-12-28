@@ -17,9 +17,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   // Filter State
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
-  const [filterType, setFilterType] = useState<'month' | 'range'>('month');
+  const [filterType, setFilterType] = useState<'month' | 'range' | 'year'>('month');
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedYearOnly, setSelectedYearOnly] = useState(currentYear);
   const [rangeStartMonth, setRangeStartMonth] = useState(currentMonth);
   const [rangeStartYear, setRangeStartYear] = useState(currentYear);
   const [rangeEndMonth, setRangeEndMonth] = useState(currentMonth);
@@ -83,6 +84,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     if (filterType === 'month') {
         startDate = new Date(selectedYear, selectedMonth, 1);
         endDate = new Date(selectedYear, selectedMonth + 1, 0);
+    } else if (filterType === 'year') {
+        startDate = new Date(selectedYearOnly, 0, 1);
+        endDate = new Date(selectedYearOnly, 11, 31);
     } else {
         startDate = new Date(rangeStartYear, rangeStartMonth, 1);
         endDate = new Date(rangeEndYear, rangeEndMonth + 1, 0);
@@ -102,7 +106,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         expenses: validExpenses.filter(e => isInRange(e.date)),
         fundIns: fundInTransactions.filter(e => isInRange(e.date))
     };
-  }, [filterType, selectedMonth, selectedYear, rangeStartMonth, rangeStartYear, rangeEndMonth, rangeEndYear, filteredReports, validExpenses, fundInTransactions]);
+  }, [filterType, selectedMonth, selectedYear, selectedYearOnly, rangeStartMonth, rangeStartYear, rangeEndMonth, rangeEndYear, filteredReports, validExpenses, fundInTransactions]);
 
   const stats = useMemo(() => {
     const { reports, expenses, fundIns } = dateFilteredData;
@@ -128,44 +132,63 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     const { reports, expenses, fundIns } = dateFilteredData;
     const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number }> = {};
 
+    // Helper to get key based on filter type
+    const getKey = (dateStr: string) => {
+        if (filterType === 'year') {
+            // Group by Month (YYYY-MM)
+            return dateStr.substring(0, 7);
+        }
+        // Group by Date (YYYY-MM-DD)
+        return dateStr;
+    };
+
     // Aggregate reports
     reports.forEach(r => {
-        const date = r.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
-        dataByDate[date].netSales += (r.totalNetSales + r.discrepancy);
-        dataByDate[date].fundIn += (r.fundIn || 0);
+        const key = getKey(r.date);
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0 };
+        dataByDate[key].netSales += (r.totalNetSales + r.discrepancy);
+        dataByDate[key].fundIn += (r.fundIn || 0);
     });
 
     // Aggregate expenses (valid only)
     expenses.forEach(e => {
-        const date = e.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
-        dataByDate[date].expenses += e.amount;
+        const key = getKey(e.date);
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0 };
+        dataByDate[key].expenses += e.amount;
     });
 
     // Aggregate fund-in from expenses
     fundIns.forEach(e => {
-        const date = e.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0 };
-        dataByDate[date].fundIn += e.amount;
+        const key = getKey(e.date);
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0 };
+        dataByDate[key].fundIn += e.amount;
     });
 
     // Sort dates
-    const sortedDates = Object.keys(dataByDate).sort();
-    // No longer slicing last 7, showing all in range
+    const sortedKeys = Object.keys(dataByDate).sort();
     
-    return sortedDates.map(date => {
-        const d = dataByDate[date];
+    return sortedKeys.map(key => {
+        const d = dataByDate[key];
+        let displayDate = key;
+        if (filterType === 'year') {
+            // Convert YYYY-MM to Month Name
+            const [y, m] = key.split('-');
+            const dateObj = new Date(parseInt(y), parseInt(m) - 1, 1);
+            displayDate = dateObj.toLocaleString('default', { month: 'short' });
+        } else {
+            displayDate = key.substring(5); // MM-DD
+        }
+
         return {
-            date: date.substring(5), // MM-DD
-            fullDate: date,
+            date: displayDate,
+            fullDate: key,
             netSales: d.netSales,
             expenses: d.expenses,
             runningProfit: d.netSales - d.expenses,
             fundIn: d.fundIn
         };
     });
-  }, [dateFilteredData]);
+  }, [dateFilteredData, filterType]);
 
   useEffect(() => {
     try {
@@ -206,6 +229,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     Monthly
                 </button>
                 <button 
+                    onClick={() => setFilterType('year')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${filterType === 'year' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Yearly
+                </button>
+                <button 
                     onClick={() => setFilterType('range')}
                     className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${filterType === 'range' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
@@ -225,6 +254,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     <select 
                         value={selectedYear} 
                         onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        className="px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
+                    >
+                        {years.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                </div>
+            ) : filterType === 'year' ? (
+                <div className="flex gap-2">
+                    <select 
+                        value={selectedYearOnly} 
+                        onChange={(e) => setSelectedYearOnly(parseInt(e.target.value))}
                         className="px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 cursor-pointer"
                     >
                         {years.map(y => <option key={y} value={y}>{y}</option>)}
@@ -278,7 +317,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       </div>
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col flex-shrink-0" style={{height: '380px'}}>
         <h3 className="text-sm font-semibold text-gray-700 mb-4">
-            Performance Overview ({filterType === 'month' ? `${months[selectedMonth]} ${selectedYear}` : `${months[rangeStartMonth].substring(0,3)} ${rangeStartYear} - ${months[rangeEndMonth].substring(0,3)} ${rangeEndYear}`})
+            Performance Overview ({filterType === 'month' ? `${months[selectedMonth]} ${selectedYear}` : filterType === 'year' ? `${selectedYearOnly}` : `${months[rangeStartMonth].substring(0,3)} ${rangeStartYear} - ${months[rangeEndMonth].substring(0,3)} ${rangeEndYear}`})
         </h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>

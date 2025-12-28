@@ -19,11 +19,13 @@ export const Analytics: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   // Date Filter State (YYYY-MM-DD format)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  // Year Filter State
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   // Range Filter State
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
   // Filter Type State
-  const [filterType, setFilterType] = useState<'month' | 'date' | 'range'>('month');
+  const [filterType, setFilterType] = useState<'month' | 'date' | 'range' | 'year'>('month');
 
   useEffect(() => {
     const user = storageService.getCurrentUser();
@@ -83,13 +85,15 @@ export const Analytics: React.FC = () => {
             isDateMatch = r.date.startsWith(selectedMonth);
           } else if (filterType === 'date') {
             isDateMatch = r.date === selectedDate;
+          } else if (filterType === 'year') {
+            isDateMatch = r.date.startsWith(`${selectedYear}-`);
           } else if (filterType === 'range') {
             isDateMatch = r.date >= startDate && r.date <= endDate;
           }
           return isStoreMatch && isDateMatch;
       })
       .sort((a, b) => a.timestamp - b.timestamp);
-  }, [reports, selectedStore, currentUser, selectedMonth, selectedDate, startDate, endDate, filterType]);
+  }, [reports, selectedStore, currentUser, selectedMonth, selectedDate, selectedYear, startDate, endDate, filterType]);
 
   // Filter expenses by store AND month/date/range
   const storeExpenses = useMemo(() => {
@@ -104,6 +108,8 @@ export const Analytics: React.FC = () => {
             isDateMatch = e.date.startsWith(selectedMonth);
           } else if (filterType === 'date') {
             isDateMatch = e.date === selectedDate;
+          } else if (filterType === 'year') {
+            isDateMatch = e.date.startsWith(`${selectedYear}-`);
           } else if (filterType === 'range') {
             isDateMatch = e.date >= startDate && e.date <= endDate;
           }
@@ -111,7 +117,7 @@ export const Analytics: React.FC = () => {
           return isStoreMatch && isDateMatch && e.category !== 'GPO Fund-in';
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, startDate, endDate, filterType]);
+  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, selectedYear, startDate, endDate, filterType]);
 
   // Filter GPO Fund-in transactions
   const fundInTransactions = useMemo(() => {
@@ -126,13 +132,15 @@ export const Analytics: React.FC = () => {
             isDateMatch = e.date.startsWith(selectedMonth);
           } else if (filterType === 'date') {
             isDateMatch = e.date === selectedDate;
+          } else if (filterType === 'year') {
+            isDateMatch = e.date.startsWith(`${selectedYear}-`);
           } else if (filterType === 'range') {
             isDateMatch = e.date >= startDate && e.date <= endDate;
           }
           return isStoreMatch && isDateMatch && e.category === 'GPO Fund-in';
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, startDate, endDate, filterType]);
+  }, [generalExpenses, selectedStore, currentUser, selectedMonth, selectedDate, selectedYear, startDate, endDate, filterType]);
 
   const stats = useMemo(() => {
     // Use the filtered storeReports directly for stats
@@ -162,36 +170,57 @@ export const Analytics: React.FC = () => {
   const chartData = useMemo(() => {
     const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number, recordedProfit: number }> = {};
 
+    // Helper to get key based on filter type
+    const getKey = (dateStr: string) => {
+        if (filterType === 'year') {
+            // Group by Month (YYYY-MM)
+            return dateStr.substring(0, 7);
+        }
+        // Group by Date (YYYY-MM-DD)
+        return dateStr;
+    };
+
     // Aggregate reports
     storeReports.forEach(r => {
-        const date = r.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
-        dataByDate[date].netSales += (r.totalNetSales + r.discrepancy);
-        dataByDate[date].fundIn += (r.fundIn || 0);
-        dataByDate[date].recordedProfit += r.recordedProfit;
+        const key = getKey(r.date);
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
+        dataByDate[key].netSales += (r.totalNetSales + r.discrepancy);
+        dataByDate[key].fundIn += (r.fundIn || 0);
+        dataByDate[key].recordedProfit += r.recordedProfit;
     });
 
     // Aggregate expenses
     storeExpenses.forEach(e => {
-        const date = e.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
-        dataByDate[date].expenses += e.amount;
+        const key = getKey(e.date);
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
+        dataByDate[key].expenses += e.amount;
     });
 
     // Aggregate fund in transactions
     fundInTransactions.forEach(e => {
-        const date = e.date;
-        if (!dataByDate[date]) dataByDate[date] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
-        dataByDate[date].fundIn += e.amount;
+        const key = getKey(e.date);
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
+        dataByDate[key].fundIn += e.amount;
     });
 
     // Sort dates
-    const sortedDates = Object.keys(dataByDate).sort();
+    const sortedKeys = Object.keys(dataByDate).sort();
 
-    return sortedDates.map(date => {
-        const d = dataByDate[date];
+    return sortedKeys.map(key => {
+        const d = dataByDate[key];
+        let displayDate = key;
+        if (filterType === 'year') {
+            // Convert YYYY-MM to Month Name
+            const [y, m] = key.split('-');
+            const dateObj = new Date(parseInt(y), parseInt(m) - 1, 1);
+            displayDate = dateObj.toLocaleString('default', { month: 'short' });
+        } else {
+            displayDate = key.substring(5); // MM-DD
+        }
+
         return {
-            date: date.substring(5), // MM-DD
+            date: displayDate,
+            fullDate: key,
             netSales: d.netSales,
             expenses: d.expenses,
             runningProfit: d.netSales - d.expenses,
@@ -199,7 +228,7 @@ export const Analytics: React.FC = () => {
             recordedProfit: d.recordedProfit
         };
     });
-  }, [storeReports, storeExpenses]);
+  }, [storeReports, storeExpenses, filterType]);
 
   const expensesChartData = useMemo(() => {
     // Group expenses by date
@@ -295,6 +324,12 @@ export const Analytics: React.FC = () => {
                     Date
                 </button>
                 <button 
+                    onClick={() => setFilterType('year')}
+                    className={`px-3 py-1 rounded-md transition-all ${filterType === 'year' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Yearly
+                </button>
+                <button 
                     onClick={() => setFilterType('range')}
                     className={`px-3 py-1 rounded-md transition-all ${filterType === 'range' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
@@ -319,6 +354,16 @@ export const Analytics: React.FC = () => {
                         onChange={(e) => setSelectedDate(e.target.value)}
                         className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
                     />
+                ) : filterType === 'year' ? (
+                    <select 
+                        value={selectedYear} 
+                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        className="text-sm font-medium text-gray-700 focus:outline-none bg-transparent cursor-pointer"
+                    >
+                        {Array.from({length: 5}, (_, i) => new Date().getFullYear() - i).map(y => (
+                            <option key={y} value={y}>{y}</option>
+                        ))}
+                    </select>
                 ) : (
                     <div className="flex items-center gap-2">
                         <input 

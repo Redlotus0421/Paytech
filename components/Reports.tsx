@@ -425,7 +425,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                   <td className={`px-6 py-4 text-right font-bold ${overNegative < 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {overNegative < 0 ? '' : (overNegative > 0 ? '+' : '')}{formatMoney(overNegative)}
                   </td>
-                  <td className="px-6 py-4 text-right font-bold text-green-700">{formatMoney(finalEodNet)}</td>
+                  <td className={`px-6 py-4 text-right font-bold ${finalEodNet < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatMoney(finalEodNet)}</td>
                                     <td className="px-6 py-4 text-center flex items-center justify-center gap-3">
                                         <button 
                                             onClick={() => { setSelectedReport(report); setIsEditing(false); setEditReportData(null); }}
@@ -588,7 +588,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     });
                     return <span className={totalOverNeg < 0 ? 'text-red-600' : 'text-green-600'}>{totalOverNeg < 0 ? '' : (totalOverNeg > 0 ? '+' : '')}{formatMoney(totalOverNeg)}</span>;
                 })()}</td>
-                <td className="px-6 py-4 text-right text-green-700">{(() => {
+                <td className="px-6 py-4 text-right">{(() => {
                     let totalEodNet = 0;
                     reports.filter(r => {
                         if (filterStoreId && r.storeId !== filterStoreId) return false;
@@ -621,7 +621,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         const finalEodNet = grossSalesIncome - totalExp;
                         totalEodNet += finalEodNet;
                     });
-                    return formatMoney(totalEodNet);
+                    return <span className={totalEodNet < 0 ? 'text-red-600' : 'text-green-700'}>{formatMoney(totalEodNet)}</span>;
                 })()}</td>
                 <td></td>
               </tr>

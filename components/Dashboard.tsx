@@ -4,6 +4,42 @@ import { storageService } from '../services/storageService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { TrendingUp, AlertOctagon, DollarSign, Loader2, CreditCard, Wallet, FileText, Calendar, Filter } from 'lucide-react';
 
+const calculateReportMetrics = (report: ReportData) => {
+    const startFund = Number(report.totalStartFund || 0);
+    const endAssets = Number(report.totalEndAssets || 0);
+    const growth = endAssets - startFund;
+    
+    let legacyManualRevenue = 0;
+    if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
+    if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
+    if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
+    if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
+
+    const manualRevenue = (report.customSales || []).reduce((a, b) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
+    const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
+    const totalSalesRevenue = manualRevenue + posRevenue;
+    
+    const derivedGcashNet = growth - totalSalesRevenue;
+    const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
+    const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
+    
+    const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
+    const posNet = (report.posSalesDetails || []).reduce((a, b) => a + ((Number(b.price) - Number(b.cost)) * Number(b.quantity)), 0);
+    const totalItemsNet = manualNet + posNet;
+    
+    const totalExpenses = Number(report.bankTransferFees || 0) + Number(report.otherTransactionFees || 0) + Number(report.operationalExpenses || 0);
+    
+    const grossSalesIncome = usedGcashNet + totalItemsNet;
+    const finalEodNet = grossSalesIncome - totalExpenses;
+    
+    const actualEodSales = usedGcashNet + totalSalesRevenue; 
+
+    return {
+        netSales: finalEodNet,
+        grossSales: actualEodSales
+    };
+};
+
 interface DashboardProps {
   user: User;
 }
@@ -111,20 +147,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const stats = useMemo(() => {
     const { reports, expenses, fundIns } = dateFilteredData;
 
-    // Overall Net Sales = totalNetSales + discrepancy
-    const overallNetSales = reports.reduce((acc, r) => acc + (r.totalNetSales + r.discrepancy), 0);
+    // Calculate metrics for all reports
+    const enrichedReports = reports.map(r => {
+        const m = calculateReportMetrics(r);
+        return { ...r, calculatedNetSales: m.netSales, calculatedGrossSales: m.grossSales };
+    });
 
-    // Overall EOD Sales (Gross)
-    const overallGrossSales = reports.reduce((acc, r) => acc + r.totalNetSales, 0);
+    // Overall Net Sales = Sum of calculatedNetSales
+    const overallNetSales = enrichedReports.reduce((acc, r) => acc + r.calculatedNetSales, 0);
+
+    // Overall EOD Sales (Gross) = Sum of calculatedGrossSales
+    const overallGrossSales = enrichedReports.reduce((acc, r) => acc + r.calculatedGrossSales, 0);
     
     // Overall General Expenses (excluding GPO Fund-in)
     const overallGeneralExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
     
-    // Overall Recorded Profit
-    const overallRecordedProfit = reports.reduce((acc, r) => acc + r.recordedProfit, 0);
-
-    // Running Profit
-    const runningProfit = overallRecordedProfit - overallGeneralExpenses;
+    // Running Profit = Overall Net Sales - Overall General Expenses
+    const runningProfit = overallNetSales - overallGeneralExpenses;
     
     // Overall GPO Fundin (from reports only)
     const fundInFromReports = reports.reduce((acc, r) => acc + (r.fundIn || 0), 0);
@@ -150,10 +189,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Aggregate reports
     reports.forEach(r => {
         const key = getKey(r.date);
+        const metrics = calculateReportMetrics(r);
         if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
-        dataByDate[key].netSales += (r.totalNetSales + r.discrepancy);
+        dataByDate[key].netSales += metrics.netSales;
         dataByDate[key].fundIn += (r.fundIn || 0);
-        dataByDate[key].recordedProfit += r.recordedProfit;
+        dataByDate[key].recordedProfit += metrics.netSales;
     });
 
     // Aggregate expenses (valid only)
@@ -373,15 +413,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                {dateFilteredData.reports.map(report => (
+                {dateFilteredData.reports.map(report => {
+                    const metrics = calculateReportMetrics(report);
+                    return (
                     <tr key={report.id} className="hover:bg-gray-50 text-gray-900">
                     <td className="px-4 py-3">{report.date}</td>
                     {user.role === UserRole.ADMIN && <td className="px-4 py-3 text-xs text-gray-700">{stores.find(s => s.id === report.storeId)?.name || 'Unknown'}</td>}
-                    <td className="px-4 py-3 font-medium">₱{report.totalNetSales.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-bold text-blue-600">₱{(report.totalNetSales + report.discrepancy).toLocaleString()}</td>
+                    <td className="px-4 py-3 font-medium">₱{metrics.grossSales.toLocaleString()}</td>
+                    <td className="px-4 py-3 font-bold text-blue-600">₱{metrics.netSales.toLocaleString()}</td>
                     <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${report.status === 'BALANCED' ? 'bg-green-100 text-green-700' : report.status === 'SHORTAGE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{report.status === 'OVERAGE' ? 'SURPLUS' : report.status}</span></td>
                     </tr>
-                ))}
+                    );
+                })}
                 {dateFilteredData.reports.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-400">No reports found</td></tr>}
                 </tbody>
             </table>

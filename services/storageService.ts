@@ -167,7 +167,7 @@ export const storageService = {
       if (error) throw error;
   },
   getInventory: async (): Promise<InventoryItem[]> => {
-    const { data, error } = await supabase.from('inventory').select('*');
+    const { data, error } = await supabase.from('inventory').select('*').order('category', { ascending: true }).order('name', { ascending: true });
     if (error) { console.error('Error fetching inventory:', error.message); return []; }
     return (data || []).map((i: any) => ({
         id: i.id, storeId: i.store_id, name: i.name, cost: Number(i.cost), price: Number(i.price), stock: Number(i.stock),

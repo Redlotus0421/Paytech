@@ -284,8 +284,14 @@ export const Analytics: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {stores.map(store => {
              const thisStoreReports = reports.filter(r => r.storeId === store.id);
+             const thisStoreExpenses = generalExpenses
+               .filter(e => e.storeId === store.id && e.category !== 'GPO Fund-in')
+               .reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
              const lastReport = thisStoreReports.sort((a,b) => b.timestamp - a.timestamp)[0];
-             const totalSales = thisStoreReports.reduce((acc, r) => acc + r.recordedProfit, 0);
+             const totalNetSales = thisStoreReports.reduce((acc, r) => acc + (Number(r.totalNetSales || 0) + Number(r.discrepancy || 0)), 0);
+             const totalProfit = thisStoreReports.reduce((acc, r) => acc + Number(r.recordedProfit || 0), 0);
+             const runningProfit = totalProfit - thisStoreExpenses;
              return (
               <button key={store.id} onClick={() => handleStoreClick(store)} className="bg-white p-6 rounded-xl shadow-sm border text-left group hover:shadow-md hover:border-blue-300 transition-all h-full flex flex-col justify-between">
                 <div className="flex items-start justify-between mb-4">
@@ -295,7 +301,22 @@ export const Analytics: React.FC = () => {
                 <h3 className="text-lg font-bold text-gray-900">{store.name}</h3>
                 <p className="text-sm text-gray-500 mb-4">{store.location}</p>
                 <div className="pt-4 border-t flex justify-between items-end">
-                  <div><p className="text-xs text-gray-400">Total Net Sales (All Time)</p><p className="text-lg font-bold text-gray-900">₱{totalSales.toLocaleString()}</p></div>
+                  <div className="w-full">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-400">Total Net Sales</p>
+                        <p className="text-sm font-bold text-gray-900">₱{totalNetSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">General Expenses</p>
+                        <p className="text-sm font-bold text-red-600">₱{thisStoreExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Running Profit</p>
+                        <p className={`text-sm font-bold ${runningProfit < 0 ? 'text-red-600' : runningProfit > 0 ? 'text-emerald-600' : 'text-gray-900'}`}>₱{runningProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      </div>
+                    </div>
+                  </div>
                   {lastReport && <div><p className="text-xs text-gray-400">Last Update</p><p className="text-xs font-medium text-gray-700">{lastReport.date}</p></div>}
                 </div>
               </button>

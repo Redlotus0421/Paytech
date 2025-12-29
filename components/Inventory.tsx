@@ -83,16 +83,23 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         const updatedItem: InventoryItem = {
             ...editingItem,
             storeId: newItemStoreId,
-            name: newItemName,
+            name: newItemName.trim(),
             cost: parseFloat(newItemCost),
             price: parseFloat(newItemPrice),
             stock: parseInt(newItemStock),
-            category: newItemCategory
+            category: newItemCategory.trim()
         };
         result = await storageService.updateInventoryItem(updatedItem);
 
         // Calculate changes for log
         const changes = [];
+
+        if (editingItem.storeId !== updatedItem.storeId) {
+            const oldStoreName = stores.find(s => s.id === editingItem.storeId)?.name || editingItem.storeId;
+            const newStoreName = stores.find(s => s.id === updatedItem.storeId)?.name || updatedItem.storeId;
+            changes.push(`Store: ${oldStoreName} -> ${newStoreName}`);
+        }
+
         const oldStock = Number(editingItem.stock);
         const newStock = Number(updatedItem.stock);
         if (oldStock !== newStock) changes.push(`Stock: ${oldStock} -> ${newStock}`);
@@ -105,8 +112,8 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         const newCost = Number(updatedItem.cost);
         if (oldCost !== newCost) changes.push(`Cost: ${oldCost} -> ${newCost}`);
         
-        if (editingItem.name !== updatedItem.name) changes.push(`Name: ${editingItem.name} -> ${updatedItem.name}`);
-        if (editingItem.category !== updatedItem.category) changes.push(`Category: ${editingItem.category} -> ${updatedItem.category}`);
+        if ((editingItem.name || '').trim() !== (updatedItem.name || '').trim()) changes.push(`Name: ${editingItem.name} -> ${updatedItem.name}`);
+        if ((editingItem.category || '').trim() !== (updatedItem.category || '').trim()) changes.push(`Category: ${editingItem.category} -> ${updatedItem.category}`);
         
         const logDetails = changes.length > 0 
             ? `Updated ${updatedItem.name}: ${changes.join(', ')}`
@@ -117,11 +124,11 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         const item: InventoryItem = {
             id: uuidv4(),
             storeId: newItemStoreId,
-            name: newItemName,
+            name: newItemName.trim(),
             cost: parseFloat(newItemCost),
             price: parseFloat(newItemPrice),
             stock: parseInt(newItemStock),
-            category: newItemCategory
+            category: newItemCategory.trim()
         };
         result = await storageService.addInventoryItem(item);
         await storageService.logActivity('Add Inventory', `Added new item: ${item.name} to ${stores.find(s => s.id === newItemStoreId)?.name}`, user.id, user.name);
@@ -229,6 +236,15 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
       const updatedItem = { ...item, isHidden: !item.isHidden };
       const result = await storageService.updateInventoryItem(updatedItem);
       if (result.success) {
+          const storeName = stores.find(s => s.id === item.storeId)?.name || '';
+          const from = item.isHidden ? 'Hidden' : 'Visible';
+          const to = updatedItem.isHidden ? 'Hidden' : 'Visible';
+          await storageService.logActivity(
+            'Update Inventory',
+            `Updated ${item.name}${storeName ? ` (${storeName})` : ''}: Visibility ${from} -> ${to}`,
+            user.id,
+            user.name
+          );
           await refreshInventory();
       } else {
           alert(`Failed to update item visibility: ${result.error?.message || 'Unknown error'}`);

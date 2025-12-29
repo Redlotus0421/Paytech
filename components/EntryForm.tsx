@@ -309,8 +309,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const totalEodSales = effectiveGcashNet + totalSalesRevenue;
     
     // Notebook Difference = Derived Net - Notebook Value
-    // We add back operational expenses to the derived net because the notebook entry typically represents net before these expenses
-    const rawNotebookDifference = hasNotebookEntry ? ((derivedGcashNet + operationalExpensesOnly) - notebookGcashVal) : 0;
+    // Note: Operational/other expenses should NOT affect this variance.
+    const rawNotebookDifference = hasNotebookEntry ? (derivedGcashNet - notebookGcashVal) : 0;
     // Fix negative zero display issue by treating very small differences as 0
     const notebookDifference = Math.abs(rawNotebookDifference) < 0.005 ? 0 : rawNotebookDifference;
     

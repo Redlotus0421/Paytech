@@ -400,10 +400,18 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                   const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
                   const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
                   
-                  // Over/Negative: Difference between System Derived GCash and Notebook Record
-                  // Operational expenses reduce a positive overage; bank fees are excluded from this variance.
-                  const operationalExpenses = Number(report.operationalExpenses || 0);
-                  const rawOverNegative = notebookGcash !== undefined ? ((derivedGcashNet - operationalExpenses) - notebookGcash) : 0;
+                                    // Over/Negative: Difference between System Derived GCash and Notebook Record
+                                    // Operational expenses (bank fees excluded) should move the variance toward zero:
+                                    //   surplus (+) -> subtract expenses
+                                    //   shortage (-) -> add expenses
+                                    const operationalExpenses = Number(report.operationalExpenses || 0);
+                                    const rawOverNegative = notebookGcash !== undefined
+                                        ? (() => {
+                                                const baseDifference = derivedGcashNet - notebookGcash;
+                                                const expenseAdjustment = baseDifference < 0 ? operationalExpenses : -operationalExpenses;
+                                                return baseDifference + expenseAdjustment;
+                                            })()
+                                        : 0;
                   const overNegative = Math.abs(rawOverNegative) < 0.005 ? 0 : rawOverNegative;
                   
                   const manualNet = (report.customSales || []).reduce((a, b) => a + (Number(b.amount || 0) - Number(b.cost || 0)), 0) + legacyManualRevenue;
@@ -582,8 +590,14 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         const posRevenue = (report.posSalesDetails || []).reduce((a, b) => a + (Number(b.price) * Number(b.quantity)), 0);
                         const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
                         const derivedGcashNet = growth - (manualRevenue + posRevenue);
-                        const operationalExpenses = Number(report.operationalExpenses || 0);
-                        const overNegative = notebookGcash !== undefined ? ((derivedGcashNet - operationalExpenses) - notebookGcash) : 0;
+                                                const operationalExpenses = Number(report.operationalExpenses || 0);
+                                                const overNegative = notebookGcash !== undefined
+                                                    ? (() => {
+                                                            const baseDifference = derivedGcashNet - notebookGcash;
+                                                            const expenseAdjustment = baseDifference < 0 ? operationalExpenses : -operationalExpenses;
+                                                            return baseDifference + expenseAdjustment;
+                                                        })()
+                                                    : 0;
                         totalOverNeg += overNegative;
                     });
                     return <span className={totalOverNeg < 0 ? 'text-red-600' : 'text-green-600'}>{totalOverNeg < 0 ? '' : (totalOverNeg > 0 ? '+' : '')}{formatMoney(totalOverNeg)}</span>;
@@ -1065,10 +1079,16 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
           const finalEodNet = grossSalesIncome - totalExpenses;
           const actualEodSales = usedGcashNet + totalSalesRevenue;
           
-          // Difference Calculation: System Derived - Operational Expenses - Notebook
-          // Bank fees are excluded; operational expenses should reduce a positive overage.
+                    // Difference Calculation: (System Derived - Notebook) adjusted by Operational Expenses (bank fees excluded)
+                    // Operational expenses should move the variance toward zero.
           const operationalExpenses = currentExpenses.length > 0 ? expensesSum : Number((isEditing && editReportData && (editReportData as any).operationalExpenses !== undefined) ? (editReportData as any).operationalExpenses : (selectedReport.operationalExpenses || 0));
-          const rawDifference = notebookGcash !== undefined ? ((derivedGcashNet - operationalExpenses) - notebookGcash) : 0;
+                    const rawDifference = notebookGcash !== undefined
+                        ? (() => {
+                                const baseDifference = derivedGcashNet - notebookGcash;
+                                const expenseAdjustment = baseDifference < 0 ? operationalExpenses : -operationalExpenses;
+                                return baseDifference + expenseAdjustment;
+                            })()
+                        : 0;
           const difference = Math.abs(rawDifference) < 0.005 ? 0 : rawDifference;
 
           return (

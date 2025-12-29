@@ -308,10 +308,17 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     // This represents the Total Asset Growth (adjusted by Notebook if present)
     const totalEodSales = effectiveGcashNet + totalSalesRevenue;
     
-    // Notebook Difference = (Derived Net - Operational Expenses) - Notebook Value
-    // Bank fees are excluded here (already accounted elsewhere); the intent is to show how expenses impact the cash-vs-report variance.
-    // When operational expenses are added, the displayed difference should reduce (e.g. +100 over - 50 expense = +50).
-    const rawNotebookDifference = hasNotebookEntry ? ((derivedGcashNet - operationalExpensesOnly) - notebookGcashVal) : 0;
+        // Notebook Difference = (Derived Net - Notebook) adjusted by Operational Expenses (bank fees excluded)
+        // Operational expenses should move the variance toward zero:
+        // - Surplus (+): expenses reduce it (e.g. +100 - 50 = +50)
+        // - Shortage (-): expenses offset it (e.g. -100 + 50 = -50)
+        const rawNotebookDifference = hasNotebookEntry
+            ? (() => {
+                    const baseDifference = derivedGcashNet - notebookGcashVal;
+                    const expenseAdjustment = baseDifference < 0 ? operationalExpensesOnly : -operationalExpensesOnly;
+                    return baseDifference + expenseAdjustment;
+                })()
+            : 0;
     // Fix negative zero display issue by treating very small differences as 0
     const notebookDifference = Math.abs(rawNotebookDifference) < 0.005 ? 0 : rawNotebookDifference;
     

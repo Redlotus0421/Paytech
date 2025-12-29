@@ -358,7 +358,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <XAxis dataKey="date" fontSize={12} stroke="#374151" />
             <YAxis fontSize={12} stroke="#374151" />
             <Tooltip formatter={(value: number) => [`₱${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, undefined]} />
-            <Legend />
+                        <Legend
+                            content={({ payload }: any) => {
+                                const desiredOrder = ['netSales', 'expenses', 'runningProfit'];
+                                const payloadByKey = new Map((payload || []).map((p: any) => [p.dataKey, p]));
+                                const orderedItems = desiredOrder.map(k => payloadByKey.get(k)).filter(Boolean);
+
+                                return (
+                                    <ul className="flex justify-center gap-4 text-xs text-gray-600">
+                                        {orderedItems.map((item: any) => (
+                                            <li key={item.dataKey} className="flex items-center gap-1">
+                                                <span className="inline-block w-3 h-3" style={{ backgroundColor: item.color }} />
+                                                <span>{item.value}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                );
+                            }}
+                        />
             <ReferenceLine y={0} stroke="#9ca3af" />
             <Bar dataKey="netSales" fill="#3b82f6" name="Net Sales" />
             <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />

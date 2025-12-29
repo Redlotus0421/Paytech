@@ -286,12 +286,6 @@ export const Analytics: React.FC = () => {
              const thisStoreReports = reports.filter(r => r.storeId === store.id);
              const lastReport = thisStoreReports.sort((a,b) => b.timestamp - a.timestamp)[0];
              const totalSales = thisStoreReports.reduce((acc, r) => acc + r.recordedProfit, 0);
-
-             const thisStoreGeneralExpenses = generalExpenses
-               .filter(e => e.storeId === store.id && e.category !== 'GPO Fund-in')
-               .reduce((acc, e) => acc + Number(e.amount || 0), 0);
-
-             const thisStoreRunningProfit = totalSales - thisStoreGeneralExpenses;
              return (
               <button key={store.id} onClick={() => handleStoreClick(store)} className="bg-white p-6 rounded-xl shadow-sm border text-left group hover:shadow-md hover:border-blue-300 transition-all h-full flex flex-col justify-between">
                 <div className="flex items-start justify-between mb-4">
@@ -301,20 +295,7 @@ export const Analytics: React.FC = () => {
                 <h3 className="text-lg font-bold text-gray-900">{store.name}</h3>
                 <p className="text-sm text-gray-500 mb-4">{store.location}</p>
                 <div className="pt-4 border-t flex justify-between items-end">
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs text-gray-400">Total Net Sales (All Time)</p>
-                      <p className="text-lg font-bold text-gray-900">₱{totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400">Overall General Expenses (All Time)</p>
-                      <p className="text-lg font-bold text-red-600">₱{thisStoreGeneralExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400">Running Profit (All Time)</p>
-                      <p className={`text-lg font-bold ${thisStoreRunningProfit < 0 ? 'text-red-600' : thisStoreRunningProfit > 0 ? 'text-emerald-600' : 'text-gray-900'}`}>₱{thisStoreRunningProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    </div>
-                  </div>
+                  <div><p className="text-xs text-gray-400">Total Net Sales (All Time)</p><p className="text-lg font-bold text-gray-900">₱{totalSales.toLocaleString()}</p></div>
                   {lastReport && <div><p className="text-xs text-gray-400">Last Update</p><p className="text-xs font-medium text-gray-700">{lastReport.date}</p></div>}
                 </div>
               </button>

@@ -191,9 +191,10 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
 
   const verifyAdminPassword = async () => {
       const users = await storageService.fetchUsers();
-      const admin = users.find(u => u.role === UserRole.ADMIN);
+      // Check if the entered password matches ANY admin user
+      const admin = users.find(u => u.role === UserRole.ADMIN && u.password === authPassword);
       
-      if (admin && authPassword === admin.password) {
+      if (admin) {
           setAuthError('');
           setIsAuthModalOpen(false);
           setAuthPassword('');

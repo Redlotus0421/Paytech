@@ -475,9 +475,31 @@ export const Analytics: React.FC = () => {
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                            <XAxis dataKey="date" />
+                            <XAxis 
+                                dataKey="fullDate" 
+                                tickFormatter={(value) => {
+                                    if (filterType === 'year') {
+                                        const [y, m] = value.split('-');
+                                        const dateObj = new Date(parseInt(y), parseInt(m) - 1, 1);
+                                        return dateObj.toLocaleString('default', { month: 'short', year: 'numeric' });
+                                    }
+                                    return value.substring(5);
+                                }}
+                            />
                             <YAxis />
-                            <Tooltip formatter={(value: number) => [`₱${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, undefined]} />
+                            <Tooltip 
+                                formatter={(value: number) => [`₱${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, undefined]}
+                                labelFormatter={(label) => {
+                                    if (filterType === 'year') {
+                                        const [y, m] = label.split('-');
+                                        const dateObj = new Date(parseInt(y), parseInt(m) - 1, 1);
+                                        return dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+                                    }
+                                    const [y, m, d] = label.split('-').map(Number);
+                                    const date = new Date(y, m - 1, d);
+                                    return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                                }}
+                            />
                             <Legend />
                             <ReferenceLine y={0} stroke="#000" />
                             <Bar dataKey="netSales" name="Gross Sales (EOD Sales)" fill="#3b82f6" />

@@ -500,9 +500,27 @@ export const Analytics: React.FC = () => {
                                     return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                                 }}
                             />
-                            <Legend />
+                            <Legend 
+                                content={({ payload }: any) => {
+                                    const desiredOrder = ['netSales', 'expenses', 'recordedProfit'];
+                                    const payloadByKey = new Map((payload || []).map((p: any) => [p.dataKey, p]));
+                                    const orderedItems = desiredOrder.map(k => payloadByKey.get(k)).filter(Boolean);
+
+                                    return (
+                                        <ul className="flex justify-center gap-4 text-xs text-gray-600 mt-2">
+                                            {orderedItems.map((item: any) => (
+                                                <li key={item.dataKey} className="flex items-center gap-1">
+                                                    <span className="inline-block w-3 h-3" style={{ backgroundColor: item.color }} />
+                                                    <span>{item.value}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    );
+                                }}
+                            />
                             <ReferenceLine y={0} stroke="#000" />
                             <Bar dataKey="netSales" name="Gross Sales (EOD Sales)" fill="#3b82f6" />
+                            <Bar dataKey="expenses" name="Expense" fill="#ef4444" />
                             <Bar dataKey="recordedProfit" name="Net Profit (EOD Net)" fill="#10b981" />
                         </BarChart>
                     </ResponsiveContainer>

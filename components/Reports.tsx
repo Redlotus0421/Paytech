@@ -216,12 +216,33 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
 
     const formatMoney = (amount: number) => `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
+    const availableMonths = useMemo(() => {
+        const months = new Set<string>();
+        const addDate = (dateStr: string, itemStoreId?: string) => {
+            if (filterStoreId && itemStoreId && itemStoreId !== filterStoreId) return;
+            if (!dateStr) return;
+            try {
+                const d = new Date(dateStr);
+                if (!isNaN(d.getTime())) {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    months.add(`${y}-${m}`);
+                }
+            } catch (e) {}
+        };
+        reports.forEach(r => addDate(r.date, r.storeId));
+        generalExpenses.forEach(e => addDate(e.date, e.storeId));
+        posTransactions.forEach(t => addDate(t.date, t.storeId));
+        return Array.from(months).sort().reverse();
+    }, [reports, generalExpenses, posTransactions, filterStoreId]);
+
     // Apply UI filters to reports
     const filteredReports = reports.filter(r => {
         if (filterStoreId && r.storeId !== filterStoreId) return false;
         if (monthFilter) {
-            const m = new Date(r.date).getMonth() + 1;
-            if (m !== Number(monthFilter)) return false;
+            const d = new Date(r.date);
+            const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            if (mStr !== monthFilter) return false;
         }
         // Use string comparison for dates (YYYY-MM-DD) to avoid timezone issues
         if (startDate && r.date < startDate) return false;
@@ -247,8 +268,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             if (filterStoreId && e.storeId !== filterStoreId) return false;
             if (filterCategory && e.category !== filterCategory) return false;
             if (monthFilter) {
-                const m = new Date(e.date).getMonth() + 1;
-                if (m !== Number(monthFilter)) return false;
+                const d = new Date(e.date);
+                const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                if (mStr !== monthFilter) return false;
             }
             // Use string comparison for dates (YYYY-MM-DD) to avoid timezone issues
             if (startDate && e.date < startDate) return false;
@@ -337,19 +359,13 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
                         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" />
                         <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
-                            <option value="">Month</option>
-                            <option value="01">January</option>
-                            <option value="02">February</option>
-                            <option value="03">March</option>
-                            <option value="04">April</option>
-                            <option value="05">May</option>
-                            <option value="06">June</option>
-                            <option value="07">July</option>
-                            <option value="08">August</option>
-                            <option value="09">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
+                            <option value="">All Months</option>
+                            {availableMonths.map(m => {
+                                const [y, mon] = m.split('-');
+                                const date = new Date(parseInt(y), parseInt(mon) - 1);
+                                const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                                return <option key={m} value={m}>{label}</option>;
+                            })}
                         </select>
                         <button onClick={() => {setFilterStoreId(''); setStartDate(''); setEndDate(''); setMonthFilter(''); setFilterCategory('');}} className="text-sm text-blue-600 hover:underline">Clear</button>
                     </div>
@@ -486,8 +502,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     reports.filter(r => {
                         if (filterStoreId && r.storeId !== filterStoreId) return false;
                         if (monthFilter) {
-                            const m = new Date(r.date).getMonth() + 1;
-                            if (m !== Number(monthFilter)) return false;
+                            const d = new Date(r.date);
+                            const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            if (mStr !== monthFilter) return false;
                         }
                         if (startDate && new Date(r.date) < new Date(startDate)) return false;
                         if (endDate && new Date(r.date) > new Date(endDate)) return false;
@@ -515,8 +532,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     reports.filter(r => {
                         if (filterStoreId && r.storeId !== filterStoreId) return false;
                         if (monthFilter) {
-                            const m = new Date(r.date).getMonth() + 1;
-                            if (m !== Number(monthFilter)) return false;
+                            const d = new Date(r.date);
+                            const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            if (mStr !== monthFilter) return false;
                         }
                         if (startDate && new Date(r.date) < new Date(startDate)) return false;
                         if (endDate && new Date(r.date) > new Date(endDate)) return false;
@@ -532,8 +550,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     reports.filter(r => {
                         if (filterStoreId && r.storeId !== filterStoreId) return false;
                         if (monthFilter) {
-                            const m = new Date(r.date).getMonth() + 1;
-                            if (m !== Number(monthFilter)) return false;
+                            const d = new Date(r.date);
+                            const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            if (mStr !== monthFilter) return false;
                         }
                         if (startDate && new Date(r.date) < new Date(startDate)) return false;
                         if (endDate && new Date(r.date) > new Date(endDate)) return false;
@@ -554,8 +573,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     reports.filter(r => {
                         if (filterStoreId && r.storeId !== filterStoreId) return false;
                         if (monthFilter) {
-                            const m = new Date(r.date).getMonth() + 1;
-                            if (m !== Number(monthFilter)) return false;
+                            const d = new Date(r.date);
+                            const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            if (mStr !== monthFilter) return false;
                         }
                         if (startDate && new Date(r.date) < new Date(startDate)) return false;
                         if (endDate && new Date(r.date) > new Date(endDate)) return false;
@@ -571,8 +591,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     reports.filter(r => {
                         if (filterStoreId && r.storeId !== filterStoreId) return false;
                         if (monthFilter) {
-                            const m = new Date(r.date).getMonth() + 1;
-                            if (m !== Number(monthFilter)) return false;
+                            const d = new Date(r.date);
+                            const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            if (mStr !== monthFilter) return false;
                         }
                         if (startDate && new Date(r.date) < new Date(startDate)) return false;
                         if (endDate && new Date(r.date) > new Date(endDate)) return false;
@@ -607,8 +628,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                     reports.filter(r => {
                         if (filterStoreId && r.storeId !== filterStoreId) return false;
                         if (monthFilter) {
-                            const m = new Date(r.date).getMonth() + 1;
-                            if (m !== Number(monthFilter)) return false;
+                            const d = new Date(r.date);
+                            const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            if (mStr !== monthFilter) return false;
                         }
                         if (startDate && new Date(r.date) < new Date(startDate)) return false;
                         if (endDate && new Date(r.date) > new Date(endDate)) return false;
@@ -926,8 +948,9 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             const filteredTransactions = posTransactions.filter(t => {
                 if (filterStoreId && t.storeId !== filterStoreId) return false;
                 if (monthFilter) {
-                    const m = new Date(t.date).getMonth() + 1;
-                    if (m !== Number(monthFilter)) return false;
+                    const d = new Date(t.date);
+                    const mStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    if (mStr !== monthFilter) return false;
                 }
                 // Use string comparison for dates (YYYY-MM-DD) to avoid timezone issues
                 if (startDate && t.date < startDate) return false;

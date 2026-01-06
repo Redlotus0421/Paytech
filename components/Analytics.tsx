@@ -239,15 +239,20 @@ export const Analytics: React.FC = () => {
             displayDate = key.substring(5); // MM-DD
         }
 
+        // Determine what strictly "Net Sales" bar displays based on filter
+        // Monthly: Shows Gross Sales (from d.netSales accumulator)
+        // Yearly: Shows Net Profit (from d.recordedProfit) as requested
+        const netSalesValue = filterType === 'year' ? d.recordedProfit : d.netSales;
+
         return {
             date: displayDate,
             fullDate: key,
-            netSales: d.netSales,
+            netSales: netSalesValue,
             expenses: d.expenses,
             runningProfit: d.recordedProfit - d.expenses,
             fundIn: d.fundIn,
             recordedProfit: d.recordedProfit,
-            netSalesDisplay: Math.max(0, d.netSales),
+            netSalesDisplay: Math.max(0, netSalesValue),
             expensesDisplay: Math.max(0, d.expenses),
             runningProfitDisplay: Math.max(0, d.recordedProfit - d.expenses),
             recordedProfitDisplay: Math.max(0, d.recordedProfit)

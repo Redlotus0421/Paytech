@@ -502,7 +502,7 @@ export const Analytics: React.FC = () => {
                             />
                             <Legend 
                                 content={({ payload }: any) => {
-                                    const desiredOrder = ['netSales', 'expenses', 'recordedProfit'];
+                                    const desiredOrder = ['runningProfit', 'expenses', 'recordedProfit'];
                                     const payloadByKey = new Map((payload || []).map((p: any) => [p.dataKey, p]));
                                     const orderedItems = desiredOrder.map(k => payloadByKey.get(k)).filter(Boolean);
 
@@ -519,9 +519,9 @@ export const Analytics: React.FC = () => {
                                 }}
                             />
                             <ReferenceLine y={0} stroke="#000" />
-                            <Bar dataKey="netSales" name="Gross Sales (EOD Sales)" fill="#3b82f6" />
+                            <Bar dataKey="runningProfit" name="Running Profit" fill="#10b981" />
                             <Bar dataKey="expenses" name="Expense" fill="#ef4444" />
-                            <Bar dataKey="recordedProfit" name="Net Profit (EOD Net)" fill="#10b981" />
+                            <Bar dataKey="recordedProfit" name="Net Profit (EOD Net)" fill="#3b82f6" />
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (

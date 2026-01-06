@@ -234,7 +234,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             netSales: d.netSales,
             expenses: d.expenses,
             runningProfit: d.recordedProfit - d.expenses,
-            fundIn: d.fundIn
+            fundIn: d.fundIn,
+            netSalesDisplay: Math.max(0, d.netSales),
+            expensesDisplay: Math.max(0, d.expenses),
+            runningProfitDisplay: Math.max(0, d.recordedProfit - d.expenses)
         };
     });
   }, [dateFilteredData, filterType, selectedYearOnly]);
@@ -357,17 +360,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <BarChart data={chartData}>
             <XAxis dataKey="date" fontSize={12} stroke="#374151" />
             <YAxis fontSize={12} stroke="#374151" />
-            <Tooltip formatter={(value: number) => [`₱${value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, undefined]} />
+            <Tooltip 
+                content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        // Format Date
+                        let dateLabel = label;
+                        if (data.fullDate) {
+                            if (filterType === 'year') {
+                                const [y, m] = data.fullDate.split('-');
+                                const dateObj = new Date(parseInt(y), parseInt(m) - 1, 1);
+                                dateLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+                            } else {
+                                const [y, m, d] = data.fullDate.split('-').map(Number);
+                                const dateObj = new Date(y, m - 1, d);
+                                dateLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                            }
+                        }
+
+                        return (
+                            <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                                <p className="font-bold mb-2 text-gray-700">{dateLabel}</p>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    <span className="text-blue-700 font-medium">Net Sales: ₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                </div>
+                                {filterType === 'year' && (
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                        <span className="text-red-700 font-medium">Expense: ₱{(data.expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    <span className="text-emerald-700 font-medium">Running Profit: ₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                </div>
+                            </div>
+                        );
+                    }
+                    return null;
+                }}
+            />
                         <Legend
-                            content={({ payload }: any) => {
-                                const desiredOrder = ['netSales', 'expenses', 'runningProfit'];
-                                const payloadByKey = new Map((payload || []).map((p: any) => [p.dataKey, p]));
-                                const orderedItems = desiredOrder.map(k => payloadByKey.get(k)).filter(Boolean);
+                            content={() => {
+                                const items = filterType === 'year' 
+                                    ? [
+                                        { value: 'Net Sales', color: '#3b82f6' },
+                                        { value: 'Expenses', color: '#ef4444' },
+                                        { value: 'Running Profit', color: '#10b981' }
+                                      ]
+                                    : [
+                                        { value: 'Net Sales', color: '#3b82f6' },
+                                        { value: 'Running Profit', color: '#10b981' }
+                                      ];
 
                                 return (
                                     <ul className="flex justify-center gap-4 text-xs text-gray-600">
-                                        {orderedItems.map((item: any) => (
-                                            <li key={item.dataKey} className="flex items-center gap-1">
+                                        {items.map((item, index) => (
+                                            <li key={index} className="flex items-center gap-1">
                                                 <span className="inline-block w-3 h-3" style={{ backgroundColor: item.color }} />
                                                 <span>{item.value}</span>
                                             </li>
@@ -377,9 +427,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             }}
                         />
             <ReferenceLine y={0} stroke="#9ca3af" />
-            <Bar dataKey="netSales" fill="#3b82f6" name="Net Sales" />
-            <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
-            <Bar dataKey="runningProfit" fill="#10b981" name="Running Profit" />
+            <Bar dataKey="netSalesDisplay" fill="#3b82f6" name="Net Sales" />
+            {filterType === 'year' && <Bar dataKey="expensesDisplay" fill="#ef4444" name="Expenses" />}
+            <Bar dataKey="runningProfitDisplay" fill="#10b981" name="Running Profit" />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { User, UserRole, ReportData, Store, GeneralExpense } from '../types';
 import { storageService } from '../services/storageService';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend, CartesianGrid } from 'recharts';
 import { TrendingUp, AlertOctagon, DollarSign, Loader2, CreditCard, Wallet, FileText, Calendar, Filter } from 'lucide-react';
 
 const calculateReportMetrics = (report: ReportData) => {
@@ -174,7 +174,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const chartData = useMemo(() => {
     const { reports, expenses } = dateFilteredData;
-    const dataByDate: Record<string, { netSales: number, expenses: number, fundIn: number, recordedProfit: number }> = {};
+    const dataByDate: Record<string, { netSales: number, grossSales: number, expenses: number, fundIn: number, recordedProfit: number }> = {};
 
     // Helper to get key based on filter type
     const getKey = (dateStr: string) => {
@@ -190,16 +190,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     reports.forEach(r => {
         const key = getKey(r.date);
         const metrics = calculateReportMetrics(r);
-        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, grossSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         dataByDate[key].netSales += metrics.netSales;
+        dataByDate[key].grossSales += metrics.grossSales; // metrics.grossSales = netSales + discrepancy
         dataByDate[key].fundIn += (r.fundIn || 0);
-        dataByDate[key].recordedProfit += metrics.netSales;
+        dataByDate[key].recordedProfit += (r.recordedProfit || metrics.netSales); // Use recordedProfit from report if available (Net Profit), else fallback to Net Sales
     });
 
     // Aggregate expenses (valid only)
     expenses.forEach(e => {
         const key = getKey(e.date);
-        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
+        if (!dataByDate[key]) dataByDate[key] = { netSales: 0, grossSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         dataByDate[key].expenses += e.amount;
     });
 
@@ -217,7 +218,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
     
     return sortedKeys.map(key => {
-        const d = dataByDate[key] || { netSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
+        const d = dataByDate[key] || { netSales: 0, grossSales: 0, expenses: 0, fundIn: 0, recordedProfit: 0 };
         let displayDate = key;
         if (filterType === 'year') {
             // Convert YYYY-MM to Month Name
@@ -228,16 +229,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             displayDate = key.substring(5); // MM-DD
         }
 
+        // Calculate Running Profit
+        // In Dashboard logic previously: Running Profit = Overall Net Sales - Expenses.
+        // So per bar: netSales - expenses
+        const runningProfitVal = d.netSales - d.expenses;
+
+        // In Monthly view: 
+        // Bar 1: Gross Sales (grossSales)
+        // Bar 2: Net Profit (recordedProfit)
+        
+        // In Yearly view:
+        // Bar 1: Net Sales (d.netSales)
+        // Bar 2: Expenses (d.expenses)
+        // Bar 3: Running Profit (runningProfitVal)
+
         return {
             date: displayDate,
             fullDate: key,
             netSales: d.netSales,
+            grossSales: d.grossSales,
             expenses: d.expenses,
-            runningProfit: d.recordedProfit - d.expenses,
+            runningProfit: runningProfitVal,
             fundIn: d.fundIn,
+            recordedProfit: d.recordedProfit,
+            
+            // Display values (clamped to 0)
             netSalesDisplay: Math.max(0, d.netSales),
+            grossSalesDisplay: Math.max(0, d.grossSales),
             expensesDisplay: Math.max(0, d.expenses),
-            runningProfitDisplay: Math.max(0, d.recordedProfit - d.expenses)
+            runningProfitDisplay: Math.max(0, runningProfitVal),
+            recordedProfitDisplay: Math.max(0, d.recordedProfit)
         };
     });
   }, [dateFilteredData, filterType, selectedYearOnly]);
@@ -357,43 +378,71 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             Performance Overview ({filterType === 'month' ? `${months[selectedMonth]} ${selectedYear}` : filterType === 'year' ? `${selectedYearOnly}` : `${startDate} to ${endDate}`})
         </h3>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData}>
-            <XAxis dataKey="date" fontSize={12} stroke="#374151" />
-            <YAxis fontSize={12} stroke="#374151" />
+          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+            <XAxis 
+                dataKey="date" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: '#6b7280' }} 
+                dy={10} 
+            />
+            <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: '#6b7280' }} 
+                tickFormatter={(value) => `₱${value / 1000}k`}
+            />
             <Tooltip 
+                cursor={{ fill: 'transparent' }}
                 content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                         const data = payload[0].payload;
-                        // Format Date
+                        
+                        // Format Date for Tooltip Header
                         let dateLabel = label;
+                        let dayName = '';
                         if (data.fullDate) {
-                            if (filterType === 'year') {
-                                const [y, m] = data.fullDate.split('-');
-                                const dateObj = new Date(parseInt(y), parseInt(m) - 1, 1);
-                                dateLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
-                            } else {
-                                const [y, m, d] = data.fullDate.split('-').map(Number);
-                                const dateObj = new Date(y, m - 1, d);
-                                dateLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                            }
+                             if (filterType !== 'year') {
+                                const d = new Date(data.fullDate);
+                                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                dayName = days[d.getDay()];
+                             }
                         }
 
                         return (
-                            <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
-                                <p className="font-bold mb-2 text-gray-700">{dateLabel}</p>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                                    <span className="text-blue-700 font-medium">Net Sales: ₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                </div>
-                                {filterType === 'year' && (
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                        <span className="text-red-700 font-medium">Expense: ₱{(data.expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                    </div>
-                                )}
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <span className="text-emerald-700 font-medium">Running Profit: ₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                            <div className="bg-white p-3 shadow-lg rounded-lg border border-gray-100 min-w-[200px]">
+                                <p className="font-bold text-gray-900 mb-2 border-b pb-1">
+                                    {label} <span className="text-gray-400 font-normal text-xs ml-1">{dayName}</span>
+                                </p>
+                                <div className="space-y-1 text-sm">
+                                    {filterType === 'year' ? (
+                                        <>
+                                            <div className="flex justify-between items-center text-blue-600">
+                                                <span>Net Sales:</span>
+                                                <span className="font-bold">₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-red-600">
+                                                <span>Expenses:</span>
+                                                <span className="font-bold">₱{(data.expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-emerald-600 border-t pt-1 mt-1">
+                                                <span>Running Profit:</span>
+                                                <span className="font-bold">₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="flex justify-between items-center text-blue-600">
+                                                <span>Gross Sales:</span>
+                                                <span className="font-bold">₱{(data.grossSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-emerald-600">
+                                                <span>Net Sales:</span>
+                                                <span className="font-bold">₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -401,35 +450,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     return null;
                 }}
             />
-                        <Legend
-                            content={() => {
-                                const items = filterType === 'year' 
-                                    ? [
-                                        { value: 'Net Sales', color: '#3b82f6' },
-                                        { value: 'Expenses', color: '#ef4444' },
-                                        { value: 'Running Profit', color: '#10b981' }
-                                      ]
-                                    : [
-                                        { value: 'Net Sales', color: '#3b82f6' },
-                                        { value: 'Running Profit', color: '#10b981' }
-                                      ];
+            <Legend 
+                verticalAlign="bottom"
+                content={() => {
+                    const legendItems = filterType === 'year'
+                        ? [
+                            { value: 'Net Sales', color: '#3b82f6' },
+                            { value: 'Expenses', color: '#ef4444' },
+                            { value: 'Running Profit', color: '#10b981' }
+                        ]
+                        : [
+                            { value: 'Gross Sales (EOD Sales)', color: '#3b82f6' },
+                            { value: 'Net Sales', color: '#10b981' }
+                        ];
 
-                                return (
-                                    <ul className="flex justify-center gap-4 text-xs text-gray-600">
-                                        {items.map((item, index) => (
-                                            <li key={index} className="flex items-center gap-1">
-                                                <span className="inline-block w-3 h-3" style={{ backgroundColor: item.color }} />
-                                                <span>{item.value}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                );
-                            }}
-                        />
+                    return (
+                        <ul className="flex justify-center gap-4 text-xs text-gray-600 mt-2">
+                            {legendItems.map((item, index) => (
+                                <li key={index} className="flex items-center gap-1">
+                                    <span className="inline-block w-3 h-3" style={{ backgroundColor: item.color }} />
+                                    <span>{item.value}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    );
+                }}
+            />
             <ReferenceLine y={0} stroke="#9ca3af" />
-            <Bar dataKey="netSalesDisplay" fill="#3b82f6" name="Net Sales" />
-            {filterType === 'year' && <Bar dataKey="expensesDisplay" fill="#ef4444" name="Expenses" />}
-            <Bar dataKey="runningProfitDisplay" fill="#10b981" name="Running Profit" />
+            {filterType === 'year' ? (
+                <>
+                    <Bar dataKey="netSalesDisplay" fill="#3b82f6" name="Net Sales" />
+                    <Bar dataKey="expensesDisplay" fill="#ef4444" name="Expenses" />
+                    <Bar dataKey="runningProfitDisplay" fill="#10b981" name="Running Profit" />
+                </>
+            ) : (
+                <>
+                    <Bar dataKey="grossSalesDisplay" fill="#3b82f6" name="Gross Sales (EOD Sales)" />
+                    <Bar dataKey="netSalesDisplay" fill="#10b981" name="Net Sales" />
+                </>
+            )}
           </BarChart>
         </ResponsiveContainer>
       </div>

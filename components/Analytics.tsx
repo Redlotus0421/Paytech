@@ -510,20 +510,33 @@ export const Analytics: React.FC = () => {
                                         return (
                                             <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
                                                 <p className="font-bold mb-2 text-gray-700">{dateLabel}</p>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                    <span className="text-emerald-700 font-medium">Running Profit: ₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                                </div>
-                                                {filterType === 'year' && (
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                                        <span className="text-red-700 font-medium">Expense: ₱{(data.expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                                    </div>
+                                                {filterType === 'year' ? (
+                                                    <>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                                            <span className="text-blue-700 font-medium">Net Sales: ₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                                            <span className="text-red-700 font-medium">Expense: ₱{(data.expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                            <span className="text-emerald-700 font-medium">Running Profit: ₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                                            <span className="text-blue-700 font-medium">Gross Sales (EOD Sales): ₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                            <span className="text-emerald-700 font-medium">Net Profit (EOD Net): ₱{(data.recordedProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                        </div>
+                                                    </>
                                                 )}
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                                                    <span className="text-blue-700 font-medium">Net Profit (EOD Net): ₱{(data.recordedProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                                </div>
                                             </div>
                                         );
                                     }
@@ -532,53 +545,15 @@ export const Analytics: React.FC = () => {
                             />
                             <Legend 
                                 content={() => {
-                                    const items = filterType === 'year'
-                                        ? [
-                                            { value: 'Gross Sales (EOD Sales)', color: '#3b82f6' }, // Reusing Blue for Gross Sales in Yearly
-                                            { value: 'Expenses', color: '#ef4444' },
-                                            { value: 'Net Profit (EOD Net)', color: '#10b981' } // Reusing Green for Net Profit in Yearly? No wait, let's stick to standard colors or provided ones.
-                                          ]
-                                        : [
-                                            { value: 'Net Profit (EOD Net)', color: '#3b82f6' },
-                                            { value: 'Running Profit', color: '#10b981' }
-                                          ];
-
-                                    // Adjust colors to match the bars rendered below
-                                    // Yearly: Gross Sales (netSales), Expenses (expenses), Net Profit (recordedProfit)
-                                    // Monthly: Net Profit (recordedProfit), Running Profit (runningProfit)
-                                    
-                                    // Let's define specific colors for specific metrics to avoid confusion if possible, 
-                                    // but user asked for "Gross Sales (EOD Sales), Expense, Net Profit (EOD Net)" sequence for Yearly 
-                                    // and "Net Profit (EOD Net), Running Profit" for Monthly.
-                                    
-                                    // In Yearly:
-                                    // Gross Sales -> netSales -> Blue (#3b82f6)
-                                    // Expense -> expenses -> Red (#ef4444)
-                                    // Net Profit -> recordedProfit -> Green (#10b981) - Wait, previously Net Profit was Blue. 
-                                    // Let's check previous colors: Net Profit(Blue), Running Profit(Green).
-                                    // So in Yearly: Gross Sales(Blue?), Expense(Red), Net Profit(Green?)
-                                    // If I make Net Profit Green, it conflicts with Running Profit Green.
-                                    // Let's use differents shades or stick to:
-                                    // Gross Sales: Blue (#3b82f6)
-                                    // Expense: Red (#ef4444)
-                                    // Net Profit: Green (#10b981) 
-                                    
-                                    // In Monthly:
-                                    // Net Profit: Blue (#3b82f6)
-                                    // Running Profit: Green (#10b981)
-                                    
-                                    // This means "Net Profit" changes color between views? Or "Gross Sales" takes the Blue slot in Yearly?
-                                    // Let's try to keep consistent meaning for colors if possible, OR follow the exact requested legend order and assign colors that look good.
-                                    
                                     const legendItems = filterType === 'year' 
                                         ? [
-                                            { value: 'Gross Sales (EOD Sales)', color: '#3b82f6' },
-                                            { value: 'Expense', color: '#ef4444' },
-                                            { value: 'Net Profit (EOD Net)', color: '#10b981' }
+                                            { value: 'Net Sales', color: '#3b82f6' },
+                                            { value: 'Expenses', color: '#ef4444' },
+                                            { value: 'Running Profit', color: '#10b981' }
                                         ]
                                         : [
-                                            { value: 'Net Profit (EOD Net)', color: '#3b82f6' },
-                                            { value: 'Running Profit', color: '#10b981' }
+                                            { value: 'Gross Sales (EOD Sales)', color: '#3b82f6' },
+                                            { value: 'Net Profit (EOD Net)', color: '#10b981' }
                                         ];
 
                                     return (
@@ -596,14 +571,14 @@ export const Analytics: React.FC = () => {
                             <ReferenceLine y={0} stroke="#000" />
                             {filterType === 'year' ? (
                                 <>
-                                    <Bar dataKey="netSalesDisplay" name="Gross Sales (EOD Sales)" fill="#3b82f6" />
-                                    <Bar dataKey="expensesDisplay" name="Expense" fill="#ef4444" />
-                                    <Bar dataKey="recordedProfitDisplay" name="Net Profit (EOD Net)" fill="#10b981" />
+                                    <Bar dataKey="netSalesDisplay" name="Net Sales" fill="#3b82f6" />
+                                    <Bar dataKey="expensesDisplay" name="Expenses" fill="#ef4444" />
+                                    <Bar dataKey="runningProfitDisplay" name="Running Profit" fill="#10b981" />
                                 </>
                             ) : (
                                 <>
-                                    <Bar dataKey="recordedProfitDisplay" name="Net Profit (EOD Net)" fill="#3b82f6" />
-                                    <Bar dataKey="runningProfitDisplay" name="Running Profit" fill="#10b981" />
+                                    <Bar dataKey="netSalesDisplay" name="Gross Sales (EOD Sales)" fill="#3b82f6" />
+                                    <Bar dataKey="recordedProfitDisplay" name="Net Profit (EOD Net)" fill="#10b981" />
                                 </>
                             )}
                         </BarChart>

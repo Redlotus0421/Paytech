@@ -399,22 +399,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     if (active && payload && payload.length) {
                         const data = payload[0].payload;
                         
-                        // Format Date for Tooltip Header
+                        // Format Date for Tooltip Header (Matching Analytics.tsx)
                         let dateLabel = label;
-                        let dayName = '';
                         if (data.fullDate) {
-                             if (filterType !== 'year') {
-                                const d = new Date(data.fullDate);
-                                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                                dayName = days[d.getDay()];
-                             }
+                            if (filterType === 'year') {
+                                const [y, m] = data.fullDate.split('-');
+                                const dateObj = new Date(parseInt(y), parseInt(m) - 1, 1);
+                                dateLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+                            } else {
+                                const [y, m, d] = data.fullDate.split('-').map(Number);
+                                const dateObj = new Date(y, m - 1, d);
+                                dateLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                            }
                         }
 
                         return (
                             <div className="bg-white p-3 shadow-lg rounded-lg border border-gray-100 min-w-[200px]">
-                                <p className="font-bold text-gray-900 mb-2 border-b pb-1">
-                                    {label} <span className="text-gray-400 font-normal text-xs ml-1">{dayName}</span>
-                                </p>
+                                <p className="font-bold text-gray-900 mb-2 border-b pb-1">{dateLabel}</p>
                                 <div className="space-y-1 text-sm">
                                     {filterType === 'year' ? (
                                         <>

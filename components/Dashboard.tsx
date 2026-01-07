@@ -414,37 +414,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         }
 
                         return (
-                            <div className="bg-white p-3 shadow-lg rounded-lg border border-gray-100 min-w-[200px]">
-                                <p className="font-bold text-gray-900 mb-2 border-b pb-1">{dateLabel}</p>
-                                <div className="space-y-1 text-sm">
-                                    {filterType === 'year' ? (
-                                        <>
-                                            <div className="flex justify-between items-center text-blue-600">
-                                                <span>Net Sales:</span>
-                                                <span className="font-bold">₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-red-600">
-                                                <span>Expenses:</span>
-                                                <span className="font-bold">₱{(data.expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-emerald-600 border-t pt-1 mt-1">
-                                                <span>Running Profit:</span>
-                                                <span className="font-bold">₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="flex justify-between items-center text-blue-600">
-                                                <span>Gross Sales:</span>
-                                                <span className="font-bold">₱{(data.grossSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-emerald-600">
-                                                <span>Net Sales:</span>
-                                                <span className="font-bold">₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
+                            <div className="bg-white p-3 border border-gray-200 rounded shadow-lg text-sm">
+                                <p className="font-bold mb-2 text-gray-700">{dateLabel}</p>
+                                {filterType === 'year' ? (
+                                    <>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                            <span className="text-blue-700 font-medium">Net Sales: ₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                            <span className="text-red-700 font-medium">Expenses: ₱{(data.expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            <span className="text-emerald-700 font-medium">Running Profit: ₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                            <span className="text-blue-700 font-medium">Gross Sales (EOD Sales): ₱{(data.grossSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            <span className="text-emerald-700 font-medium">Net Sales (EOD Net): ₱{(data.netSales || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         );
                     }

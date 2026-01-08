@@ -60,7 +60,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         }
     };
 
-    useEffect(() => { loadData(); }, [user]);
+    useEffect(() => { loadData(); }, [user.id]);
 
     const openAdminAuth = (reportId: string, action: 'delete'|'edit') => {
         setAdminTargetReportId(reportId);
@@ -189,6 +189,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 totalEndAssets,
                 totalNetSales: totalSalesRevenue,
                 totalExpenses,
+                operationalExpenses,
                 theoreticalGrowth: actualEodSales,
                 recordedProfit: finalEodNet,
                 discrepancy: usedGcashNet,

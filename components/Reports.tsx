@@ -947,6 +947,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             
             // Filter transactions based on current filters
             const filteredTransactions = posTransactions.filter(t => {
+                if (t.status === 'VOIDED') return false;
                 if (filterStoreId && t.storeId !== filterStoreId) return false;
                 if (monthFilter) {
                     const d = new Date(t.date);

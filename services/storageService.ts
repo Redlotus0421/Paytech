@@ -32,7 +32,7 @@ export const storageService = {
     const users = JSON.parse(localStorage.getItem(KEYS.USERS) || '[]');
     const localUser = users.find((u: User) => u.username === username);
     if (localUser && (!localUser.password || localUser.password === password)) {
-      localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(localUser));
+      sessionStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(localUser));
       return localUser;
     }
 
@@ -62,7 +62,7 @@ export const storageService = {
       }
 
       // Accept user (no password provided or matches)
-      localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(appUser));
+      sessionStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(appUser));
       
       // Log login activity (fire and forget)
       storageService.logActivity('Login', 'User logged in', appUser.id, appUser.name);
@@ -73,10 +73,10 @@ export const storageService = {
       return null;
     }
   },
-  saveSessionUser: (user: User) => localStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(user)),
-  logout: () => localStorage.removeItem(KEYS.CURRENT_USER),
+  saveSessionUser: (user: User) => sessionStorage.setItem(KEYS.CURRENT_USER, JSON.stringify(user)),
+  logout: () => sessionStorage.removeItem(KEYS.CURRENT_USER),
   getCurrentUser: (): User | null => {
-    const u = localStorage.getItem(KEYS.CURRENT_USER);
+    const u = sessionStorage.getItem(KEYS.CURRENT_USER);
     return u ? JSON.parse(u) : null;
   },
   fetchStores: async (): Promise<Store[]> => {

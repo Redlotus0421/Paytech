@@ -82,6 +82,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
               password: u.password,
               permissions: u.permissions || [] // Load permissions
           }));
+
+          // Fetch local admin from localStorage
+          const localUsersStr = localStorage.getItem('cfs_users');
+          if (localUsersStr) {
+              const localUsers = JSON.parse(localUsersStr);
+              const localAdmin = localUsers.find((u: any) => u.id === 'u_admin' || u.username === 'admin');
+              
+              // Only add if not already in DB list (to avoid duplicates if migrated)
+              if (localAdmin && !mappedUsers.some(u => u.id === localAdmin.id || u.username === localAdmin.username)) {
+                  mappedUsers.unshift(localAdmin);
+              }
+          }
           
           setUsers(mappedUsers);
       } catch (err) {
@@ -356,6 +368,28 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     userData[dbStoreColumn] = storeIdValue;
     
     try {
+        // Special handling for local admin user
+        if (editingUser && (editingUser.id === 'u_admin' || editingUser.username === 'admin')) {
+             const localUsersStr = localStorage.getItem('cfs_users');
+             const localUsers: User[] = localUsersStr ? JSON.parse(localUsersStr) : [];
+             const updatedUsers = localUsers.map(u => {
+                 if (u.id === 'u_admin' || u.username === 'admin') {
+                     // Update everything except ID
+                     return { ...u, ...userData, id: u.id }; 
+                 }
+                 return u;
+             });
+             localStorage.setItem('cfs_users', JSON.stringify(updatedUsers));
+             
+             await storageService.logActivity('Update User', `Updated local admin: ${userData.username}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
+             
+             // Refresh list and close form
+             await fetchSupabaseUsers();
+             cancelEditUser();
+             setIsLoading(false);
+             return; 
+        }
+
         if (editingUser) {
             const { error } = await supabase
                 .from('users')

@@ -170,7 +170,15 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
     if (!targetId || !adminAction) return;
 
     try {
-        const auth = await storageService.login('admin', adminPassword);
+        // Try to authenticate as the current user first (the most likely case)
+        let auth = await storageService.login(user.username, adminPassword);
+
+        // If that fails (wrong password or not admin) and we aren't already checking the 'admin' user,
+        // try the fallback 'admin' account (e.g. for overrides)
+        if ((!auth || auth.role !== UserRole.ADMIN) && user.username !== 'admin') {
+             auth = await storageService.login('admin', adminPassword);
+        }
+
         if (auth && auth.role === UserRole.ADMIN) {
             if (adminAction === 'delete-category') {
                 const updatedCats = storageService.removeExpenseCategory(targetId);

@@ -295,7 +295,7 @@ export const storageService = {
       }));
   },
   markPosTransactionsAsReported: async (storeId: string, date: string, reportId: string) => {},
-    voidTransaction: async (transactionId: string, voidedById?: string | null, note?: string | null) => {
+    voidTransaction: async (transactionId: string, voidedById?: string | null, note?: string | null, voidedByName?: string | null) => {
         const { data: tx, error: fetchError } = await supabase.from('transactions').select('*').eq('id', transactionId).single();
         if (fetchError || !tx) throw new Error("Transaction not found");
         if (tx.status === 'VOIDED') throw new Error("Transaction already voided");
@@ -323,6 +323,16 @@ export const storageService = {
         // Restore inventory stock for each item in the transaction
         const items = tx.items as any[];
         for (const item of items) { await storageService.updateInventoryStock(item.id, item.quantity); }
+
+        // Log the activity
+        if (voidedById && voidedByName) {
+          await storageService.logActivity(
+            'Void Transaction', 
+            `Voided transaction ${transactionId}. Reason: ${note || 'None'}`, 
+            voidedById, 
+            voidedByName
+          );
+        }
     },
   resetSystem: async (currentAdminId: string) => {
     await supabase.from('reports').delete().neq('id', '00000000-0000-0000-0000-000000000000'); 

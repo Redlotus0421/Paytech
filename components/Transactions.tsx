@@ -79,7 +79,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
           // final confirmation
           if (!window.confirm('Confirm void. This will return items to inventory and cannot be undone.')) return;
 
-          await storageService.voidTransaction(tx.id, auth.id, note.trim());
+          await storageService.voidTransaction(tx.id, auth.id, note.trim(), auth.name);
           alert('Transaction voided successfully. Stock has been returned.');
           await loadData(); // Refresh list
       } catch (e: any) {

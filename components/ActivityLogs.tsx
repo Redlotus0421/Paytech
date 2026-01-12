@@ -9,13 +9,18 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [filterUser, setFilterUser] = useState('');
     const [filterAction, setFilterAction] = useState('');
+    const [filterDateStart, setFilterDateStart] = useState('');
+    const [filterDateEnd, setFilterDateEnd] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
     const loadLogs = async () => {
         setIsLoading(true);
         try {
+            // First ensure void logs are synced
+            await storageService.syncVoidLogs();
+
             const [logsData, usersData] = await Promise.all([
-                storageService.fetchActivityLogs(),
+                storageService.fetchActivityLogs(filterDateStart, filterDateEnd),
                 storageService.fetchUsers()
             ]);
             setLogs(logsData);
@@ -32,7 +37,7 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
 
     useEffect(() => {
         loadLogs();
-    }, []);
+    }, [filterDateStart, filterDateEnd]); // Reload when date filters change
 
     const uniqueActions = Array.from(new Set(logs.map(l => l.action))).sort();
 
@@ -130,7 +135,25 @@ export const ActivityLogs: React.FC<{ user: User }> = ({ user }) => {
                         </div>
 
                         {/* Filters & Actions */}
-                        <div className="flex gap-3 w-full md:w-auto">
+                        <div className="flex flex-wrap gap-3 w-full md:w-auto items-center justify-end">
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="date" 
+                                    value={filterDateStart} 
+                                    onChange={e => setFilterDateStart(e.target.value)}
+                                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    title="Start Date"
+                                />
+                                <span className="text-gray-400">-</span>
+                                <input 
+                                    type="date" 
+                                    value={filterDateEnd} 
+                                    onChange={e => setFilterDateEnd(e.target.value)}
+                                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    title="End Date"
+                                />
+                            </div>
+
                             <select 
                                 value={filterAction}
                                 onChange={e => setFilterAction(e.target.value)}

@@ -460,15 +460,16 @@ export const storageService = {
   },
 
   // Activity Logs
-  logActivity: async (action: string, details: string, userId: string, userName: string) => {
+  logActivity: async (action: string, details: string, userId: string, userName: string, timestamp?: number) => {
     try {
+      const ts = timestamp || Date.now();
       // Try Supabase first
       const { error } = await supabase.from('activity_logs').insert([{
         user_id: userId,
         user_name: userName,
         action,
         details,
-        timestamp: Date.now()
+        timestamp: ts
       }]);
       
       if (error) {
@@ -476,12 +477,12 @@ export const storageService = {
         console.warn('Logging to local storage due to error:', error);
         const logs = JSON.parse(localStorage.getItem('cfs_activity_logs') || '[]');
         logs.unshift({
-          id: 'log_' + Date.now(),
+          id: 'log_' + ts,
           userId,
           userName,
           action,
           details,
-          timestamp: Date.now()
+          timestamp: ts
         });
         localStorage.setItem('cfs_activity_logs', JSON.stringify(logs.slice(0, 1000)));
       }
@@ -490,13 +491,40 @@ export const storageService = {
     }
   },
 
-  fetchActivityLogs: async (): Promise<ActivityLog[]> => {
+  fetchActivityLogs: async (startDate?: string, endDate?: string): Promise<ActivityLog[]> => {
     try {
-      const { data, error } = await supabase.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(100);
+      let query = supabase.from('activity_logs').select('*').order('timestamp', { ascending: false });
+
+      if (startDate) {
+          const startTs = new Date(startDate).getTime();
+          // Reset time to start of day just in case
+          const d = new Date(startDate); d.setHours(0,0,0,0);
+          query = query.gte('timestamp', d.getTime());
+      }
+      if (endDate) {
+          // End of the day for endDate
+          const d = new Date(endDate); d.setHours(23, 59, 59, 999);
+          query = query.lte('timestamp', d.getTime());
+      }
+
+      // If specific dates are requested, allow more results, otherwise limit to recent
+      const limit = (startDate || endDate) ? 2000 : 500;
+      query = query.limit(limit);
+
+      const { data, error } = await query;
+
       if (error || !data) {
-         // Fallback to local storage
-         const logs = JSON.parse(localStorage.getItem('cfs_activity_logs') || '[]');
-         return logs;
+         // Fallback to local storage (basic filtering)
+         let logs = JSON.parse(localStorage.getItem('cfs_activity_logs') || '[]');
+         if (startDate) {
+             const startTs = new Date(startDate).setHours(0,0,0,0);
+             logs = logs.filter((l: any) => l.timestamp >= startTs);
+         }
+         if (endDate) {
+             const endTs = new Date(endDate).setHours(23,59,59,999);
+             logs = logs.filter((l: any) => l.timestamp <= endTs);
+         }
+         return logs.slice(0, limit);
       }
       return data.map((l: any) => ({
         id: l.id,
@@ -510,5 +538,51 @@ export const storageService = {
       const logs = JSON.parse(localStorage.getItem('cfs_activity_logs') || '[]');
       return logs;
     }
+  },
+
+  syncVoidLogs: async () => {
+      try {
+          // 1. Fetch voided transactions
+          const { data: voidedTxs, error } = await supabase.from('transactions')
+              .select('*')
+              .eq('status', 'VOIDED');
+          
+          if(error || !voidedTxs || voidedTxs.length === 0) return;
+
+          // 2. Fetch existing logs that are void transactions
+          const { data: existingLogs } = await supabase.from('activity_logs')
+              .select('details')
+              .eq('action', 'Void Transaction');
+          
+          const existingDetails = new Set((existingLogs || []).map(l => l.details));
+
+          // 3. Identify missing
+          const users = await storageService.fetchUsers();
+          const userMap = new Map(users.map(u => [u.id, u.name || u.username]));
+
+          let syncedCount = 0;
+          for (const tx of voidedTxs) {
+              const detail = `Voided transaction ${tx.id}. Reason: ${tx.void_note || 'None'}`;
+              if (!existingDetails.has(detail)) {
+                  // Create log
+                  const userId = tx.voided_by || 'unknown';
+                  const userName = userMap.get(userId) || 'Unknown';
+                  // Use tx.voided_at for timestamp if available, else tx.timestamp + buffer (to appear after creation)
+                  // Note: voided_at might be string, tx.timestamp is number
+                  let ts = Date.now();
+                  if (tx.voided_at) {
+                      ts = new Date(tx.voided_at).getTime();
+                  } else if (tx.timestamp) {
+                      ts = tx.timestamp + 1; // Fallback
+                  }
+                  
+                  await storageService.logActivity('Void Transaction', detail, userId, userName, ts);
+                  syncedCount++;
+              }
+          }
+          if (syncedCount > 0) console.log(`Synced ${syncedCount} missing void logs.`);
+      } catch (e) {
+          console.error("Error syncing void logs:", e);
+      }
   },
 };

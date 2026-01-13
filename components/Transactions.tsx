@@ -210,14 +210,17 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                             <th className="px-6 py-4">Time</th>
                             <th className="px-6 py-4">Store</th>
                             <th className="px-6 py-4">Items</th>
-                            <th className="px-6 py-4 text-right">Total</th>
+                            {user.role === UserRole.ADMIN && (
+                                <th className="px-6 py-4 text-right">Cost</th>
+                            )}
+                            <th className="px-6 py-4 text-right">Price</th>
                             <th className="px-6 py-4 text-center">Status</th>
                             <th className="px-6 py-4 text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {isLoading ? (
-                            <tr><td colSpan={6} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading...</td></tr>
+                            <tr><td colSpan={user.role === UserRole.ADMIN ? 7 : 6} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading...</td></tr>
                         ) : filteredTransactions.length > 0 ? filteredTransactions.map((tx) => (
                             <tr key={tx.id} className={`hover:bg-gray-50 transition-colors ${tx.status === 'VOIDED' ? 'bg-red-50 opacity-75' : ''}`}>
                                 <td className="px-6 py-4">
@@ -233,6 +236,11 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                         }
                                     </div>
                                 </td>
+                                {user.role === UserRole.ADMIN && (
+                                    <td className="px-6 py-4 text-right font-mono text-gray-500">
+                                        {formatMoney(tx.items.reduce((acc: number, item: any) => acc + ((item.cost || 0) * item.quantity), 0))}
+                                    </td>
+                                )}
                                 <td className="px-6 py-4 text-right font-mono font-bold">
                                     {formatMoney(tx.totalAmount)}
                                 </td>
@@ -269,7 +277,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                 </td>
                             </tr>
                         )) : (
-                            <tr><td colSpan={6} className="p-8 text-center text-gray-400">No transactions found.</td></tr>
+                            <tr><td colSpan={user.role === UserRole.ADMIN ? 7 : 6} className="p-8 text-center text-gray-400">No transactions found.</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -292,6 +300,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                             <div className="text-sm text-gray-700 font-medium">Cashier: {selectedReceipt.cashierName || 'N/A'}</div>
                             <div className="mt-2">
                                 {selectedReceipt.items && selectedReceipt.items.length > 0 ? (
+                                    <>
                                     <ul className="text-sm divide-y divide-gray-100">
                                         {selectedReceipt.items.map((it: any, idx: number) => (
                                             <li key={idx} className="py-2 flex justify-between">
@@ -300,6 +309,23 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                             </li>
                                         ))}
                                     </ul>
+                                    <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-2">
+                                        {(user.role === UserRole.ADMIN) && (
+                                            <div className="flex justify-between items-center text-sm text-gray-500">
+                                                <span>Total Cost (Admin Only):</span>
+                                                <span className="font-mono">
+                                                    ₱{selectedReceipt.items.reduce((acc: number, item: any) => acc + ((item.cost || 0) * item.quantity), 0).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center font-bold text-gray-900">
+                                            <span>Total Sales Price:</span>
+                                            <span className="font-mono text-lg text-blue-600">
+                                                ₱{selectedReceipt.items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0).toFixed(2)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    </>
                                 ) : (
                                     <div className="text-sm text-gray-400">No items available</div>
                                 )}

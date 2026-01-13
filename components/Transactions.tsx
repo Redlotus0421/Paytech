@@ -214,14 +214,20 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                 <th className="px-6 py-4 text-right">Cost</th>
                             )}
                             <th className="px-6 py-4 text-right">Price</th>
+                            {user.role === UserRole.ADMIN && (
+                                <th className="px-6 py-4 text-right">Net</th>
+                            )}
                             <th className="px-6 py-4 text-center">Status</th>
                             <th className="px-6 py-4 text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {isLoading ? (
-                            <tr><td colSpan={user.role === UserRole.ADMIN ? 7 : 6} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading...</td></tr>
-                        ) : filteredTransactions.length > 0 ? filteredTransactions.map((tx) => (
+                            <tr><td colSpan={user.role === UserRole.ADMIN ? 8 : 6} className="p-8 text-center"><Loader2 className="animate-spin inline mr-2"/>Loading...</td></tr>
+                        ) : filteredTransactions.length > 0 ? filteredTransactions.map((tx) => {
+                            const totalCost = tx.items.reduce((acc: number, item: any) => acc + ((item.cost || 0) * item.quantity), 0);
+                            const totalNet = tx.totalAmount - totalCost;
+                            return (
                             <tr key={tx.id} className={`hover:bg-gray-50 transition-colors ${tx.status === 'VOIDED' ? 'bg-red-50 opacity-75' : ''}`}>
                                 <td className="px-6 py-4">
                                     <div className="font-medium text-gray-900">{tx.date}</div>
@@ -238,12 +244,17 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                 </td>
                                 {user.role === UserRole.ADMIN && (
                                     <td className="px-6 py-4 text-right font-mono text-gray-500">
-                                        {formatMoney(tx.items.reduce((acc: number, item: any) => acc + ((item.cost || 0) * item.quantity), 0))}
+                                        {formatMoney(totalCost)}
                                     </td>
                                 )}
                                 <td className="px-6 py-4 text-right font-mono font-bold">
                                     {formatMoney(tx.totalAmount)}
                                 </td>
+                                {user.role === UserRole.ADMIN && (
+                                    <td className={`px-6 py-4 text-right font-mono font-bold ${totalNet < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                        {formatMoney(totalNet)}
+                                    </td>
+                                )}
                                 <td className="px-6 py-4 text-center">
                                     {tx.status === 'VOIDED' ? (
                                         <div className="flex flex-col items-center gap-1">
@@ -276,8 +287,8 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
                                     )}
                                 </td>
                             </tr>
-                        )) : (
-                            <tr><td colSpan={user.role === UserRole.ADMIN ? 7 : 6} className="p-8 text-center text-gray-400">No transactions found.</td></tr>
+                        ); }) : (
+                            <tr><td colSpan={user.role === UserRole.ADMIN ? 8 : 6} className="p-8 text-center text-gray-400">No transactions found.</td></tr>
                         )}
                     </tbody>
                 </table>

@@ -62,22 +62,30 @@ export const Transactions: React.FC<TransactionsProps> = ({ user }) => {
       if (note === null) return; // cancelled
       if (!note.trim()) { alert('Void note is required.'); return; }
 
-      // Ask for admin credentials to authorize the void
-      const adminUser = window.prompt('Admin username to authorize void:');
-      if (!adminUser) { alert('Admin username required to authorize void.'); return; }
-      const adminPass = window.prompt('Admin password:');
-      if (adminPass === null) return;
+      // Ask for credentials
+      // Default to current user's username but allow override
+      const defaultUser = user.username;
+      const authUser = window.prompt('Username to authorize void:', defaultUser);
+      if (authUser === null) return; // Cancelled
+      if (!authUser) { alert('Username is required.'); return; }
+      
+      const authPass = window.prompt('Password:');
+      if (authPass === null) return;
 
       setVoidingId(tx.id);
       try {
-          const auth = await storageService.login(adminUser, adminPass);
-          if (!auth || auth.role !== UserRole.ADMIN) {
-              alert('Admin authorization failed. Void aborted.');
+          const auth = await storageService.login(authUser, authPass);
+          
+          if (!auth) {
+              alert('Authentication failed.');
               return;
           }
 
+          // Allow if authorized by a valid user (Admin or Employee)
+          // The logged in user must provide valid credentials.
+
           // final confirmation
-          if (!window.confirm('Confirm void. This will return items to inventory and cannot be undone.')) return;
+          if (!window.confirm(`Confirm void (Authorized by ${auth.name}). This will return items to inventory and cannot be undone.`)) return;
 
           await storageService.voidTransaction(tx.id, auth.id, note.trim(), auth.name);
           alert('Transaction voided successfully. Stock has been returned.');

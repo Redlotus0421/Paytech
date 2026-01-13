@@ -170,24 +170,29 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
     if (!targetId || !adminAction) return;
 
     try {
-        // Try to authenticate as the current user first (the most likely case)
+        // Try to authenticate as the current user first
         let auth = await storageService.login(user.username, adminPassword);
 
-        // If that fails (wrong password or not admin) and we aren't already checking the 'admin' user,
+        // If that fails and we aren't already checking the 'admin' user,
         // try the fallback 'admin' account (e.g. for overrides)
-        if ((!auth || auth.role !== UserRole.ADMIN) && user.username !== 'admin') {
+        if (!auth && user.username !== 'admin') {
              auth = await storageService.login('admin', adminPassword);
         }
 
-        if (auth && auth.role === UserRole.ADMIN) {
+        if (auth) {
             if (adminAction === 'delete-category') {
+                // Categories can only be deleted by admins
+                if (auth.role !== UserRole.ADMIN) {
+                    alert("Only administrators can delete categories.");
+                    return;
+                }
                 const updatedCats = storageService.removeExpenseCategory(targetId);
-                await storageService.logActivity('Delete Expense Category', `Deleted category: ${targetId}`, user.id, user.name);
+                await storageService.logActivity('Delete Expense Category', `Deleted category: ${targetId} (Authorized by: ${auth.name})`, user.id, user.name);
                 setCategories(updatedCats);
                 setCategory(updatedCats[0] || '');
             } else if (adminAction === 'delete-expense') {
                 await storageService.deleteGeneralExpense(targetId);
-                await storageService.logActivity('Delete Expense', `Deleted expense ID: ${targetId}`, user.id, user.name);
+                await storageService.logActivity('Delete Expense', `Deleted expense ID: ${targetId} (Authorized by: ${auth.name})`, user.id, user.name);
                 setExpenses(prev => prev.filter(e => e.id !== targetId));
             } else if (adminAction === 'edit-expense') {
                 const expenseToEdit = expenses.find(e => e.id === targetId);
@@ -200,6 +205,8 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
                     setDate(expenseToEdit.date);
                     setSelectedStoreId(expenseToEdit.storeId);
                 }
+                // Log edit authorization if needed, though edit saves are logged separately. 
+                // Maybe log that edit mode was entered? Not strictly necessary as "Save" logs the change.
             }
             
             setShowAdminAuth(false);
@@ -207,7 +214,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
             setAdminAction(null);
             setAdminPassword('');
         } else {
-            alert("Invalid admin password");
+            alert("Invalid password");
         }
     } catch (error) {
         console.error(error);
@@ -480,11 +487,11 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
       {showAdminAuth && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl w-96">
-            <h3 className="text-lg font-bold mb-4 text-gray-900">Admin Authentication</h3>
+            <h3 className="text-lg font-bold mb-4 text-gray-900">Authentication Required</h3>
             <p className="text-sm text-gray-600 mb-4">
                 {adminAction === 'delete-category' && `Please enter admin password to delete category "${targetId}".`}
-                {adminAction === 'delete-expense' && "Please enter admin password to delete this expense."}
-                {adminAction === 'edit-expense' && "Please enter admin password to edit this expense."}
+                {adminAction === 'delete-expense' && "Please enter your password to confirm deletion."}
+                {adminAction === 'edit-expense' && "Please enter your password to edit this expense."}
             </p>
             <form onSubmit={confirmAdminAction}>
               <input
@@ -492,7 +499,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
                 value={adminPassword}
                 onChange={e => setAdminPassword(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded mb-4"
-                placeholder="Admin Password"
+                placeholder="Password"
                 autoFocus
               />
               <div className="flex justify-end gap-2">

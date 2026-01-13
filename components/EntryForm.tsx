@@ -190,19 +190,18 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
             try {
                 const posTxs = await storageService.getPosTransactions(selectedStoreId, date);
                 if (Array.isArray(posTxs)) {
-                    const aggregated: Record<string, CartItem> = {};
+                    // Iterate through all transactions and simply collect all items
+                    // We don't aggregate by ID because the same item ID might have different prices (discounts)
+                    // If we aggregate by ID, we might lose the specific price info for discounted items
+                    const allItems: CartItem[] = [];
                     posTxs.forEach(tx => {
                         if (tx.items && Array.isArray(tx.items)) {
                             tx.items.forEach(item => {
-                                if (aggregated[item.id]) {
-                                    aggregated[item.id].quantity += item.quantity;
-                                } else {
-                                    aggregated[item.id] = { ...item };
-                                }
+                                allItems.push({ ...item });
                             });
                         }
                     });
-                    setPosAggregated(Object.values(aggregated));
+                    setPosAggregated(allItems);
                 }
             } catch (error) { console.error("Failed to load POS transactions:", error); }
         }

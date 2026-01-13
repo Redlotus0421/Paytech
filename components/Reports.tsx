@@ -52,7 +52,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
             if (user.role === UserRole.EMPLOYEE) {
                 filtered = allReports.filter(r => r.storeId === user.storeId);
             }
-            setReports(filtered.sort((a, b) => b.timestamp - a.timestamp));
+            setReports(filtered.sort((a, b) => b.date.localeCompare(a.date)));
         } catch (error) {
             console.error("Failed to load reports:", error);
         } finally {
@@ -249,7 +249,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
         if (startDate && r.date < startDate) return false;
         if (endDate && r.date > endDate) return false;
         return true;
-    }).sort((a,b)=> b.timestamp - a.timestamp);
+    }).sort((a,b)=> b.date.localeCompare(a.date));
 
     const posCategories = useMemo(() => {
         const allCats = new Set<string>();

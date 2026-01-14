@@ -526,8 +526,8 @@ export const Analytics: React.FC = () => {
                                                             <span className="text-red-700 font-medium">Expense: ₱{(data.expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                            <span className="text-emerald-700 font-medium">Running Profit: ₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                                            <span className={`w-2 h-2 rounded-full ${data.runningProfit < 0 ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
+                                                            <span className={`${data.runningProfit < 0 ? 'text-red-700' : 'text-emerald-700'} font-medium`}>Running Profit: ₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                                         </div>
                                                     </>
                                                 ) : (

@@ -370,7 +370,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         <StatCard label="Overall EOD Sales (Gross)" value={`₱${stats.overallGrossSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-purple-600" icon={DollarSign} />
         <StatCard label="Overall Net Sales" value={`₱${stats.overallNetSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-blue-600" icon={DollarSign} />
         <StatCard label="Overall General Expenses" value={`₱${stats.overallGeneralExpenses.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-red-600" icon={FileText} />
-        <StatCard label="Running Profit" value={`₱${stats.runningProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-emerald-600" icon={TrendingUp} />
+        <StatCard 
+            label="Running Profit" 
+            value={`₱${stats.runningProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
+            color={stats.runningProfit < 0 ? "text-red-600" : stats.runningProfit > 0 ? "text-emerald-600" : "text-gray-900"} 
+            icon={TrendingUp} 
+        />
         <StatCard label="OVERALL GPO FUNDIN" value={`₱${stats.overallFundIn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} color="text-indigo-600" icon={Wallet} />
       </div>
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col flex-shrink-0" style={{height: '380px'}}>
@@ -427,8 +432,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                             <span className="text-red-700 font-medium">Expenses: ₱{(data.expenses || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                            <span className="text-emerald-700 font-medium">Running Profit: ₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                                            <span className={`w-2 h-2 rounded-full ${data.runningProfit < 0 ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
+                                            <span className={`${data.runningProfit < 0 ? 'text-red-700' : 'text-emerald-700'} font-medium`}>Running Profit: ₱{(data.runningProfit || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                         </div>
                                     </>
                                 ) : (

@@ -298,7 +298,7 @@ export const Analytics: React.FC = () => {
                .reduce((acc, e) => acc + Number(e.amount || 0), 0);
 
              const lastReport = thisStoreReports.sort((a,b) => b.timestamp - a.timestamp)[0];
-             const totalNetSales = thisStoreReports.reduce((acc, r) => acc + (Number(r.totalNetSales || 0) + Number(r.discrepancy || 0)), 0);
+             const totalNetSales = thisStoreReports.reduce((acc, r) => acc + Number(r.totalNetSales || 0), 0);
              const totalProfit = thisStoreReports.reduce((acc, r) => acc + Number(r.recordedProfit || 0), 0);
              const runningProfit = totalProfit - thisStoreExpenses;
              return (
@@ -313,8 +313,8 @@ export const Analytics: React.FC = () => {
                   <div className="w-full">
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <p className="text-xs text-gray-400">Total Net Sales</p>
-                        <p className="text-sm font-bold text-gray-900">₱{totalNetSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        <p className="text-xs text-gray-400">Net Profit</p>
+                        <p className="text-sm font-bold text-gray-900">₱{totalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400">General Expenses</p>

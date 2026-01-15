@@ -290,6 +290,44 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
 
     const totalGeneralExpenses = Object.values(expenseSummary).reduce((a, b) => a + b, 0);
 
+    const dailyReportTotals = useMemo(() => {
+        let totalGcash = 0;
+        let totalDifference = 0;
+
+        filteredReports.forEach(report => {
+            const startFund = Number(report.totalStartFund || 0);
+            const endAssets = Number(report.totalEndAssets || 0);
+            const growth = endAssets - startFund;
+            
+            let legacyManualRevenue = 0;
+            if ((report as any).printerRevenue) legacyManualRevenue += Number((report as any).printerRevenue);
+            if ((report as any).printerServiceRevenue) legacyManualRevenue += Number((report as any).printerServiceRevenue);
+            if ((report as any).serviceRevenue) legacyManualRevenue += Number((report as any).serviceRevenue);
+            if ((report as any).otherSales) legacyManualRevenue += Number((report as any).otherSales);
+
+            const manualRevenue = (report.customSales || []).reduce((a: number, b: any) => a + Number(b.amount || 0), 0) + legacyManualRevenue;
+            const posRevenue = (report.posSalesDetails || []).reduce((a: any, b: any) => a + (Number(b.price) * Number(b.quantity)), 0);
+            
+            const notebookGcash = report.gcashNotebook !== undefined ? Number(report.gcashNotebook) : undefined;
+            const derivedGcashNet = growth - (manualRevenue + posRevenue);
+            const usedGcashNet = notebookGcash !== undefined ? notebookGcash : derivedGcashNet;
+            
+            const operationalExpenses = Number(report.operationalExpenses || 0);
+            const overNegative = notebookGcash !== undefined
+                ? (() => {
+                        const baseDifference = derivedGcashNet - notebookGcash;
+                        const expenseAdjustment = baseDifference < 0 ? operationalExpenses : -operationalExpenses;
+                        return baseDifference + expenseAdjustment;
+                    })()
+                : 0;
+            
+            totalGcash += usedGcashNet;
+            totalDifference += overNegative;
+        });
+
+        return { totalGcash, totalDifference };
+    }, [filteredReports]);
+
     return (
         <div className="flex flex-col gap-6 min-h-0 w-full min-w-0">
             <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
@@ -369,7 +407,23 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                             })}
                         </select>
                         <button onClick={() => {setFilterStoreId(''); setStartDate(''); setEndDate(''); setMonthFilter(''); setFilterCategory('');}} className="text-sm text-blue-600 hover:underline">Clear</button>
+                        
+                        {activeTab === 'daily-reports' && (
+                            <div className="flex items-center gap-3 ml-6 pl-6 border-l border-gray-200">
+                                <div className="bg-blue-50 px-3 py-1.5 rounded border border-blue-100 flex flex-col items-center min-w-[120px]">
+                                    <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Overall GCash</span>
+                                    <span className="text-base font-bold text-blue-700">{formatMoney(dailyReportTotals.totalGcash)}</span>
+                                </div>
+                                <div className="bg-purple-50 px-3 py-1.5 rounded border border-purple-100 flex flex-col items-center min-w-[120px]">
+                                    <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">Difference</span>
+                                    <span className={`text-base font-bold ${dailyReportTotals.totalDifference < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                        {dailyReportTotals.totalDifference > 0 ? '+' : ''}{formatMoney(dailyReportTotals.totalDifference)}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                     </div>
+
                     <div className="flex items-center gap-2">
                         {activeTab === 'daily-reports' && (
                             <button onClick={loadData} className="text-sm text-blue-600 border border-blue-100 px-3 py-1 rounded">Refresh</button>

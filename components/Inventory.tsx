@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Store, InventoryItem, UserRole, ReportData } from '../types';
 import { storageService } from '../services/storageService';
-import { Package, Plus, X, Check, Loader2, Search, TrendingUp, DollarSign, ShoppingCart, BarChart3, Trash2, Lock, Eye, EyeOff } from 'lucide-react';
+import { Package, Plus, X, Check, Loader2, Search, TrendingUp, DollarSign, ShoppingCart, BarChart3, Trash2, Lock, Eye, EyeOff, Download } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface InventoryProps {
@@ -236,7 +236,53 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
       }
   };
 
-  const filteredItems = useMemo(() => items.filter(i => 
+  const handleExportCSV = () => {
+    // 1. Define CSV headers
+    const headers = ['Item Name', 'Store', 'Category', 'Cost', 'Price', 'Margin', 'Stock', 'Status'];
+    
+    // 2. Map filtered items to rows
+    const rows = filteredItems.map(item => {
+        const storeName = stores.find(s => s.id === item.storeId)?.name || 'Unknown Store';
+        const margin = (item.price - item.cost).toFixed(2);
+        const status = item.isHidden ? 'Hidden' : (item.stock > 0 ? 'In Stock' : 'Out of Stock');
+        
+        // Escape quotes in strings to avoid CSV format breaking
+        const safeName = `"${item.name.replace(/"/g, '""')}"`;
+        const safeStore = `"${storeName.replace(/"/g, '""')}"`;
+        const safeCategory = `"${(item.category || '').replace(/"/g, '""')}"`;
+
+        return [
+            safeName,
+            safeStore,
+            safeCategory,
+            item.cost.toFixed(2),
+            item.price.toFixed(2),
+            margin,
+            item.stock,
+            status
+        ].join(',');
+    });
+
+    // 3. Combine headers and rows
+    const csvContent = [headers.join(','), ...rows].join('\n');
+
+    // 4. Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    
+    const dateStr = new Date().toISOString().split('T')[0];
+    const fileName = `inventory_export_${filterStoreId ? 'store' : 'all'}_${dateStr}.csv`;
+    
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const filteredItems = useMemo(() => items.filter(i =>  
       (!filterStoreId || i.storeId === filterStoreId) &&
       (!filterCategory || i.category === filterCategory) &&
       (!searchQuery || i.name.toLowerCase().includes(searchQuery.toLowerCase()) || (i.category && i.category.toLowerCase().includes(searchQuery.toLowerCase()))) &&
@@ -415,6 +461,15 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleExportCSV}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm font-medium flex items-center gap-2 transition-colors shadow-sm"
+                            title="Export to CSV"
+                        >
+                            <Download size={18} /> Export
+                        </button>
+                    </div>
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowHiddenItems(!showHiddenItems)}

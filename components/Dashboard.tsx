@@ -139,7 +139,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     return {
         reports: filteredReports.filter(r => isInRange(r.date)),
-        expenses: validExpenses.filter(e => isInRange(e.date)),
+        expenses: validExpenses.filter(e => isInRange(e.date)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
         fundIns: fundInTransactions.filter(e => isInRange(e.date))
     };
   }, [filterType, selectedMonth, selectedYear, selectedYearOnly, startDate, endDate, filteredReports, validExpenses, fundInTransactions]);

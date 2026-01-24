@@ -10,6 +10,7 @@ INSERT INTO public.transaction_categories (name) VALUES
 ('Repair Services'),
 ('Accessories'),
 ('Coffee'),
+('Wallet'),
 ('Other')
 ON CONFLICT (name) DO NOTHING;
 

@@ -167,9 +167,39 @@ export const storageService = {
       if (error) throw error;
   },
   getInventory: async (): Promise<InventoryItem[]> => {
-    const { data, error } = await supabase.from('inventory').select('*').order('category', { ascending: true }).order('name', { ascending: true });
-    if (error) { console.error('Error fetching inventory:', error.message); return []; }
-    return (data || []).map((i: any) => ({
+    // Fetch all inventory using pagination to bypass the 1000 row limit
+    let allData: any[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    
+    while (true) {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .range(from, from + batchSize - 1)
+        .order('category', { ascending: true })
+        .order('name', { ascending: true });
+      
+      if (error) { 
+        console.error('Error fetching inventory:', error.message); 
+        break; 
+      }
+      
+      if (!data || data.length === 0) break;
+      
+      allData = [...allData, ...data];
+      console.log(`📦 Fetched batch: ${from} to ${from + data.length - 1}, total so far: ${allData.length}`);
+      
+      if (data.length < batchSize) break; // Last batch
+      from += batchSize;
+    }
+    
+    // Debug: Check raw data from Supabase
+    console.log('🗄️ Total inventory from Supabase:', allData.length, 'items');
+    const walletRaw = allData.filter((i: any) => i.category?.toLowerCase() === 'wallet');
+    console.log('🔍 Raw Wallet items from DB:', walletRaw.length, walletRaw);
+    
+    return allData.map((i: any) => ({
         id: i.id, storeId: i.store_id, name: i.name, cost: Number(i.cost), price: Number(i.price), stock: Number(i.stock),
         category: i.category || '', isHidden: i.is_hidden
     }));
@@ -352,7 +382,7 @@ export const storageService = {
     if (error) {
       console.error('Error fetching transaction categories:', error);
       // Fallback to defaults if offline or error
-      return ['Printing Services', 'Repair Services', 'Accessories', 'Coffee', 'Other'];
+      return ['Printing Services', 'Repair Services', 'Accessories', 'Coffee', 'Wallet', 'Other'];
     }
     
     return data.map(d => d.name);
@@ -391,7 +421,7 @@ export const storageService = {
 
   // Deprecated sync method for backward compatibility during migration
   getTransactionCategories: (): string[] => {
-     return ['Printing Services', 'Repair Services', 'Accessories', 'Coffee', 'Other'];
+     return ['Printing Services', 'Repair Services', 'Accessories', 'Coffee', 'Wallet', 'Other'];
   },
 
   // Expense Categories

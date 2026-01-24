@@ -63,6 +63,9 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   const refreshInventory = async () => {
       setIsLoading(true);
       const data = await storageService.getInventory();
+      console.log('📦 Inventory loaded:', data.length, 'items');
+      console.log('📂 Categories found:', [...new Set(data.map(i => i.category).filter(Boolean))]);
+      console.log('🔍 Wallet items:', data.filter(i => i.category?.toLowerCase() === 'wallet'));
       setItems(data);
       setIsLoading(false);
   };

@@ -18,7 +18,7 @@ const seedData = () => {
       password: '950421', 
       name: 'Boss Manager', 
       role: UserRole.ADMIN,
-      permissions: ['dashboard', 'analytics', 'reports', 'expenses', 'entry', 'pos', 'inventory', 'transactions', 'manage-stores', 'manage-users'] 
+      permissions: ['dashboard', 'analytics', 'reports', 'expenses', 'entry', 'pos', 'inventory', 'transactions', 'daily-time-record', 'manage-stores', 'manage-users'] 
     };
     users.push(adminUser);
     localStorage.setItem(KEYS.USERS, JSON.stringify(users));

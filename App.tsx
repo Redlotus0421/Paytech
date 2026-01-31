@@ -13,6 +13,7 @@ import { Analytics } from './components/Analytics';
 import { Transactions } from './components/Transactions';
 import { Expenses } from './components/Expenses';
 import { ActivityLogs } from './components/ActivityLogs';
+import { DailyTimeRecord } from './components/DailyTimeRecord';
 import { Settings } from './components/Settings';
 import { Loader2 } from 'lucide-react';
 import { PaytechLogo } from './components/PaytechLogo';
@@ -129,6 +130,7 @@ const App: React.FC = () => {
       {view === 'pos' && <POS user={user} />}
       {view === 'inventory' && <Inventory user={user} />}
       {view === 'activity-logs' && <ActivityLogs user={user} />}
+      {view === 'daily-time-record' && <DailyTimeRecord user={user} />}
       {view === 'manage-stores' && <AdminSettings activeTab="stores" />}
       {view === 'manage-users' && <AdminSettings activeTab="users" />}
       {view === 'settings' && <Settings user={user} onLogout={handleLogout} />} 

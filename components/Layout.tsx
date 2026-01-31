@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, LayoutDashboard, PlusCircle, Store, Users, Menu, ChevronLeft, ChevronRight, X, Package, ShoppingCart, FileText, BarChart, Settings as SettingsIcon, Receipt, Wallet, History } from 'lucide-react';
+import { LogOut, LayoutDashboard, PlusCircle, Store, Users, Menu, ChevronLeft, ChevronRight, X, Package, ShoppingCart, FileText, BarChart, Settings as SettingsIcon, Receipt, Wallet, History, Clock } from 'lucide-react';
 import { PaytechLogo } from './PaytechLogo';
 
 interface LayoutProps {
@@ -19,11 +19,12 @@ export const Layout: React.FC<LayoutProps> = ({ user, currentView, onNavigate, o
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'analytics', label: 'Analytics', icon: BarChart },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
-    { id: 'expenses', label: 'Expenses', icon: Wallet }, // NEW TAB
+    { id: 'expenses', label: 'Expenses', icon: Wallet },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'entry', label: 'New Report', icon: PlusCircle },
     { id: 'pos', label: 'POS', icon: ShoppingCart },
     { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'daily-time-record', label: 'Daily Time Record', icon: Clock },
     // Admin Only Tabs
     { id: 'activity-logs', label: 'Activity Logs', icon: History, role: UserRole.ADMIN },
     { id: 'manage-stores', label: 'Stores', icon: Store, role: UserRole.ADMIN },

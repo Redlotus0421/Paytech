@@ -111,3 +111,60 @@ export interface ActivityLog {
   details: string;
   timestamp: number;
 }
+
+// Daily Time Record Types
+export interface TimeEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  date: string; // YYYY-MM-DD format
+  timeIn?: string; // HH:mm format
+  timeOut?: string; // HH:mm format
+  timeInStatus: 'pending' | 'approved' | 'rejected';
+  timeOutStatus: 'pending' | 'approved' | 'rejected';
+  hoursWorked?: number;
+  approvedBy?: string;
+  approvedAt?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface EmployeeSchedule {
+  id: string;
+  userId: string;
+  dayOfWeek: number; // 0=Sunday, 1=Monday, etc.
+  startTime: string; // HH:mm format
+  endTime: string; // HH:mm format
+  isRestDay: boolean;
+  effectiveDate: string; // YYYY-MM-DD format - when this schedule starts
+  endDate?: string; // YYYY-MM-DD format - when this schedule ends (null = ongoing)
+}
+
+export interface PayrollCutoff {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: 'active' | 'closed';
+  createdAt: number;
+  createdBy: string;
+}
+
+export interface PayrollSummary {
+  id: string;
+  cutoffId: string;
+  userId: string;
+  userName: string;
+  totalHours: number;
+  hourlyRate: number;
+  grossPay: number;
+  entries: TimeEntry[];
+}
+
+// Extended User interface for salary
+export interface EmployeeDetails {
+  userId: string;
+  monthlySalary?: number;
+  hourlyRate?: number;
+  autoCalculateRate: boolean;
+}

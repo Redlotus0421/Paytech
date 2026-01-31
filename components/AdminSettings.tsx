@@ -10,7 +10,7 @@ interface AdminSettingsProps {
 }
 
 // FIX: Added 'transactions' and 'expenses' to the list of available permissions
-const ALL_PERMISSIONS = ['dashboard', 'analytics', 'transactions', 'expenses', 'reports', 'entry', 'pos', 'inventory', 'activity-logs'];
+const ALL_PERMISSIONS = ['dashboard', 'analytics', 'transactions', 'expenses', 'reports', 'entry', 'pos', 'inventory', 'daily-time-record', 'activity-logs'];
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
   const [stores, setStores] = useState<Store[]>([]);
@@ -115,6 +115,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
   const [newUserStore, setNewUserStore] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   
+  // Salary/Hourly Rate State
+  const [newUserSalary, setNewUserSalary] = useState<string>('');
+  const [newUserHourlyRate, setNewUserHourlyRate] = useState<string>('');
+  const [autoCalculateRate, setAutoCalculateRate] = useState<boolean>(true);
+  
   // Permission State
   const [newUserPermissions, setNewUserPermissions] = useState<string[]>(ALL_PERMISSIONS);
 
@@ -210,6 +215,30 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     setNewUserPassword(user.password || '');
     // Load existing permissions or default to all if undefined
     setNewUserPermissions(user.permissions || ALL_PERMISSIONS);
+    
+    // Load salary data from employee_details table
+    try {
+      const { data } = await supabase
+        .from('employee_details')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (data) {
+        setNewUserSalary(data.monthly_salary?.toString() || '');
+        setNewUserHourlyRate(data.hourly_rate?.toString() || '');
+        setAutoCalculateRate(data.auto_calculate_rate !== false);
+      } else {
+        setNewUserSalary('');
+        setNewUserHourlyRate('');
+        setAutoCalculateRate(true);
+      }
+    } catch (err) {
+      console.error('Error loading employee details:', err);
+      setNewUserSalary('');
+      setNewUserHourlyRate('');
+      setAutoCalculateRate(true);
+    }
   };
 
   const cancelEditUser = () => {
@@ -221,6 +250,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
     setNewUserStore('');
     setNewUserPassword('');
     setNewUserPermissions(ALL_PERMISSIONS);
+    setNewUserSalary('');
+    setNewUserHourlyRate('');
+    setAutoCalculateRate(true);
   };
 
   // DEACTIVATE: Require password to deactivate
@@ -397,12 +429,23 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                 .eq('id', editingUser.id);
             if (error) throw error;
             await storageService.logActivity('Update User', `Updated user: ${userData.username}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
+            
+            // Save employee details (salary/hourly rate) for updates
+            if (newUserRole === UserRole.EMPLOYEE) {
+              await saveEmployeeDetails(editingUser.id);
+            }
         } else {
+            const newUserId = uuidv4();
             const { error } = await supabase
                 .from('users')
-                .insert([{ ...userData, id: uuidv4() }]);
+                .insert([{ ...userData, id: newUserId }]);
             if (error) throw error;
             await storageService.logActivity('Add User', `Added new user: ${userData.username}`, currentUser?.id || 'admin', currentUser?.name || 'Admin');
+            
+            // Save employee details (salary/hourly rate) for new employee
+            if (newUserRole === UserRole.EMPLOYEE) {
+              await saveEmployeeDetails(newUserId);
+            }
         }
         await fetchSupabaseUsers();
         cancelEditUser();
@@ -420,6 +463,68 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
       setNewUserPermissions(prev => 
           checked ? [...prev, permission] : prev.filter(p => p !== permission)
       );
+  };
+
+  // Calculate hourly rate from monthly salary (assuming 22 working days * 8 hours = 176 hours/month)
+  const calculateHourlyRate = (monthlySalary: number): number => {
+    if (monthlySalary <= 0) return 0;
+    return Math.round((monthlySalary / 176) * 100) / 100;
+  };
+
+  // Handle salary change and auto-calculate hourly rate
+  const handleSalaryChange = (value: string) => {
+    setNewUserSalary(value);
+    if (autoCalculateRate && value) {
+      const salary = parseFloat(value);
+      if (!isNaN(salary)) {
+        setNewUserHourlyRate(calculateHourlyRate(salary).toString());
+      }
+    }
+  };
+
+  // Save employee salary/hourly rate details
+  const saveEmployeeDetails = async (userId: string) => {
+    const salary = parseFloat(newUserSalary) || 0;
+    const hourlyRate = autoCalculateRate 
+      ? calculateHourlyRate(salary) 
+      : (parseFloat(newUserHourlyRate) || 0);
+
+    if (salary > 0 || hourlyRate > 0) {
+      try {
+        // First try to update, if not exists then insert
+        const { data: existing } = await supabase
+          .from('employee_details')
+          .select('user_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from('employee_details')
+            .update({
+              monthly_salary: salary,
+              hourly_rate: hourlyRate,
+              auto_calculate_rate: autoCalculateRate,
+              updated_at: Date.now()
+            })
+            .eq('user_id', userId);
+        } else {
+          await supabase
+            .from('employee_details')
+            .insert([{
+              id: uuidv4(),
+              user_id: userId,
+              monthly_salary: salary,
+              hourly_rate: hourlyRate,
+              auto_calculate_rate: autoCalculateRate,
+              created_at: Date.now(),
+              updated_at: Date.now()
+            }]);
+        }
+      } catch (err) {
+        console.error('Error saving employee details:', err);
+      }
+    }
   };
 
   return (
@@ -663,6 +768,51 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ activeTab }) => {
                       <option value="">Select Assignment...</option>
                       {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                    </select>
+                )}
+                
+                {/* --- SALARY & HOURLY RATE --- */}
+                {newUserRole === UserRole.EMPLOYEE && (
+                  <div className="pt-2 space-y-3 border-t border-gray-200">
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Salary Information</label>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Monthly Salary (₱)</label>
+                      <input 
+                        type="number"
+                        placeholder="e.g., 15000" 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500"
+                        value={newUserSalary}
+                        onChange={e => handleSalaryChange(e.target.value)}
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <input 
+                        type="checkbox" 
+                        id="autoCalculate"
+                        checked={autoCalculateRate}
+                        onChange={e => setAutoCalculateRate(e.target.checked)}
+                        className="rounded"
+                      />
+                      <label htmlFor="autoCalculate" className="text-xs text-gray-600">Auto-calculate hourly rate from salary</label>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Hourly Rate (₱)</label>
+                      <input 
+                        type="number"
+                        placeholder={autoCalculateRate ? "Auto-calculated" : "e.g., 85.23"} 
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 ${autoCalculateRate ? 'bg-gray-100' : 'bg-white'}`}
+                        value={newUserHourlyRate}
+                        onChange={e => setNewUserHourlyRate(e.target.value)}
+                        disabled={autoCalculateRate}
+                        min="0"
+                        step="0.01"
+                      />
+                      {autoCalculateRate && newUserSalary && (
+                        <p className="text-xs text-gray-400 mt-1">Based on 176 hours/month (22 days × 8 hrs)</p>
+                      )}
+                    </div>
+                  </div>
                 )}
                 
                 {/* --- TAB ACCESS CHECKLIST --- */}

@@ -13,7 +13,11 @@ import {
   Loader2, 
   Plus,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Download,
+  FileSpreadsheet,
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 interface DailyTimeRecordProps {
@@ -29,6 +33,14 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   // Time entries state
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [todayEntry, setTodayEntry] = useState<TimeEntry | null>(null);
+  
+  // Employee entries state (for admin real-time monitoring)
+  const [entriesTab, setEntriesTab] = useState<'my' | 'employee'>('my');
+  const [allEmployeeEntries, setAllEmployeeEntries] = useState<TimeEntry[]>([]);
+  const [entriesDateFilter, setEntriesDateFilter] = useState<string>(new Date().toISOString().split('T')[0]);
+  
+  // User's schedule state
+  const [mySchedule, setMySchedule] = useState<EmployeeSchedule[]>([]);
   
   // Approvals state (admin only)
   const [pendingEntries, setPendingEntries] = useState<TimeEntry[]>([]);
@@ -46,6 +58,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   const [payrollSummaries, setPayrollSummaries] = useState<PayrollSummary[]>([]);
   const [showCutoffModal, setShowCutoffModal] = useState(false);
   const [newCutoff, setNewCutoff] = useState({ name: '', startDate: '', endDate: '' });
+  const [editingCutoff, setEditingCutoff] = useState<PayrollCutoff | null>(null);
   
   // Employee details for hourly rate
   const [employeeDetails, setEmployeeDetails] = useState<Map<string, { monthlySalary: number; hourlyRate: number; autoCalculate: boolean }>>(new Map());
@@ -75,6 +88,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
 
   const loadTimeEntries = async () => {
     const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
     
     try {
       // Load entries from Supabase
@@ -90,9 +104,26 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       const entries: TimeEntry[] = (data || []).map(mapTimeEntryFromDb);
       setTimeEntries(entries);
       
-      // Find today's entry
-      const todayEntryData = entries.find(e => e.date === today);
-      setTodayEntry(todayEntryData || null);
+      // Find today's entry OR yesterday's entry that hasn't been clocked out (for night shifts)
+      let activeEntry = entries.find(e => e.date === today);
+      
+      // If no today entry, check for yesterday's entry without clock out (overnight shift)
+      if (!activeEntry) {
+        const yesterdayEntry = entries.find(e => e.date === yesterday && !e.timeOut);
+        if (yesterdayEntry) {
+          activeEntry = yesterdayEntry;
+        }
+      }
+      
+      setTodayEntry(activeEntry || null);
+      
+      // Load user's schedule
+      await loadMySchedule();
+      
+      // If admin, also load all employee entries for the selected date
+      if (isAdmin) {
+        await loadAllEmployeeEntries(entriesDateFilter);
+      }
     } catch (err) {
       console.error('Error loading time entries:', err);
       // Fallback to localStorage
@@ -102,6 +133,65 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         setTimeEntries(entries);
         setTodayEntry(entries.find((e: TimeEntry) => e.date === today) || null);
       }
+    }
+  };
+
+  const loadMySchedule = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const { data, error } = await supabase
+        .from('employee_schedules')
+        .select('*')
+        .eq('user_id', user.id)
+        .lte('effective_date', today)
+        .or(`end_date.is.null,end_date.gte.${today}`)
+        .order('effective_date', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const latestSchedules = new Map<number, any>();
+        data.forEach((s: any) => {
+          if (!latestSchedules.has(s.day_of_week)) {
+            latestSchedules.set(s.day_of_week, s);
+          }
+        });
+        
+        const mappedSchedules = Array.from(latestSchedules.values()).map((s: any) => ({
+          id: s.id,
+          userId: s.user_id,
+          dayOfWeek: s.day_of_week,
+          startTime: s.start_time,
+          endTime: s.end_time,
+          isRestDay: s.is_rest_day,
+          effectiveDate: s.effective_date,
+          endDate: s.end_date
+        }));
+        
+        setMySchedule(mappedSchedules.sort((a, b) => a.dayOfWeek - b.dayOfWeek));
+      } else {
+        setMySchedule([]);
+      }
+    } catch (err) {
+      console.error('Error loading my schedule:', err);
+      setMySchedule([]);
+    }
+  };
+
+  const loadAllEmployeeEntries = async (date: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('time_entries')
+        .select('*')
+        .eq('date', date)
+        .order('time_in', { ascending: true });
+      
+      if (error) throw error;
+      
+      setAllEmployeeEntries((data || []).map(mapTimeEntryFromDb));
+    } catch (err) {
+      console.error('Error loading all employee entries:', err);
+      setAllEmployeeEntries([]);
     }
   };
 
@@ -430,11 +520,132 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     return targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const calculateHours = (timeIn: string, timeOut: string): number => {
+  // Calculate hours worked - handles overnight shifts
+  const calculateHours = (timeIn: string, timeOut: string, isOvernight: boolean = false): number => {
     const [inH, inM] = timeIn.split(':').map(Number);
     const [outH, outM] = timeOut.split(':').map(Number);
-    const totalMinutes = (outH * 60 + outM) - (inH * 60 + inM);
+    
+    let totalMinutes = (outH * 60 + outM) - (inH * 60 + inM);
+    
+    // If overnight shift (clock out time is less than clock in time, or explicitly overnight)
+    if (totalMinutes < 0 || isOvernight) {
+      // Add 24 hours (1440 minutes) for overnight calculation
+      totalMinutes = (24 * 60) - (inH * 60 + inM) + (outH * 60 + outM);
+    }
+    
     return Math.round((totalMinutes / 60) * 100) / 100;
+  };
+
+  // Check if this is an overnight entry (entry date is different from today)
+  const isOvernightEntry = (): boolean => {
+    if (!todayEntry) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return todayEntry.date !== today;
+  };
+
+  // Export payroll to CSV
+  const exportPayrollToCSV = () => {
+    if (payrollSummaries.length === 0) {
+      alert('No payroll data to export');
+      return;
+    }
+
+    const cutoff = cutoffs.find(c => c.id === selectedCutoff);
+    const cutoffName = cutoff ? cutoff.name : 'Payroll';
+    
+    // Create CSV headers
+    const headers = ['Employee', 'Total Hours', 'Hourly Rate (₱)', 'Gross Pay (₱)'];
+    
+    // Create CSV rows
+    const rows = payrollSummaries.map(summary => [
+      summary.userName,
+      summary.totalHours.toFixed(2),
+      summary.hourlyRate.toFixed(2),
+      summary.grossPay.toFixed(2)
+    ]);
+
+    // Add totals row
+    const totalHours = payrollSummaries.reduce((sum, s) => sum + s.totalHours, 0);
+    const totalGrossPay = payrollSummaries.reduce((sum, s) => sum + s.grossPay, 0);
+    rows.push(['TOTAL', totalHours.toFixed(2), '-', totalGrossPay.toFixed(2)]);
+
+    // Convert to CSV string
+    const csvContent = [
+      `Payroll Report: ${cutoffName}`,
+      `Period: ${cutoff?.startDate} to ${cutoff?.endDate}`,
+      `Generated: ${new Date().toLocaleString()}`,
+      '',
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `payroll_${cutoffName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export detailed payroll with individual entries
+  const exportDetailedPayrollToCSV = () => {
+    if (payrollSummaries.length === 0) {
+      alert('No payroll data to export');
+      return;
+    }
+
+    const cutoff = cutoffs.find(c => c.id === selectedCutoff);
+    const cutoffName = cutoff ? cutoff.name : 'Payroll';
+    
+    // Create detailed CSV with all time entries
+    const headers = ['Employee', 'Date', 'Time In', 'Time Out', 'Hours Worked', 'Status'];
+    
+    const rows: string[][] = [];
+    payrollSummaries.forEach(summary => {
+      if (summary.entries && summary.entries.length > 0) {
+        summary.entries.forEach(entry => {
+          rows.push([
+            summary.userName,
+            entry.date,
+            entry.timeIn || '-',
+            entry.timeOut || '-',
+            entry.hoursWorked?.toFixed(2) || '0',
+            entry.timeInStatus === 'approved' && entry.timeOutStatus === 'approved' ? 'Approved' : 'Pending'
+          ]);
+        });
+        // Add subtotal row for each employee
+        rows.push([`  Subtotal: ${summary.userName}`, '', '', '', summary.totalHours.toFixed(2), `₱${summary.grossPay.toFixed(2)}`]);
+        rows.push(['', '', '', '', '', '']); // Empty row for spacing
+      }
+    });
+
+    // Add grand totals
+    const totalHours = payrollSummaries.reduce((sum, s) => sum + s.totalHours, 0);
+    const totalGrossPay = payrollSummaries.reduce((sum, s) => sum + s.grossPay, 0);
+    rows.push(['GRAND TOTAL', '', '', '', totalHours.toFixed(2), `₱${totalGrossPay.toFixed(2)}`]);
+
+    const csvContent = [
+      `Detailed Payroll Report: ${cutoffName}`,
+      `Period: ${cutoff?.startDate} to ${cutoff?.endDate}`,
+      `Generated: ${new Date().toLocaleString()}`,
+      '',
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `payroll_detailed_${cutoffName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Actions
@@ -513,7 +724,8 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     if (!todayEntry || !todayEntry.timeIn) return;
     
     const currentTime = getCurrentTime();
-    const hoursWorked = calculateHours(todayEntry.timeIn, currentTime);
+    const overnight = isOvernightEntry();
+    const hoursWorked = calculateHours(todayEntry.timeIn, currentTime, overnight);
     
     setIsLoading(true);
     try {
@@ -531,7 +743,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       
       await storageService.logActivity(
         'Clock Out', 
-        `${user.name} clocked out at ${formatTime(currentTime)} (${hoursWorked} hrs) - Pending Approval`,
+        `${user.name} clocked out at ${formatTime(currentTime)} (${hoursWorked} hrs)${overnight ? ' [Overnight]' : ''} - Pending Approval`,
         user.id,
         user.name
       );
@@ -669,34 +881,113 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     
     setIsLoading(true);
     try {
-      const cutoff: PayrollCutoff = {
-        id: uuidv4(),
-        name: newCutoff.name,
-        startDate: newCutoff.startDate,
-        endDate: newCutoff.endDate,
-        status: 'active',
-        createdAt: Date.now(),
-        createdBy: user.name
-      };
-      
-      const { error } = await supabase.from('payroll_cutoffs').insert([{
-        id: cutoff.id,
-        name: cutoff.name,
-        start_date: cutoff.startDate,
-        end_date: cutoff.endDate,
-        status: cutoff.status,
-        created_at: cutoff.createdAt,
-        created_by: cutoff.createdBy
-      }]);
-      
-      if (error) throw error;
+      if (editingCutoff) {
+        // Update existing cutoff
+        const { error } = await supabase
+          .from('payroll_cutoffs')
+          .update({
+            name: newCutoff.name,
+            start_date: newCutoff.startDate,
+            end_date: newCutoff.endDate
+          })
+          .eq('id', editingCutoff.id);
+        
+        if (error) throw error;
+        
+        await storageService.logActivity(
+          'Update Cutoff',
+          `${user.name} updated cutoff period: ${newCutoff.name}`,
+          user.id,
+          user.name
+        );
+      } else {
+        // Create new cutoff
+        const cutoff: PayrollCutoff = {
+          id: uuidv4(),
+          name: newCutoff.name,
+          startDate: newCutoff.startDate,
+          endDate: newCutoff.endDate,
+          status: 'active',
+          createdAt: Date.now(),
+          createdBy: user.name
+        };
+        
+        const { error } = await supabase.from('payroll_cutoffs').insert([{
+          id: cutoff.id,
+          name: cutoff.name,
+          start_date: cutoff.startDate,
+          end_date: cutoff.endDate,
+          status: cutoff.status,
+          created_at: cutoff.createdAt,
+          created_by: cutoff.createdBy
+        }]);
+        
+        if (error) throw error;
+        
+        await storageService.logActivity(
+          'Create Cutoff',
+          `${user.name} created cutoff period: ${newCutoff.name}`,
+          user.id,
+          user.name
+        );
+      }
       
       setShowCutoffModal(false);
       setNewCutoff({ name: '', startDate: '', endDate: '' });
+      setEditingCutoff(null);
       await loadPayrollData();
     } catch (err) {
-      console.error('Error creating cutoff:', err);
-      alert('Failed to create cutoff period');
+      console.error('Error saving cutoff:', err);
+      alert('Failed to save cutoff period');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditCutoff = (cutoff: PayrollCutoff) => {
+    setEditingCutoff(cutoff);
+    setNewCutoff({
+      name: cutoff.name,
+      startDate: cutoff.startDate,
+      endDate: cutoff.endDate
+    });
+    setShowCutoffModal(true);
+  };
+
+  const handleDeleteCutoff = async (cutoffId: string) => {
+    const cutoff = cutoffs.find(c => c.id === cutoffId);
+    if (!cutoff) return;
+    
+    if (!confirm(`Are you sure you want to delete the cutoff period "${cutoff.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('payroll_cutoffs')
+        .delete()
+        .eq('id', cutoffId);
+      
+      if (error) throw error;
+      
+      await storageService.logActivity(
+        'Delete Cutoff',
+        `${user.name} deleted cutoff period: ${cutoff.name}`,
+        user.id,
+        user.name
+      );
+      
+      // Clear selection if the deleted cutoff was selected
+      if (selectedCutoff === cutoffId) {
+        setSelectedCutoff('');
+        setPayrollSummaries([]);
+      }
+      
+      await loadPayrollData();
+    } catch (err) {
+      console.error('Error deleting cutoff:', err);
+      alert('Failed to delete cutoff period');
     } finally {
       setIsLoading(false);
     }
@@ -753,10 +1044,19 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
             
+            {/* Overnight shift indicator */}
+            {todayEntry && isOvernightEntry() && (
+              <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <p className="text-sm text-purple-700">
+                  <span className="font-medium">🌙 Overnight Shift:</span> You clocked in on {todayEntry.date}. Clock out will be recorded for that entry.
+                </p>
+              </div>
+            )}
+            
             <div className="flex gap-4">
               <button
                 onClick={handleClockIn}
-                disabled={isLoading || (todayEntry?.timeIn !== undefined)}
+                disabled={isLoading || (todayEntry?.timeIn != null)}
                 className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
                   todayEntry?.timeIn
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -769,7 +1069,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
               
               <button
                 onClick={handleClockOut}
-                disabled={isLoading || !todayEntry?.timeIn || todayEntry?.timeOut !== undefined}
+                disabled={isLoading || !todayEntry?.timeIn || todayEntry?.timeOut != null}
                 className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
                   !todayEntry?.timeIn || todayEntry?.timeOut
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -794,7 +1094,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                     <div className="font-medium">{formatTime(todayEntry.timeOut)}</div>
                     {todayEntry.timeOut && <StatusBadge status={todayEntry.timeOutStatus} />}
                   </div>
-                  {todayEntry.hoursWorked !== undefined && (
+                  {(todayEntry.hoursWorked !== undefined && todayEntry.hoursWorked !== null) && (
                     <div>
                       <span className="text-gray-500">Hours:</span>
                       <div className="font-medium">{todayEntry.hoursWorked} hrs</div>
@@ -805,48 +1105,163 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
             )}
           </div>
 
-          {/* Recent Entries */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Recent Entries</h2>
-                <p className="text-sm text-gray-500">Your last 10 attendance records</p>
+          {/* Recent Entries and My Work Schedule Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Recent Entries */}
+            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Recent Entries</h2>
+                  <p className="text-sm text-gray-500">View attendance records</p>
+                </div>
+                <button onClick={loadData} className="text-gray-500 hover:text-gray-700">
+                  <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+                </button>
               </div>
-              <button onClick={loadData} className="text-gray-500 hover:text-gray-700">
-                <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
-              </button>
+              
+              {/* Sub-tabs for My Entries / Employee Entries (Admin only) */}
+              {isAdmin && (
+                <div className="mb-4">
+                  <div className="bg-gray-100 p-1 rounded-lg inline-flex w-full">
+                    <button
+                      onClick={() => setEntriesTab('my')}
+                      className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        entriesTab === 'my'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      My Entries
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEntriesTab('employee');
+                        loadAllEmployeeEntries(entriesDateFilter);
+                      }}
+                      className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        entriesTab === 'employee'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Employee Entries
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Date filter for Employee Entries */}
+              {isAdmin && entriesTab === 'employee' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
+                  <input
+                    type="date"
+                    value={entriesDateFilter}
+                    onChange={(e) => {
+                      setEntriesDateFilter(e.target.value);
+                      loadAllEmployeeEntries(e.target.value);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              )}
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      {isAdmin && entriesTab === 'employee' && (
+                        <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
+                      )}
+                      {entriesTab === 'my' && (
+                        <th className="text-left py-3 px-2 font-medium text-gray-600">Date</th>
+                      )}
+                      <th className="text-left py-3 px-2 font-medium text-gray-600">Time In</th>
+                      <th className="text-left py-3 px-2 font-medium text-gray-600">In Status</th>
+                      <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
+                      <th className="text-left py-3 px-2 font-medium text-gray-600">Out Status</th>
+                      <th className="text-left py-3 px-2 font-medium text-gray-600">Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* My Entries */}
+                    {entriesTab === 'my' && timeEntries.map(entry => (
+                      <tr key={entry.id} className="border-b border-gray-100">
+                        <td className="py-3 px-2">{entry.date}</td>
+                        <td className="py-3 px-2">{formatTime(entry.timeIn)}</td>
+                        <td className="py-3 px-2"><StatusBadge status={entry.timeInStatus} /></td>
+                        <td className="py-3 px-2">{formatTime(entry.timeOut)}</td>
+                        <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
+                        <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
+                      </tr>
+                    ))}
+                    {entriesTab === 'my' && timeEntries.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-gray-400">No entries found</td>
+                      </tr>
+                    )}
+                    
+                    {/* Employee Entries (Admin only) */}
+                    {isAdmin && entriesTab === 'employee' && allEmployeeEntries.map(entry => (
+                      <tr key={entry.id} className="border-b border-gray-100">
+                        <td className="py-3 px-2 font-medium">{entry.userName}</td>
+                        <td className="py-3 px-2">{formatTime(entry.timeIn)}</td>
+                        <td className="py-3 px-2"><StatusBadge status={entry.timeInStatus} /></td>
+                        <td className="py-3 px-2">{entry.timeOut ? formatTime(entry.timeOut) : '-'}</td>
+                        <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
+                        <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
+                      </tr>
+                    ))}
+                    {isAdmin && entriesTab === 'employee' && allEmployeeEntries.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-gray-400">No employee entries for this date</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-2 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-3 px-2 font-medium text-gray-600">Time In</th>
-                    <th className="text-left py-3 px-2 font-medium text-gray-600">In Status</th>
-                    <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
-                    <th className="text-left py-3 px-2 font-medium text-gray-600">Out Status</th>
-                    <th className="text-left py-3 px-2 font-medium text-gray-600">Hours</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {timeEntries.map(entry => (
-                    <tr key={entry.id} className="border-b border-gray-100">
-                      <td className="py-3 px-2">{entry.date}</td>
-                      <td className="py-3 px-2">{formatTime(entry.timeIn)}</td>
-                      <td className="py-3 px-2"><StatusBadge status={entry.timeInStatus} /></td>
-                      <td className="py-3 px-2">{formatTime(entry.timeOut)}</td>
-                      <td className="py-3 px-2">{entry.timeOut && <StatusBadge status={entry.timeOutStatus} />}</td>
-                      <td className="py-3 px-2">{entry.hoursWorked !== undefined ? `${entry.hoursWorked} hrs` : '-'}</td>
-                    </tr>
+
+            {/* My Work Schedule */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar size={20} className="text-gray-600" />
+                <h2 className="text-lg font-bold text-gray-900">My Work Schedule</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">Your assigned work schedule</p>
+              
+              {mySchedule.length > 0 ? (
+                <div className="space-y-2">
+                  {mySchedule.map(schedule => (
+                    <div 
+                      key={schedule.dayOfWeek} 
+                      className={`flex justify-between items-center p-3 rounded-lg ${
+                        schedule.isRestDay 
+                          ? 'bg-gray-50 text-gray-400' 
+                          : schedule.dayOfWeek === new Date().getDay() 
+                            ? 'bg-yellow-50 border border-yellow-200' 
+                            : 'bg-gray-50'
+                      }`}
+                    >
+                      <span className={`font-medium ${schedule.dayOfWeek === new Date().getDay() ? 'text-yellow-700' : ''}`}>
+                        {getDayName(schedule.dayOfWeek)}
+                      </span>
+                      <span className={`text-sm ${schedule.isRestDay ? 'italic' : ''}`}>
+                        {schedule.isRestDay 
+                          ? 'Rest Day' 
+                          : `${formatTime(schedule.startTime)} - ${formatTime(schedule.endTime)}`
+                        }
+                      </span>
+                    </div>
                   ))}
-                  {timeEntries.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-gray-400">No entries found</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar size={40} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-gray-500">No schedule has been assigned yet.</p>
+                  <p className="text-sm text-gray-400">Please contact your administrator.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -872,8 +1287,10 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Date</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Time In</th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-600">Clock In Action</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-600">Actions</th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-600">Clock Out Action</th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-600">Hours</th>
                 </tr>
               </thead>
               <tbody>
@@ -884,53 +1301,79 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                     <td className="py-3 px-2">
                       <div className="flex items-center gap-2">
                         {formatTime(entry.timeIn)}
-                        {entry.timeInStatus === 'pending' && (
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => handleApproval(entry.id, 'timeIn', true)}
-                              className="p-1 text-green-600 hover:bg-green-50 rounded"
-                              title="Approve"
-                            >
-                              <Check size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleApproval(entry.id, 'timeIn', false)}
-                              className="p-1 text-red-600 hover:bg-red-50 rounded"
-                              title="Reject"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        )}
+                        <StatusBadge status={entry.timeInStatus} />
                       </div>
                     </td>
                     <td className="py-3 px-2">
-                      {entry.timeOut && (
-                        <div className="flex items-center gap-2">
-                          {formatTime(entry.timeOut)}
-                          {entry.timeOutStatus === 'pending' && (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => handleApproval(entry.id, 'timeOut', true)}
-                                className="p-1 text-green-600 hover:bg-green-50 rounded"
-                                title="Approve"
-                              >
-                                <Check size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleApproval(entry.id, 'timeOut', false)}
-                                className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                title="Reject"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          )}
+                      {entry.timeInStatus === 'pending' ? (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleApproval(entry.id, 'timeIn', true)}
+                            disabled={isLoading}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+                            title="Approve Clock In"
+                          >
+                            <Check size={14} />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleApproval(entry.id, 'timeIn', false)}
+                            disabled={isLoading}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+                            title="Reject Clock In"
+                          >
+                            <X size={14} />
+                            Reject
+                          </button>
                         </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">
+                          {entry.timeInStatus === 'approved' ? 'Approved' : 'Rejected'}
+                        </span>
                       )}
                     </td>
                     <td className="py-3 px-2">
-                      <span className="text-xs text-gray-500">
+                      {entry.timeOut ? (
+                        <div className="flex items-center gap-2">
+                          {formatTime(entry.timeOut)}
+                          <StatusBadge status={entry.timeOutStatus} />
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-2">
+                      {entry.timeOut && entry.timeOutStatus === 'pending' ? (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleApproval(entry.id, 'timeOut', true)}
+                            disabled={isLoading}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+                            title="Approve Clock Out"
+                          >
+                            <Check size={14} />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleApproval(entry.id, 'timeOut', false)}
+                            disabled={isLoading}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+                            title="Reject Clock Out"
+                          >
+                            <X size={14} />
+                            Reject
+                          </button>
+                        </div>
+                      ) : entry.timeOut ? (
+                        <span className="text-xs text-gray-400 italic">
+                          {entry.timeOutStatus === 'approved' ? 'Approved' : 'Rejected'}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-2">
+                      <span className="text-gray-600">
                         {entry.hoursWorked ? `${entry.hoursWorked} hrs` : '-'}
                       </span>
                     </td>
@@ -938,7 +1381,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 ))}
                 {pendingEntries.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray-400">No pending approvals</td>
+                    <td colSpan={7} className="py-8 text-center text-gray-400">No pending approvals</td>
                   </tr>
                 )}
               </tbody>
@@ -1072,64 +1515,132 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 <h2 className="text-lg font-bold text-gray-900">Payroll Management</h2>
                 <p className="text-sm text-gray-500">Manage cutoff periods and view payroll summaries</p>
               </div>
-              <button
-                onClick={() => setShowCutoffModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-gray-900 font-medium rounded-lg hover:bg-yellow-500"
-              >
-                <Plus size={18} />
-                Create Cutoff
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCutoffModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-gray-900 font-medium rounded-lg hover:bg-yellow-500"
+                >
+                  <Plus size={18} />
+                  Create Cutoff
+                </button>
+              </div>
             </div>
             
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Select Cutoff Period</label>
-              <select
-                value={selectedCutoff}
-                onChange={(e) => {
-                  setSelectedCutoff(e.target.value);
-                  loadPayrollSummary(e.target.value);
-                }}
-                className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select a cutoff period</option>
-                {cutoffs.map(cutoff => (
-                  <option key={cutoff.id} value={cutoff.id}>
-                    {cutoff.name} ({cutoff.startDate} to {cutoff.endDate})
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2 items-start">
+                <select
+                  value={selectedCutoff}
+                  onChange={(e) => {
+                    setSelectedCutoff(e.target.value);
+                    loadPayrollSummary(e.target.value);
+                  }}
+                  className="flex-1 max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select a cutoff period</option>
+                  {cutoffs.map(cutoff => (
+                    <option key={cutoff.id} value={cutoff.id}>
+                      {cutoff.name} ({cutoff.startDate} to {cutoff.endDate})
+                    </option>
+                  ))}
+                </select>
+                {selectedCutoff && (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => {
+                        const cutoff = cutoffs.find(c => c.id === selectedCutoff);
+                        if (cutoff) handleEditCutoff(cutoff);
+                      }}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit Cutoff"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCutoff(selectedCutoff)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete Cutoff"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             
             {selectedCutoff && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
-                      <th className="text-left py-3 px-2 font-medium text-gray-600">Total Hours</th>
-                      <th className="text-left py-3 px-2 font-medium text-gray-600">Hourly Rate</th>
-                      <th className="text-left py-3 px-2 font-medium text-gray-600">Gross Pay</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {payrollSummaries.map(summary => (
-                      <tr key={summary.id} className="border-b border-gray-100">
-                        <td className="py-3 px-2 font-medium">{summary.userName}</td>
-                        <td className="py-3 px-2">{summary.totalHours.toFixed(2)} hrs</td>
-                        <td className="py-3 px-2">₱{summary.hourlyRate.toFixed(2)}</td>
-                        <td className="py-3 px-2 font-medium text-green-600">₱{summary.grossPay.toFixed(2)}</td>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
+                        <th className="text-left py-3 px-2 font-medium text-gray-600">Total Hours</th>
+                        <th className="text-left py-3 px-2 font-medium text-gray-600">Hourly Rate</th>
+                        <th className="text-left py-3 px-2 font-medium text-gray-600">Gross Pay</th>
                       </tr>
-                    ))}
-                    {payrollSummaries.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="py-8 text-center text-gray-400">
-                          No payroll data for this period
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {payrollSummaries.map(summary => (
+                        <tr key={summary.id} className="border-b border-gray-100">
+                          <td className="py-3 px-2 font-medium">{summary.userName}</td>
+                          <td className="py-3 px-2">{summary.totalHours.toFixed(2)} hrs</td>
+                          <td className="py-3 px-2">₱{summary.hourlyRate.toFixed(2)}</td>
+                          <td className="py-3 px-2 font-medium text-green-600">₱{summary.grossPay.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                      {payrollSummaries.length > 0 && (
+                        <tr className="border-t-2 border-gray-300 bg-gray-50">
+                          <td className="py-3 px-2 font-bold">TOTAL</td>
+                          <td className="py-3 px-2 font-bold">
+                            {payrollSummaries.reduce((sum, s) => sum + s.totalHours, 0).toFixed(2)} hrs
+                          </td>
+                          <td className="py-3 px-2">-</td>
+                          <td className="py-3 px-2 font-bold text-green-600">
+                            ₱{payrollSummaries.reduce((sum, s) => sum + s.grossPay, 0).toFixed(2)}
+                          </td>
+                        </tr>
+                      )}
+                      {payrollSummaries.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-gray-400">
+                            No payroll data for this period
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Export Buttons - Always visible when cutoff is selected */}
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">Export Options</h3>
+                  <div className="flex gap-3 flex-wrap">
+                    <button
+                      onClick={exportPayrollToCSV}
+                      disabled={payrollSummaries.length === 0}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                      <Download size={18} />
+                      Export Summary (CSV)
+                    </button>
+                    <button
+                      onClick={exportDetailedPayrollToCSV}
+                      disabled={payrollSummaries.length === 0}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                      <FileSpreadsheet size={18} />
+                      Export Detailed (CSV)
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {payrollSummaries.length === 0 
+                      ? 'No payroll data available for export. Approve time entries to generate payroll data.'
+                      : 'Summary export includes totals per employee. Detailed export includes all individual time entries.'
+                    }
+                  </p>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -1140,8 +1651,17 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Create Cutoff Period</h3>
-              <button onClick={() => setShowCutoffModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="text-lg font-bold text-gray-900">
+                {editingCutoff ? 'Edit Cutoff Period' : 'Create Cutoff Period'}
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowCutoffModal(false);
+                  setEditingCutoff(null);
+                  setNewCutoff({ name: '', startDate: '', endDate: '' });
+                }} 
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1181,7 +1701,11 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
             
             <div className="flex gap-2 justify-end mt-6">
               <button
-                onClick={() => setShowCutoffModal(false)}
+                onClick={() => {
+                  setShowCutoffModal(false);
+                  setEditingCutoff(null);
+                  setNewCutoff({ name: '', startDate: '', endDate: '' });
+                }}
                 className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
               >
                 Cancel
@@ -1191,7 +1715,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 disabled={isLoading}
                 className="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {isLoading ? 'Creating...' : 'Create Cutoff'}
+                {isLoading ? 'Saving...' : (editingCutoff ? 'Update Cutoff' : 'Create Cutoff')}
               </button>
             </div>
           </div>

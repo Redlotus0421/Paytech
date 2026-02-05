@@ -35,7 +35,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   const [todayEntry, setTodayEntry] = useState<TimeEntry | null>(null);
   
   // Employee entries state (for admin real-time monitoring)
-  const [entriesTab, setEntriesTab] = useState<'my' | 'employee'>('my');
+  const [entriesTab, setEntriesTab] = useState<'my' | 'employee'>(user.role === UserRole.ADMIN ? 'employee' : 'my');
   const [allEmployeeEntries, setAllEmployeeEntries] = useState<TimeEntry[]>([]);
   const [entriesDateFilter, setEntriesDateFilter] = useState<string>(new Date().toISOString().split('T')[0]);
   
@@ -1052,81 +1052,83 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       {/* Time In/Out Tab */}
       {activeTab === 'time-in-out' && (
         <div className="space-y-6">
-          {/* Today's Attendance Card */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Today's Attendance</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
-            
-            {/* Overnight shift indicator */}
-            {todayEntry && isOvernightEntry() && (
-              <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                <p className="text-sm text-purple-700">
-                  <span className="font-medium">🌙 Overnight Shift:</span> You clocked in on {todayEntry.date}. Clock out will be recorded for that entry.
-                </p>
-              </div>
-            )}
-            
-            <div className="flex gap-4">
-              <button
-                onClick={handleClockIn}
-                disabled={isLoading || (todayEntry?.timeIn != null)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
-                  todayEntry?.timeIn
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-yellow-400 text-gray-900 hover:bg-yellow-500'
-                }`}
-              >
-                {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Clock size={18} />}
-                Clock In
-              </button>
+          {/* Today's Attendance Card - Only for non-admin users */}
+          {!isAdmin && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Today's Attendance</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
               
-              <button
-                onClick={handleClockOut}
-                disabled={isLoading || !todayEntry?.timeIn || todayEntry?.timeOut != null}
-                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
-                  !todayEntry?.timeIn || todayEntry?.timeOut
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Clock size={18} />}
-                Clock Out
-              </button>
-            </div>
-            
-            {todayEntry && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-500">Time In:</span>
-                    <div className="font-medium">{formatTime(todayEntry.timeIn)}</div>
-                    <StatusBadge status={todayEntry.timeInStatus} />
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Time Out:</span>
-                    <div className="font-medium">{formatTime(todayEntry.timeOut)}</div>
-                    {todayEntry.timeOut && <StatusBadge status={todayEntry.timeOutStatus} />}
-                  </div>
-                  {(todayEntry.hoursWorked !== undefined && todayEntry.hoursWorked !== null) && (
-                    <div>
-                      <span className="text-gray-500">Hours:</span>
-                      <div className="font-medium">{todayEntry.hoursWorked} hrs</div>
-                    </div>
-                  )}
+              {/* Overnight shift indicator */}
+              {todayEntry && isOvernightEntry() && (
+                <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <p className="text-sm text-purple-700">
+                    <span className="font-medium">🌙 Overnight Shift:</span> You clocked in on {todayEntry.date}. Clock out will be recorded for that entry.
+                  </p>
                 </div>
+              )}
+              
+              <div className="flex gap-4">
+                <button
+                  onClick={handleClockIn}
+                  disabled={isLoading || (todayEntry?.timeIn != null)}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+                    todayEntry?.timeIn
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-yellow-400 text-gray-900 hover:bg-yellow-500'
+                  }`}
+                >
+                  {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Clock size={18} />}
+                  Clock In
+                </button>
+                
+                <button
+                  onClick={handleClockOut}
+                  disabled={isLoading || !todayEntry?.timeIn || todayEntry?.timeOut != null}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
+                    !todayEntry?.timeIn || todayEntry?.timeOut
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Clock size={18} />}
+                  Clock Out
+                </button>
               </div>
-            )}
-          </div>
+              
+              {todayEntry && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Time In:</span>
+                      <div className="font-medium">{formatTime(todayEntry.timeIn)}</div>
+                      <StatusBadge status={todayEntry.timeInStatus} />
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Time Out:</span>
+                      <div className="font-medium">{formatTime(todayEntry.timeOut)}</div>
+                      {todayEntry.timeOut && <StatusBadge status={todayEntry.timeOutStatus} />}
+                    </div>
+                    {(todayEntry.hoursWorked !== undefined && todayEntry.hoursWorked !== null) && (
+                      <div>
+                        <span className="text-gray-500">Hours:</span>
+                        <div className="font-medium">{todayEntry.hoursWorked} hrs</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Recent Entries and My Work Schedule Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className={`grid grid-cols-1 ${!isAdmin ? 'lg:grid-cols-3' : ''} gap-6`}>
             {/* Recent Entries */}
-            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className={`${!isAdmin ? 'lg:col-span-2' : ''} bg-white rounded-xl shadow-sm border border-gray-200 p-6`}>
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Recent Entries</h2>
+                  <h2 className="text-lg font-bold text-gray-900">{isAdmin ? 'Employee Entries' : 'Recent Entries'}</h2>
                   <p className="text-sm text-gray-500">View attendance records</p>
                 </div>
                 <button onClick={loadData} className="text-gray-500 hover:text-gray-700">
@@ -1134,39 +1136,8 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 </button>
               </div>
               
-              {/* Sub-tabs for My Entries / Employee Entries (Admin only) */}
-              {isAdmin && (
-                <div className="mb-4">
-                  <div className="bg-gray-100 p-1 rounded-lg inline-flex w-full">
-                    <button
-                      onClick={() => setEntriesTab('my')}
-                      className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                        entriesTab === 'my'
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      My Entries
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEntriesTab('employee');
-                        loadAllEmployeeEntries(entriesDateFilter);
-                      }}
-                      className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                        entriesTab === 'employee'
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      Employee Entries
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* Date filter for Employee Entries */}
-              {isAdmin && entriesTab === 'employee' && (
+              {isAdmin && (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
                   <input
@@ -1185,10 +1156,10 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      {isAdmin && entriesTab === 'employee' && (
+                      {isAdmin && (
                         <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
                       )}
-                      {entriesTab === 'my' && (
+                      {!isAdmin && (
                         <th className="text-left py-3 px-2 font-medium text-gray-600">Date</th>
                       )}
                       <th className="text-left py-3 px-2 font-medium text-gray-600">Time In</th>
@@ -1199,8 +1170,8 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* My Entries */}
-                    {entriesTab === 'my' && timeEntries.map(entry => (
+                    {/* My Entries - Non-admin users */}
+                    {!isAdmin && timeEntries.map(entry => (
                       <tr key={entry.id} className="border-b border-gray-100">
                         <td className="py-3 px-2">{entry.date}</td>
                         <td className="py-3 px-2">{formatTime(entry.timeIn)}</td>
@@ -1210,14 +1181,14 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                         <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
                       </tr>
                     ))}
-                    {entriesTab === 'my' && timeEntries.length === 0 && (
+                    {!isAdmin && timeEntries.length === 0 && (
                       <tr>
                         <td colSpan={6} className="py-8 text-center text-gray-400">No entries found</td>
                       </tr>
                     )}
                     
                     {/* Employee Entries (Admin only) */}
-                    {isAdmin && entriesTab === 'employee' && allEmployeeEntries.map(entry => (
+                    {isAdmin && allEmployeeEntries.map(entry => (
                       <tr key={entry.id} className="border-b border-gray-100">
                         <td className="py-3 px-2 font-medium">{entry.userName}</td>
                         <td className="py-3 px-2">{formatTime(entry.timeIn)}</td>
@@ -1227,7 +1198,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                         <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
                       </tr>
                     ))}
-                    {isAdmin && entriesTab === 'employee' && allEmployeeEntries.length === 0 && (
+                    {isAdmin && allEmployeeEntries.length === 0 && (
                       <tr>
                         <td colSpan={6} className="py-8 text-center text-gray-400">No employee entries for this date</td>
                       </tr>
@@ -1237,47 +1208,49 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
               </div>
             </div>
 
-            {/* My Work Schedule */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar size={20} className="text-gray-600" />
-                <h2 className="text-lg font-bold text-gray-900">My Work Schedule</h2>
+            {/* My Work Schedule - Only for non-admin users */}
+            {!isAdmin && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar size={20} className="text-gray-600" />
+                  <h2 className="text-lg font-bold text-gray-900">My Work Schedule</h2>
+                </div>
+                <p className="text-sm text-gray-500 mb-4">Your assigned work schedule</p>
+                
+                {mySchedule.length > 0 ? (
+                  <div className="space-y-2">
+                    {mySchedule.map(schedule => (
+                      <div 
+                        key={schedule.dayOfWeek} 
+                        className={`flex justify-between items-center p-3 rounded-lg ${
+                          schedule.isRestDay 
+                            ? 'bg-gray-50 text-gray-400' 
+                            : schedule.dayOfWeek === new Date().getDay() 
+                              ? 'bg-yellow-50 border border-yellow-200' 
+                              : 'bg-gray-50'
+                        }`}
+                      >
+                        <span className={`font-medium ${schedule.dayOfWeek === new Date().getDay() ? 'text-yellow-700' : ''}`}>
+                          {getDayName(schedule.dayOfWeek)}
+                        </span>
+                        <span className={`text-sm ${schedule.isRestDay ? 'italic' : ''}`}>
+                          {schedule.isRestDay 
+                            ? 'Rest Day' 
+                            : `${formatTime(schedule.startTime)} - ${formatTime(schedule.endTime)}`
+                          }
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Calendar size={40} className="mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-500">No schedule has been assigned yet.</p>
+                    <p className="text-sm text-gray-400">Please contact your administrator.</p>
+                  </div>
+                )}
               </div>
-              <p className="text-sm text-gray-500 mb-4">Your assigned work schedule</p>
-              
-              {mySchedule.length > 0 ? (
-                <div className="space-y-2">
-                  {mySchedule.map(schedule => (
-                    <div 
-                      key={schedule.dayOfWeek} 
-                      className={`flex justify-between items-center p-3 rounded-lg ${
-                        schedule.isRestDay 
-                          ? 'bg-gray-50 text-gray-400' 
-                          : schedule.dayOfWeek === new Date().getDay() 
-                            ? 'bg-yellow-50 border border-yellow-200' 
-                            : 'bg-gray-50'
-                      }`}
-                    >
-                      <span className={`font-medium ${schedule.dayOfWeek === new Date().getDay() ? 'text-yellow-700' : ''}`}>
-                        {getDayName(schedule.dayOfWeek)}
-                      </span>
-                      <span className={`text-sm ${schedule.isRestDay ? 'italic' : ''}`}>
-                        {schedule.isRestDay 
-                          ? 'Rest Day' 
-                          : `${formatTime(schedule.startTime)} - ${formatTime(schedule.endTime)}`
-                        }
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Calendar size={40} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500">No schedule has been assigned yet.</p>
-                  <p className="text-sm text-gray-400">Please contact your administrator.</p>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
       )}

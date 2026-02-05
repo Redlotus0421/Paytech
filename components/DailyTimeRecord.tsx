@@ -51,6 +51,8 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   const [schedules, setSchedules] = useState<EmployeeSchedule[]>([]);
   const [scheduleEffectiveDate, setScheduleEffectiveDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [scheduleEndDate, setScheduleEndDate] = useState<string>('');
+  const [quickApplyStartTime, setQuickApplyStartTime] = useState<string>('09:00');
+  const [quickApplyEndTime, setQuickApplyEndTime] = useState<string>('18:00');
   
   // Payroll state
   const [cutoffs, setCutoffs] = useState<PayrollCutoff[]>([]);
@@ -999,6 +1001,19 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     ));
   };
 
+  const applyToAllWorkDays = () => {
+    setSchedules(prev => prev.map(s => 
+      s.isRestDay ? s : { ...s, startTime: quickApplyStartTime, endTime: quickApplyEndTime }
+    ));
+  };
+
+  // Format date for display
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   // Tab navigation
   const tabs: { id: DTRTab; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
     { id: 'time-in-out', label: 'Time In/Out', icon: <Clock size={16} /> },
@@ -1394,7 +1409,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       {activeTab === 'schedules' && isAdmin && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-1">Employee Schedules</h2>
-          <p className="text-sm text-gray-500 mb-4">Set work schedules for employees</p>
+          <p className="text-sm text-gray-500 mb-4">Set work schedules for employees with effective date range</p>
           
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">Select Employee</label>
@@ -1404,7 +1419,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 setSelectedEmployee(e.target.value);
                 loadEmployeeSchedule(e.target.value);
               }}
-              className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
             >
               {employees.map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.name}</option>
@@ -1412,12 +1427,15 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
             </select>
           </div>
           
-          {/* Schedule Date Range */}
+          {/* Schedule Effective Period */}
           <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Schedule Period</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Effective Date *</label>
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar size={16} className="text-gray-600" />
+              <h3 className="text-sm font-semibold text-gray-700">Schedule Effective Period</h3>
+            </div>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs text-gray-600 mb-1">Effective From</label>
                 <input
                   type="date"
                   value={scheduleEffectiveDate}
@@ -1425,10 +1443,9 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">When this schedule starts</p>
               </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">End Date (Optional)</label>
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs text-gray-600 mb-1">Effective To</label>
                 <input
                   type="date"
                   value={scheduleEndDate}
@@ -1436,8 +1453,55 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                   min={scheduleEffectiveDate}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Leave empty for ongoing schedule</p>
               </div>
+              <button
+                type="button"
+                onClick={() => {}}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700"
+              >
+                <Calendar size={16} />
+                Apply Dates
+              </button>
+            </div>
+            <p className="text-xs text-blue-600 mt-2">
+              Current schedule is effective from {formatDateDisplay(scheduleEffectiveDate)}{scheduleEndDate ? ` until ${formatDateDisplay(scheduleEndDate)}` : ' (ongoing)'}
+            </p>
+          </div>
+          
+          {/* Quick Apply - Same Time for All Work Days */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock size={16} className="text-gray-600" />
+              <h3 className="text-sm font-semibold text-gray-700">Quick Apply - Same Time for All Work Days</h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">Set start and end times below, then click "Apply to All Work Days" to update all non-rest days at once.</p>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs text-gray-600 mb-1">Start Time</label>
+                <input
+                  type="time"
+                  value={quickApplyStartTime}
+                  onChange={(e) => setQuickApplyStartTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="flex-1 min-w-[150px]">
+                <label className="block text-xs text-gray-600 mb-1">End Time</label>
+                <input
+                  type="time"
+                  value={quickApplyEndTime}
+                  onChange={(e) => setQuickApplyEndTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={applyToAllWorkDays}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
+              >
+                <Clock size={16} />
+                Apply to All Work Days
+              </button>
             </div>
           </div>
           

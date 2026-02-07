@@ -1315,9 +1315,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                           </button>
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-400 italic">
-                          {entry.timeInStatus === 'approved' ? 'Approved' : 'Rejected'}
-                        </span>
+                        <StatusBadge status={entry.timeInStatus} />
                       )}
                     </td>
                     <td className="py-3 px-2">
@@ -1353,9 +1351,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                           </button>
                         </div>
                       ) : entry.timeOut ? (
-                        <span className="text-xs text-gray-400 italic">
-                          {entry.timeOutStatus === 'approved' ? 'Approved' : 'Rejected'}
-                        </span>
+                        <StatusBadge status={entry.timeOutStatus} />
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}

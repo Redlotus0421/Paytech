@@ -1287,10 +1287,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                     <td className="py-3 px-2 font-medium">{entry.userName}</td>
                     <td className="py-3 px-2">{entry.date}</td>
                     <td className="py-3 px-2">
-                      <div className="flex items-center gap-2">
-                        {formatTime(entry.timeIn)}
-                        <StatusBadge status={entry.timeInStatus} />
-                      </div>
+                      {formatTime(entry.timeIn)}
                     </td>
                     <td className="py-3 px-2">
                       {entry.timeInStatus === 'pending' ? (

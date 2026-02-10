@@ -17,7 +17,8 @@ import {
   Download,
   FileSpreadsheet,
   Edit,
-  Trash2
+  Trash2,
+  Lock
 } from 'lucide-react';
 
 interface DailyTimeRecordProps {
@@ -64,6 +65,17 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   
   // Employee details for hourly rate
   const [employeeDetails, setEmployeeDetails] = useState<Map<string, { monthlySalary: number; hourlyRate: number; autoCalculate: boolean }>>(new Map());
+
+  // Edit time entry state (admin only)
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [editClockOut, setEditClockOut] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  
+  // Admin authentication state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [pendingEditEntry, setPendingEditEntry] = useState<TimeEntry | null>(null);
 
   const isAdmin = user.role === UserRole.ADMIN;
 
@@ -1007,6 +1019,126 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     ));
   };
 
+  // Edit time entry functions (admin only)
+  const handleEditClick = (entry: TimeEntry) => {
+    setPendingEditEntry(entry);
+    setAuthPassword('');
+    setAuthError('');
+    setShowAuthModal(true);
+  };
+
+  const verifyAdminPassword = async () => {
+    try {
+      // Check local seeded users first (from localStorage)
+      const localUsers = JSON.parse(localStorage.getItem('cfs_users') || '[]');
+      const localAdmin = localUsers.find((u: User) => u.role === UserRole.ADMIN && u.password === authPassword);
+      
+      if (localAdmin) {
+        setAuthError('');
+        setShowAuthModal(false);
+        setAuthPassword('');
+        
+        if (pendingEditEntry) {
+          setEditingEntry(pendingEditEntry);
+          setEditClockOut(pendingEditEntry.timeOut || '');
+          setShowEditModal(true);
+          setPendingEditEntry(null);
+        }
+        return;
+      }
+      
+      // Fallback to Supabase users
+      const users = await storageService.fetchUsers();
+      const admin = users.find(u => u.role === UserRole.ADMIN && u.password === authPassword);
+      
+      if (admin) {
+        setAuthError('');
+        setShowAuthModal(false);
+        setAuthPassword('');
+        
+        // Open the edit modal with the pending entry
+        if (pendingEditEntry) {
+          setEditingEntry(pendingEditEntry);
+          setEditClockOut(pendingEditEntry.timeOut || '');
+          setShowEditModal(true);
+          setPendingEditEntry(null);
+        }
+      } else {
+        setAuthError('Incorrect Admin Password');
+      }
+    } catch (err) {
+      console.error('Error verifying password:', err);
+      setAuthError('Failed to verify password');
+    }
+  };
+
+  const closeAuthModal = () => {
+    setShowAuthModal(false);
+    setAuthPassword('');
+    setAuthError('');
+    setPendingEditEntry(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingEntry || !editClockOut) {
+      alert('Please enter a clock out time');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const hoursWorked = calculateHours(editingEntry.timeIn!, editClockOut, false);
+      
+      const { error } = await supabase
+        .from('time_entries')
+        .update({
+          time_out: editClockOut,
+          time_out_status: 'approved',
+          hours_worked: hoursWorked,
+          approved_by: user.name,
+          approved_at: Date.now(),
+          updated_at: Date.now()
+        })
+        .eq('id', editingEntry.id);
+      
+      if (error) throw error;
+      
+      await storageService.logActivity(
+        'Manual Time Entry Edit',
+        `${user.name} manually added clock out (${formatTime(editClockOut)}) for ${editingEntry.userName} on ${editingEntry.date}. Hours: ${hoursWorked}`,
+        user.id,
+        user.name
+      );
+      
+      // Close modal and refresh data
+      setShowEditModal(false);
+      setEditingEntry(null);
+      setEditClockOut('');
+      
+      // Refresh all relevant data to reflect changes across tabs
+      await loadTimeEntries();
+      if (activeTab === 'approvals') {
+        await loadPendingApprovals();
+      }
+      if (activeTab === 'payroll' && selectedCutoff) {
+        await loadPayrollSummary(selectedCutoff);
+      }
+      
+      alert(`Clock out time updated successfully. Hours worked: ${hoursWorked}`);
+    } catch (err) {
+      console.error('Error updating time entry:', err);
+      alert('Failed to update time entry');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditingEntry(null);
+    setEditClockOut('');
+  };
+
   // Format date for display
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return '';
@@ -1167,6 +1299,9 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                       <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
                       <th className="text-left py-3 px-2 font-medium text-gray-600">Out Status</th>
                       <th className="text-left py-3 px-2 font-medium text-gray-600">Hours</th>
+                      {isAdmin && (
+                        <th className="text-left py-3 px-2 font-medium text-gray-600">Action</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1196,11 +1331,23 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                         <td className="py-3 px-2">{entry.timeOut ? formatTime(entry.timeOut) : '-'}</td>
                         <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
                         <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
+                        <td className="py-3 px-2">
+                          {!entry.timeOut && (
+                            <button
+                              onClick={() => handleEditClick(entry)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Add clock out time"
+                            >
+                              <Edit size={14} />
+                              Edit
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                     {isAdmin && allEmployeeEntries.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-gray-400">No employee entries for this date</td>
+                        <td colSpan={7} className="py-8 text-center text-gray-400">No employee entries for this date</td>
                       </tr>
                     )}
                   </tbody>
@@ -1279,6 +1426,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Clock Out Action</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Hours</th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-600">Edit</th>
                 </tr>
               </thead>
               <tbody>
@@ -1358,11 +1506,23 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                         {entry.hoursWorked ? `${entry.hoursWorked} hrs` : '-'}
                       </span>
                     </td>
+                    <td className="py-3 px-2">
+                      {!entry.timeOut && (
+                        <button
+                          onClick={() => handleEditClick(entry)}
+                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Add clock out time"
+                        >
+                          <Edit size={14} />
+                          Edit
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {pendingEntries.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray-400">No pending approvals</td>
+                    <td colSpan={8} className="py-8 text-center text-gray-400">No pending approvals</td>
                   </tr>
                 )}
               </tbody>
@@ -1746,6 +1906,133 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 className="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {isLoading ? 'Saving...' : (editingCutoff ? 'Update Cutoff' : 'Create Cutoff')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Authentication Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center gap-3 mb-4 text-amber-600">
+              <div className="p-2 bg-amber-100 rounded-full">
+                <Lock size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Admin Authentication Required</h3>
+            </div>
+            
+            <p className="text-gray-600 mb-6">
+              Please enter your Admin password to edit this time entry.
+            </p>
+
+            <form onSubmit={(e) => { e.preventDefault(); verifyAdminPassword(); }}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Password</label>
+                <input 
+                  type="password" 
+                  autoFocus
+                  value={authPassword}
+                  onChange={e => setAuthPassword(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                  placeholder="Enter password"
+                />
+                {authError && <p className="text-red-600 text-sm mt-1">{authError}</p>}
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={closeAuthModal}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600"
+                >
+                  Confirm
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Time Entry Modal */}
+      {showEditModal && editingEntry && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Edit Time Entry</h3>
+              <button 
+                onClick={closeEditModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-gray-500">Employee:</span>
+                  <div className="font-medium">{editingEntry.userName}</div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Date:</span>
+                  <div className="font-medium">{editingEntry.date}</div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Time In:</span>
+                  <div className="font-medium">{formatTime(editingEntry.timeIn)}</div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Status:</span>
+                  <div><StatusBadge status={editingEntry.timeInStatus} /></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Clock Out Time</label>
+                <input
+                  type="time"
+                  value={editClockOut}
+                  onChange={(e) => setEditClockOut(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter the clock out time for this entry. Hours will be auto-calculated.
+                </p>
+              </div>
+
+              {editClockOut && editingEntry.timeIn && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-700">
+                    <span className="font-medium">Calculated Hours: </span>
+                    {calculateHours(editingEntry.timeIn, editClockOut, false)} hrs
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-2 justify-end mt-6">
+              <button
+                onClick={closeEditModal}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isLoading || !editClockOut}
+                className="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isLoading ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>

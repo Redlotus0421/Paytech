@@ -155,20 +155,39 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
 
   const loadMySchedule = async () => {
     const today = new Date().toISOString().split('T')[0];
+    console.log('Loading schedule for user:', user.id, 'today:', today);
+    
     try {
+      // First try to get any schedule for this user to debug
+      const { data: allUserSchedules, error: debugError } = await supabase
+        .from('employee_schedules')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      console.log('All schedules for user:', allUserSchedules, 'error:', debugError);
+      
+      // Now filter for current/active schedules
       const { data, error } = await supabase
         .from('employee_schedules')
         .select('*')
         .eq('user_id', user.id)
         .lte('effective_date', today)
-        .or(`end_date.is.null,end_date.gte.${today}`)
         .order('effective_date', { ascending: false });
       
       if (error) throw error;
       
+      console.log('Filtered schedules:', data);
+      
       if (data && data.length > 0) {
+        // Filter out schedules that have ended
+        const activeSchedules = data.filter((s: any) => 
+          !s.end_date || s.end_date >= today
+        );
+        
+        console.log('Active schedules:', activeSchedules);
+        
         const latestSchedules = new Map<number, any>();
-        data.forEach((s: any) => {
+        activeSchedules.forEach((s: any) => {
           if (!latestSchedules.has(s.day_of_week)) {
             latestSchedules.set(s.day_of_week, s);
           }

@@ -68,6 +68,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
 
   // Edit time entry state (admin only)
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [editClockIn, setEditClockIn] = useState('');
   const [editClockOut, setEditClockOut] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   
@@ -76,6 +77,8 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [pendingEditEntry, setPendingEditEntry] = useState<TimeEntry | null>(null);
+  const [pendingDeleteEntry, setPendingDeleteEntry] = useState<TimeEntry | null>(null);
+  const [authAction, setAuthAction] = useState<'edit' | 'delete'>('edit');
 
   const isAdmin = user.role === UserRole.ADMIN;
 
@@ -266,26 +269,24 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   const loadEmployeeSchedule = async (employeeId: string) => {
     const today = new Date().toISOString().split('T')[0];
     try {
+      // Load all schedules for this employee, ordered by effective_date descending
       const { data, error } = await supabase
         .from('employee_schedules')
         .select('*')
         .eq('user_id', employeeId)
-        .lte('effective_date', today)
-        .or(`end_date.is.null,end_date.gte.${today}`)
-        .order('effective_date', { ascending: false });
+        .order('effective_date', { ascending: false })
+        .order('day_of_week', { ascending: true });
       
       if (error) throw error;
       
       if (data && data.length > 0) {
-        // Get the most recent schedule for each day
-        const latestSchedules = new Map<number, any>();
-        data.forEach((s: any) => {
-          if (!latestSchedules.has(s.day_of_week)) {
-            latestSchedules.set(s.day_of_week, s);
-          }
-        });
+        // Get the most recent effective date
+        const latestEffectiveDate = data[0].effective_date;
         
-        const mappedSchedules = Array.from(latestSchedules.values()).map((s: any) => ({
+        // Filter schedules for the most recent effective date
+        const latestSchedules = data.filter((s: any) => s.effective_date === latestEffectiveDate);
+        
+        const mappedSchedules = latestSchedules.map((s: any) => ({
           id: s.id,
           userId: s.user_id,
           dayOfWeek: s.day_of_week,
@@ -307,7 +308,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
               startTime: '09:00',
               endTime: '18:00',
               isRestDay: day === 0,
-              effectiveDate: today,
+              effectiveDate: latestEffectiveDate,
               endDate: undefined
             });
           }
@@ -315,15 +316,9 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         
         setSchedules(mappedSchedules.sort((a, b) => a.dayOfWeek - b.dayOfWeek));
         
-        // Set the effective date from the most recent schedule
-        if (data[0]?.effective_date) {
-          setScheduleEffectiveDate(data[0].effective_date);
-        }
-        if (data[0]?.end_date) {
-          setScheduleEndDate(data[0].end_date);
-        } else {
-          setScheduleEndDate('');
-        }
+        // Set the effective date and end date from the schedules
+        setScheduleEffectiveDate(latestEffectiveDate);
+        setScheduleEndDate(latestSchedules[0]?.end_date || '');
       } else {
         // Create default schedule (Mon-Sat 9AM-6PM, Sun rest)
         const defaultSchedule: EmployeeSchedule[] = [0, 1, 2, 3, 4, 5, 6].map(day => ({
@@ -342,8 +337,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       }
     } catch (err) {
       console.error('Error loading schedule:', err);
-      // Default schedule
-      const today = new Date().toISOString().split('T')[0];
+      // Default schedule on error
       const defaultSchedule: EmployeeSchedule[] = [0, 1, 2, 3, 4, 5, 6].map(day => ({
         id: uuidv4(),
         userId: employeeId,
@@ -532,6 +526,31 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     targetDate.setDate(baseDate.getDate() + diff);
     
     return targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Get actual Date object for a specific day of week based on the effective date
+  const getDateObjectForDay = (dayOfWeek: number, effectiveDate: string): Date => {
+    const baseDate = new Date(effectiveDate);
+    const baseDayOfWeek = baseDate.getDay();
+    
+    let diff = dayOfWeek - baseDayOfWeek;
+    if (diff < 0) diff += 7;
+    
+    const targetDate = new Date(baseDate);
+    targetDate.setDate(baseDate.getDate() + diff);
+    return targetDate;
+  };
+
+  // Check if a day falls within the effective period
+  const isDayWithinPeriod = (dayOfWeek: number): boolean => {
+    if (!scheduleEffectiveDate) return true;
+    if (!scheduleEndDate) return true; // No end date means all days are valid
+    
+    const dayDate = getDateObjectForDay(dayOfWeek, scheduleEffectiveDate);
+    const endDate = new Date(scheduleEndDate);
+    endDate.setHours(23, 59, 59, 999); // End of the day
+    
+    return dayDate <= endDate;
   };
 
   // Calculate hours worked - handles overnight shifts
@@ -836,13 +855,21 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     
     setIsLoading(true);
     try {
-      // End date for existing schedules (day before the new effective date)
+      // First, delete any existing schedules for this employee with the same effective date
+      // This handles the case where we're editing existing schedules
+      await supabase
+        .from('employee_schedules')
+        .delete()
+        .eq('user_id', selectedEmployee)
+        .eq('effective_date', scheduleEffectiveDate);
+      
+      // End date for older schedules (day before the new effective date)
       const effectiveDate = new Date(scheduleEffectiveDate);
       const previousDay = new Date(effectiveDate);
       previousDay.setDate(previousDay.getDate() - 1);
       const endPreviousSchedules = previousDay.toISOString().split('T')[0];
       
-      // Update existing schedules to end the day before the new effective date
+      // Update older schedules to end the day before the new effective date
       await supabase
         .from('employee_schedules')
         .update({ end_date: endPreviousSchedules, updated_at: Date.now() })
@@ -850,8 +877,11 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         .is('end_date', null)
         .lt('effective_date', scheduleEffectiveDate);
       
-      // Insert new schedules
-      const scheduleData = schedules.map(s => ({
+      // Filter schedules to only include days within the effective period
+      const schedulesToSave = schedules.filter(s => isDayWithinPeriod(s.dayOfWeek));
+      
+      // Insert the schedules
+      const scheduleData = schedulesToSave.map(s => ({
         id: uuidv4(),
         user_id: selectedEmployee,
         day_of_week: s.dayOfWeek,
@@ -868,11 +898,15 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         .from('employee_schedules')
         .insert(scheduleData);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase insert error details:', error);
+        throw error;
+      }
       
+      const employee = employees.find(e => e.id === selectedEmployee);
       await storageService.logActivity(
         'Update Schedule',
-        `Updated schedule for employee effective ${scheduleEffectiveDate}${scheduleEndDate ? ` to ${scheduleEndDate}` : ''}`,
+        `Updated schedule for ${employee?.name || 'employee'} effective ${scheduleEffectiveDate}${scheduleEndDate ? ` to ${scheduleEndDate}` : ''}`,
         user.id,
         user.name
       );
@@ -881,7 +915,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       await loadEmployeeSchedule(selectedEmployee);
     } catch (err) {
       console.error('Error saving schedule:', err);
-      alert('Failed to save schedule');
+      alert('Failed to save schedule. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -1022,6 +1056,16 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   // Edit time entry functions (admin only)
   const handleEditClick = (entry: TimeEntry) => {
     setPendingEditEntry(entry);
+    setAuthAction('edit');
+    setAuthPassword('');
+    setAuthError('');
+    setShowAuthModal(true);
+  };
+
+  // Delete time entry function (admin only)
+  const handleDeleteClick = (entry: TimeEntry) => {
+    setPendingDeleteEntry(entry);
+    setAuthAction('delete');
     setAuthPassword('');
     setAuthError('');
     setShowAuthModal(true);
@@ -1038,11 +1082,15 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         setShowAuthModal(false);
         setAuthPassword('');
         
-        if (pendingEditEntry) {
+        if (authAction === 'edit' && pendingEditEntry) {
           setEditingEntry(pendingEditEntry);
+          setEditClockIn(pendingEditEntry.timeIn || '');
           setEditClockOut(pendingEditEntry.timeOut || '');
           setShowEditModal(true);
           setPendingEditEntry(null);
+        } else if (authAction === 'delete' && pendingDeleteEntry) {
+          await performDelete(pendingDeleteEntry);
+          setPendingDeleteEntry(null);
         }
         return;
       }
@@ -1056,12 +1104,15 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         setShowAuthModal(false);
         setAuthPassword('');
         
-        // Open the edit modal with the pending entry
-        if (pendingEditEntry) {
+        if (authAction === 'edit' && pendingEditEntry) {
           setEditingEntry(pendingEditEntry);
+          setEditClockIn(pendingEditEntry.timeIn || '');
           setEditClockOut(pendingEditEntry.timeOut || '');
           setShowEditModal(true);
           setPendingEditEntry(null);
+        } else if (authAction === 'delete' && pendingDeleteEntry) {
+          await performDelete(pendingDeleteEntry);
+          setPendingDeleteEntry(null);
         }
       } else {
         setAuthError('Incorrect Admin Password');
@@ -1072,40 +1123,86 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     }
   };
 
+  const performDelete = async (entry: TimeEntry) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('time_entries')
+        .delete()
+        .eq('id', entry.id);
+      
+      if (error) throw error;
+      
+      await storageService.logActivity(
+        'Delete Time Entry',
+        `${user.name} deleted time entry for ${entry.userName} on ${entry.date} (Time In: ${formatTime(entry.timeIn)}, Time Out: ${formatTime(entry.timeOut)})`,
+        user.id,
+        user.name
+      );
+      
+      // Refresh data
+      await loadTimeEntries();
+      if (activeTab === 'approvals') {
+        await loadPendingApprovals();
+      }
+      
+      alert('Time entry deleted successfully');
+    } catch (err) {
+      console.error('Error deleting time entry:', err);
+      alert('Failed to delete time entry');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const closeAuthModal = () => {
     setShowAuthModal(false);
     setAuthPassword('');
     setAuthError('');
     setPendingEditEntry(null);
+    setPendingDeleteEntry(null);
   };
 
   const handleSaveEdit = async () => {
-    if (!editingEntry || !editClockOut) {
-      alert('Please enter a clock out time');
+    if (!editingEntry || !editClockIn) {
+      alert('Please enter a clock in time');
       return;
     }
 
     setIsLoading(true);
     try {
-      const hoursWorked = calculateHours(editingEntry.timeIn!, editClockOut, false);
+      const hoursWorked = editClockOut ? calculateHours(editClockIn, editClockOut, false) : null;
+      
+      const updateData: any = {
+        time_in: editClockIn,
+        time_in_status: 'approved',
+        approved_by: user.name,
+        approved_at: Date.now(),
+        updated_at: Date.now()
+      };
+      
+      if (editClockOut) {
+        updateData.time_out = editClockOut;
+        updateData.time_out_status = 'approved';
+        updateData.hours_worked = hoursWorked;
+      }
       
       const { error } = await supabase
         .from('time_entries')
-        .update({
-          time_out: editClockOut,
-          time_out_status: 'approved',
-          hours_worked: hoursWorked,
-          approved_by: user.name,
-          approved_at: Date.now(),
-          updated_at: Date.now()
-        })
+        .update(updateData)
         .eq('id', editingEntry.id);
       
       if (error) throw error;
       
+      const originalTimeIn = editingEntry.timeIn;
+      const originalTimeOut = editingEntry.timeOut;
+      
       await storageService.logActivity(
         'Manual Time Entry Edit',
-        `${user.name} manually added clock out (${formatTime(editClockOut)}) for ${editingEntry.userName} on ${editingEntry.date}. Hours: ${hoursWorked}`,
+        `${user.name} edited time entry for ${editingEntry.userName} on ${editingEntry.date}. ` +
+        `Time In: ${formatTime(originalTimeIn)} → ${formatTime(editClockIn)}` +
+        (editClockOut ? `, Time Out: ${formatTime(originalTimeOut)} → ${formatTime(editClockOut)}` : '') +
+        (hoursWorked ? `. Hours: ${hoursWorked}` : ''),
         user.id,
         user.name
       );
@@ -1113,6 +1210,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       // Close modal and refresh data
       setShowEditModal(false);
       setEditingEntry(null);
+      setEditClockIn('');
       setEditClockOut('');
       
       // Refresh all relevant data to reflect changes across tabs
@@ -1124,7 +1222,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         await loadPayrollSummary(selectedCutoff);
       }
       
-      alert(`Clock out time updated successfully. Hours worked: ${hoursWorked}`);
+      alert(`Time entry updated successfully.${hoursWorked ? ` Hours worked: ${hoursWorked}` : ''}`);
     } catch (err) {
       console.error('Error updating time entry:', err);
       alert('Failed to update time entry');
@@ -1136,6 +1234,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   const closeEditModal = () => {
     setShowEditModal(false);
     setEditingEntry(null);
+    setEditClockIn('');
     setEditClockOut('');
   };
 
@@ -1332,16 +1431,22 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                         <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
                         <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
                         <td className="py-3 px-2">
-                          {!entry.timeOut && (
+                          <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleEditClick(entry)}
-                              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                              title="Add clock out time"
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Edit time entry"
                             >
-                              <Edit size={14} />
-                              Edit
+                              <Edit size={16} />
                             </button>
-                          )}
+                            <button
+                              onClick={() => handleDeleteClick(entry)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Delete time entry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1643,43 +1748,55 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 </tr>
               </thead>
               <tbody>
-                {schedules.sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(schedule => (
-                  <tr key={schedule.dayOfWeek} className="border-b border-gray-100">
-                    <td className="py-3 px-2 font-medium">{getDayName(schedule.dayOfWeek)}</td>
-                    <td className="py-3 px-2 text-gray-500 text-xs">
-                      {getDateForDay(schedule.dayOfWeek, scheduleEffectiveDate)}
-                    </td>
-                    <td className="py-3 px-2">
-                      <input
-                        type="time"
-                        value={schedule.startTime}
-                        onChange={(e) => updateSchedule(schedule.dayOfWeek, 'startTime', e.target.value)}
-                        disabled={schedule.isRestDay}
-                        className="px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:text-gray-400"
-                      />
-                    </td>
-                    <td className="py-3 px-2">
-                      <input
-                        type="time"
-                        value={schedule.endTime}
-                        onChange={(e) => updateSchedule(schedule.dayOfWeek, 'endTime', e.target.value)}
-                        disabled={schedule.isRestDay}
-                        className="px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:text-gray-400"
-                      />
-                    </td>
-                    <td className="py-3 px-2">
-                      <label className="relative inline-flex items-center cursor-pointer">
+                {schedules.sort((a, b) => a.dayOfWeek - b.dayOfWeek).map(schedule => {
+                  const isWithinPeriod = isDayWithinPeriod(schedule.dayOfWeek);
+                  return (
+                    <tr 
+                      key={schedule.dayOfWeek} 
+                      className={`border-b border-gray-100 ${!isWithinPeriod ? 'bg-gray-50 opacity-50' : ''}`}
+                    >
+                      <td className="py-3 px-2 font-medium">
+                        {getDayName(schedule.dayOfWeek)}
+                        {!isWithinPeriod && (
+                          <span className="ml-2 text-xs text-red-500 font-normal">(Outside period)</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2 text-gray-500 text-xs">
+                        {getDateForDay(schedule.dayOfWeek, scheduleEffectiveDate)}
+                      </td>
+                      <td className="py-3 px-2">
                         <input
-                          type="checkbox"
-                          checked={schedule.isRestDay}
-                          onChange={(e) => updateSchedule(schedule.dayOfWeek, 'isRestDay', e.target.checked)}
-                          className="sr-only peer"
+                          type="time"
+                          value={schedule.startTime}
+                          onChange={(e) => updateSchedule(schedule.dayOfWeek, 'startTime', e.target.value)}
+                          disabled={schedule.isRestDay || !isWithinPeriod}
+                          className="px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:text-gray-400"
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3 px-2">
+                        <input
+                          type="time"
+                          value={schedule.endTime}
+                          onChange={(e) => updateSchedule(schedule.dayOfWeek, 'endTime', e.target.value)}
+                          disabled={schedule.isRestDay || !isWithinPeriod}
+                          className="px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:text-gray-400"
+                        />
+                      </td>
+                      <td className="py-3 px-2">
+                        <label className={`relative inline-flex items-center ${isWithinPeriod ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+                          <input
+                            type="checkbox"
+                            checked={schedule.isRestDay}
+                            onChange={(e) => updateSchedule(schedule.dayOfWeek, 'isRestDay', e.target.checked)}
+                            disabled={!isWithinPeriod}
+                            className="sr-only peer"
+                          />
+                          <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isWithinPeriod ? 'peer-checked:bg-blue-600' : 'peer-checked:bg-gray-400'}`}></div>
+                        </label>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1916,16 +2033,30 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center gap-3 mb-4 text-amber-600">
-              <div className="p-2 bg-amber-100 rounded-full">
+            <div className={`flex items-center gap-3 mb-4 ${authAction === 'delete' ? 'text-red-600' : 'text-amber-600'}`}>
+              <div className={`p-2 ${authAction === 'delete' ? 'bg-red-100' : 'bg-amber-100'} rounded-full`}>
                 <Lock size={24} />
               </div>
               <h3 className="text-lg font-bold text-gray-900">Admin Authentication Required</h3>
             </div>
             
-            <p className="text-gray-600 mb-6">
-              Please enter your Admin password to edit this time entry.
+            <p className="text-gray-600 mb-4">
+              {authAction === 'delete' 
+                ? 'Please enter your Admin password to delete this time entry.'
+                : 'Please enter your Admin password to edit this time entry.'
+              }
             </p>
+            
+            {authAction === 'delete' && pendingDeleteEntry && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+                <p className="font-medium text-red-800">Entry to be deleted:</p>
+                <p className="text-red-700">
+                  {pendingDeleteEntry.userName} - {pendingDeleteEntry.date}<br/>
+                  Time In: {formatTime(pendingDeleteEntry.timeIn)}
+                  {pendingDeleteEntry.timeOut && <>, Time Out: {formatTime(pendingDeleteEntry.timeOut)}</>}
+                </p>
+              </div>
+            )}
 
             <form onSubmit={(e) => { e.preventDefault(); verifyAdminPassword(); }}>
               <div className="mb-4">
@@ -1951,9 +2082,9 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600"
+                  className={`px-4 py-2 text-white rounded-lg font-medium ${authAction === 'delete' ? 'bg-red-500 hover:bg-red-600' : 'bg-amber-500 hover:bg-amber-600'}`}
                 >
-                  Confirm
+                  {authAction === 'delete' ? 'Delete' : 'Confirm'}
                 </button>
               </div>
             </form>
@@ -1985,20 +2116,32 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                   <span className="text-gray-500">Date:</span>
                   <div className="font-medium">{editingEntry.date}</div>
                 </div>
-                <div>
-                  <span className="text-gray-500">Time In:</span>
-                  <div className="font-medium">{formatTime(editingEntry.timeIn)}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500">Status:</span>
-                  <div><StatusBadge status={editingEntry.timeInStatus} /></div>
-                </div>
               </div>
+            </div>
+            
+            <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+              <p className="text-xs text-amber-700">
+                <strong>Note:</strong> Edit time entries only for valid reasons (e.g., internet issues, system errors). 
+                All changes are logged for audit purposes.
+              </p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Clock Out Time</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Clock In Time</label>
+                <input
+                  type="time"
+                  value={editClockIn}
+                  onChange={(e) => setEditClockIn(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Original: {formatTime(editingEntry.timeIn)}
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Clock Out Time (Optional)</label>
                 <input
                   type="time"
                   value={editClockOut}
@@ -2006,15 +2149,15 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Enter the clock out time for this entry. Hours will be auto-calculated.
+                  Original: {editingEntry.timeOut ? formatTime(editingEntry.timeOut) : 'Not clocked out yet'}
                 </p>
               </div>
 
-              {editClockOut && editingEntry.timeIn && (
+              {editClockIn && editClockOut && (
                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-sm text-blue-700">
                     <span className="font-medium">Calculated Hours: </span>
-                    {calculateHours(editingEntry.timeIn, editClockOut, false)} hrs
+                    {calculateHours(editClockIn, editClockOut, false)} hrs
                   </p>
                 </div>
               )}
@@ -2029,7 +2172,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
               </button>
               <button
                 onClick={handleSaveEdit}
-                disabled={isLoading || !editClockOut}
+                disabled={isLoading || !editClockIn}
                 className="px-4 py-2 text-sm bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {isLoading ? 'Saving...' : 'Save Changes'}

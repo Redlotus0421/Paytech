@@ -233,6 +233,8 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
 
   const loadPendingApprovals = async () => {
     try {
+      // Fetch entries that have at least one pending status
+      // Exclude entries where both statuses are approved/rejected
       const { data, error } = await supabase
         .from('time_entries')
         .select('*')
@@ -241,7 +243,14 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       
       if (error) throw error;
       
-      setPendingEntries((data || []).map(mapTimeEntryFromDb));
+      // Filter to only show entries that actually need action
+      const entries = (data || []).map(mapTimeEntryFromDb).filter((entry: TimeEntry) => {
+        // Show if time_in is pending, or if time_out exists and is pending
+        return entry.timeInStatus === 'pending' || 
+               (entry.timeOut && entry.timeOutStatus === 'pending');
+      });
+      
+      setPendingEntries(entries);
     } catch (err) {
       console.error('Error loading pending approvals:', err);
       // Fallback to localStorage
@@ -588,11 +597,13 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     return Math.round((totalMinutes / 60) * 100) / 100;
   };
 
-  // Check if this is an overnight entry (entry date is different from today)
+  // Check if this is an overnight entry (clock out time is earlier than clock in time)
+  // This is auto-detected by calculateHours when totalMinutes < 0
   const isOvernightEntry = (): boolean => {
-    if (!todayEntry) return false;
-    const today = new Date().toISOString().split('T')[0];
-    return todayEntry.date !== today;
+    if (!todayEntry || !todayEntry.timeIn) return false;
+    // Don't force overnight based on date - let calculateHours auto-detect
+    // based on whether clock-out time < clock-in time
+    return false;
   };
 
   // Export payroll to CSV
@@ -776,8 +787,9 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     if (!todayEntry || !todayEntry.timeIn) return;
     
     const currentTime = getCurrentTime();
-    const overnight = isOvernightEntry();
-    const hoursWorked = calculateHours(todayEntry.timeIn, currentTime, overnight);
+    // Let calculateHours auto-detect overnight based on time comparison
+    // (overnight = when clock-out time < clock-in time, e.g., clocked in 11 PM, out 7 AM)
+    const hoursWorked = calculateHours(todayEntry.timeIn, currentTime);
     
     setIsLoading(true);
     try {
@@ -795,7 +807,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       
       await storageService.logActivity(
         'Clock Out', 
-        `${user.name} clocked out at ${formatTime(currentTime)} (${hoursWorked} hrs)${overnight ? ' [Overnight]' : ''} - Pending Approval`,
+        `${user.name} clocked out at ${formatTime(currentTime)} (${hoursWorked} hrs) - Pending Approval`,
         user.id,
         user.name
       );
@@ -1190,7 +1202,8 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
 
     setIsLoading(true);
     try {
-      const hoursWorked = editClockOut ? calculateHours(editClockIn, editClockOut, false) : null;
+      // Let calculateHours auto-detect overnight based on time comparison
+      const hoursWorked = editClockOut ? calculateHours(editClockIn, editClockOut) : null;
       
       const updateData: any = {
         time_in: editClockIn,

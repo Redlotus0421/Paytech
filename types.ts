@@ -117,9 +117,10 @@ export interface TimeEntry {
   id: string;
   userId: string;
   userName: string;
-  date: string; // YYYY-MM-DD format
+  date: string; // YYYY-MM-DD format (date of clock in)
   timeIn?: string; // HH:mm format
   timeOut?: string; // HH:mm format
+  timeOutDate?: string; // YYYY-MM-DD format (date of clock out, for overnight shifts)
   timeInStatus: 'pending' | 'approved' | 'rejected';
   timeOutStatus: 'pending' | 'approved' | 'rejected';
   hoursWorked?: number;

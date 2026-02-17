@@ -70,6 +70,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [editClockIn, setEditClockIn] = useState('');
   const [editClockOut, setEditClockOut] = useState('');
+  const [editClockOutDate, setEditClockOutDate] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   
   // Admin authentication state
@@ -493,6 +494,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     date: data.date,
     timeIn: data.time_in,
     timeOut: data.time_out,
+    timeOutDate: data.time_out_date,
     timeInStatus: data.time_in_status || 'pending',
     timeOutStatus: data.time_out_status || 'pending',
     hoursWorked: data.hours_worked,
@@ -787,6 +789,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     if (!todayEntry || !todayEntry.timeIn) return;
     
     const currentTime = getCurrentTime();
+    const currentDate = new Date().toISOString().split('T')[0];
     // Let calculateHours auto-detect overnight based on time comparison
     // (overnight = when clock-out time < clock-in time, e.g., clocked in 11 PM, out 7 AM)
     const hoursWorked = calculateHours(todayEntry.timeIn, currentTime);
@@ -797,6 +800,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         .from('time_entries')
         .update({
           time_out: currentTime,
+          time_out_date: currentDate,
           time_out_status: 'pending',
           hours_worked: hoursWorked,
           updated_at: Date.now()
@@ -812,7 +816,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         user.name
       );
       
-      setTodayEntry({ ...todayEntry, timeOut: currentTime, timeOutStatus: 'pending', hoursWorked });
+      setTodayEntry({ ...todayEntry, timeOut: currentTime, timeOutDate: currentDate, timeOutStatus: 'pending', hoursWorked });
       await loadTimeEntries();
       
       alert(`Clock Out recorded at ${formatTime(currentTime)}. Total hours: ${hoursWorked}. Waiting for admin approval.`);
@@ -1117,6 +1121,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
           setEditingEntry(pendingEditEntry);
           setEditClockIn(pendingEditEntry.timeIn || '');
           setEditClockOut(pendingEditEntry.timeOut || '');
+          setEditClockOutDate(pendingEditEntry.timeOutDate || pendingEditEntry.date);
           setShowEditModal(true);
           setPendingEditEntry(null);
         } else if (authAction === 'delete' && pendingDeleteEntry) {
@@ -1139,6 +1144,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
           setEditingEntry(pendingEditEntry);
           setEditClockIn(pendingEditEntry.timeIn || '');
           setEditClockOut(pendingEditEntry.timeOut || '');
+          setEditClockOutDate(pendingEditEntry.timeOutDate || pendingEditEntry.date);
           setShowEditModal(true);
           setPendingEditEntry(null);
         } else if (authAction === 'delete' && pendingDeleteEntry) {
@@ -1202,8 +1208,15 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
 
     setIsLoading(true);
     try {
-      // Let calculateHours auto-detect overnight based on time comparison
-      const hoursWorked = editClockOut ? calculateHours(editClockIn, editClockOut) : null;
+      // Calculate hours considering date difference for overnight shifts
+      let hoursWorked: number | null = null;
+      if (editClockOut) {
+        const inDate = new Date(`${editingEntry.date}T${editClockIn}`);
+        const outDate = new Date(`${editClockOutDate || editingEntry.date}T${editClockOut}`);
+        const diffMs = outDate.getTime() - inDate.getTime();
+        const calculatedHours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
+        hoursWorked = calculatedHours > 0 ? calculatedHours : calculateHours(editClockIn, editClockOut);
+      }
       
       const updateData: any = {
         time_in: editClockIn,
@@ -1215,6 +1228,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       
       if (editClockOut) {
         updateData.time_out = editClockOut;
+        updateData.time_out_date = editClockOutDate || editingEntry.date;
         updateData.time_out_status = 'approved';
         updateData.hours_worked = hoursWorked;
       }
@@ -1244,6 +1258,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       setEditingEntry(null);
       setEditClockIn('');
       setEditClockOut('');
+      setEditClockOutDate('');
       
       // Refresh all relevant data to reflect changes across tabs
       await loadTimeEntries();
@@ -1268,6 +1283,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     setEditingEntry(null);
     setEditClockIn('');
     setEditClockOut('');
+    setEditClockOutDate('');
   };
 
   // Format date for display
@@ -1422,9 +1438,6 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                       {isAdmin && (
                         <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
                       )}
-                      {!isAdmin && (
-                        <th className="text-left py-3 px-2 font-medium text-gray-600">Date</th>
-                      )}
                       <th className="text-left py-3 px-2 font-medium text-gray-600">Time In</th>
                       <th className="text-left py-3 px-2 font-medium text-gray-600">In Status</th>
                       <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
@@ -1439,17 +1452,26 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                     {/* My Entries - Non-admin users */}
                     {!isAdmin && timeEntries.map(entry => (
                       <tr key={entry.id} className="border-b border-gray-100">
-                        <td className="py-3 px-2">{entry.date}</td>
-                        <td className="py-3 px-2">{formatTime(entry.timeIn)}</td>
+                        <td className="py-3 px-2">
+                          <div className="text-xs text-gray-500">{entry.date}</div>
+                          <div>{formatTime(entry.timeIn)}</div>
+                        </td>
                         <td className="py-3 px-2"><StatusBadge status={entry.timeInStatus} /></td>
-                        <td className="py-3 px-2">{formatTime(entry.timeOut)}</td>
+                        <td className="py-3 px-2">
+                          {entry.timeOut ? (
+                            <>
+                              <div className="text-xs text-gray-500">{entry.timeOutDate || entry.date}</div>
+                              <div>{formatTime(entry.timeOut)}</div>
+                            </>
+                          ) : '-'}
+                        </td>
                         <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
                         <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
                       </tr>
                     ))}
                     {!isAdmin && timeEntries.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-gray-400">No entries found</td>
+                        <td colSpan={5} className="py-8 text-center text-gray-400">No entries found</td>
                       </tr>
                     )}
                     
@@ -1457,9 +1479,19 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                     {isAdmin && allEmployeeEntries.map(entry => (
                       <tr key={entry.id} className="border-b border-gray-100">
                         <td className="py-3 px-2 font-medium">{entry.userName}</td>
-                        <td className="py-3 px-2">{formatTime(entry.timeIn)}</td>
+                        <td className="py-3 px-2">
+                          <div className="text-xs text-gray-500">{entry.date}</div>
+                          <div>{formatTime(entry.timeIn)}</div>
+                        </td>
                         <td className="py-3 px-2"><StatusBadge status={entry.timeInStatus} /></td>
-                        <td className="py-3 px-2">{entry.timeOut ? formatTime(entry.timeOut) : '-'}</td>
+                        <td className="py-3 px-2">
+                          {entry.timeOut ? (
+                            <>
+                              <div className="text-xs text-gray-500">{entry.timeOutDate || entry.date}</div>
+                              <div>{formatTime(entry.timeOut)}</div>
+                            </>
+                          ) : '-'}
+                        </td>
                         <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
                         <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
                         <td className="py-3 px-2">
@@ -1557,7 +1589,6 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-600">Date</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Time In</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Clock In Action</th>
                   <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
@@ -1570,9 +1601,9 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 {pendingEntries.map(entry => (
                   <tr key={entry.id} className="border-b border-gray-100">
                     <td className="py-3 px-2 font-medium">{entry.userName}</td>
-                    <td className="py-3 px-2">{entry.date}</td>
                     <td className="py-3 px-2">
-                      {formatTime(entry.timeIn)}
+                      <div className="text-xs text-gray-500">{entry.date}</div>
+                      <div>{formatTime(entry.timeIn)}</div>
                     </td>
                     <td className="py-3 px-2">
                       {entry.timeInStatus === 'pending' ? (
@@ -1603,7 +1634,10 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                     <td className="py-3 px-2">
                       {entry.timeOut ? (
                         <div className="flex items-center gap-2">
-                          {formatTime(entry.timeOut)}
+                          <div>
+                            <div className="text-xs text-gray-500">{entry.timeOutDate || entry.date}</div>
+                            <div>{formatTime(entry.timeOut)}</div>
+                          </div>
                           <StatusBadge status={entry.timeOutStatus} />
                         </div>
                       ) : (
@@ -1659,7 +1693,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 ))}
                 {pendingEntries.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-gray-400">No pending approvals</td>
+                    <td colSpan={7} className="py-8 text-center text-gray-400">No pending approvals</td>
                   </tr>
                 )}
               </tbody>
@@ -2174,14 +2208,23 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Clock Out Time (Optional)</label>
-                <input
-                  type="time"
-                  value={editClockOut}
-                  onChange={(e) => setEditClockOut(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={editClockOutDate}
+                    onChange={(e) => setEditClockOutDate(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Date"
+                  />
+                  <input
+                    type="time"
+                    value={editClockOut}
+                    onChange={(e) => setEditClockOut(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Original: {editingEntry.timeOut ? formatTime(editingEntry.timeOut) : 'Not clocked out yet'}
+                  Original: {editingEntry.timeOut ? `${editingEntry.timeOutDate || editingEntry.date} ${formatTime(editingEntry.timeOut)}` : 'Not clocked out yet'}
                 </p>
               </div>
 
@@ -2189,7 +2232,14 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-sm text-blue-700">
                     <span className="font-medium">Calculated Hours: </span>
-                    {calculateHours(editClockIn, editClockOut, false)} hrs
+                    {(() => {
+                      // Calculate hours considering date difference for overnight shifts
+                      const inDate = new Date(`${editingEntry.date}T${editClockIn}`);
+                      const outDate = new Date(`${editClockOutDate || editingEntry.date}T${editClockOut}`);
+                      const diffMs = outDate.getTime() - inDate.getTime();
+                      const hours = Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100;
+                      return hours > 0 ? hours : calculateHours(editClockIn, editClockOut);
+                    })()} hrs
                   </p>
                 </div>
               )}

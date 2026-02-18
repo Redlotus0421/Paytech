@@ -48,6 +48,7 @@ export const Analytics: React.FC = () => {
           storageService.fetchGeneralExpenses()
         ]);
         console.log('Analytics: fetched reports count', (allReports || []).length);
+        console.log('Analytics: fetched stores count', (allStores || []).length);
         setStores(allStores);
         setGeneralExpenses(allExpenses);
         
@@ -64,6 +65,28 @@ export const Analytics: React.FC = () => {
     };
     loadData();
   }, []);
+
+  const reloadStores = async () => {
+    setIsLoading(true);
+    try {
+      const [allStores, allReports, allExpenses] = await Promise.all([
+        storageService.fetchStores(),
+        storageService.fetchReports(),
+        storageService.fetchGeneralExpenses()
+      ]);
+      setStores(allStores);
+      setGeneralExpenses(allExpenses);
+      if (currentUser && currentUser.role === UserRole.EMPLOYEE && currentUser.storeId) {
+        setReports(allReports.filter(r => r.storeId === currentUser.storeId));
+      } else {
+        setReports(allReports);
+      }
+    } catch (e) {
+      console.error("Failed to reload stores:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleStoreClick = (store: Store) => {
     setSelectedStore(store);
@@ -288,8 +311,26 @@ export const Analytics: React.FC = () => {
   if (view === 'list' && currentUser?.role === UserRole.ADMIN) {
     return (
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><TrendingUp className="text-blue-600" /> Analytics Overview</h2>
-        <p className="text-gray-500">Select a store to view detailed performance metrics.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><TrendingUp className="text-blue-600" /> Analytics Overview</h2>
+            <p className="text-gray-500">Select a store to view detailed performance metrics.</p>
+          </div>
+          <button onClick={reloadStores} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" title="Refresh stores">
+            <Loader2 size={16} className={isLoading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
+        {stores.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+            <StoreIcon size={48} className="mx-auto text-gray-300 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">No stores found</h3>
+            <p className="text-sm text-gray-500 mb-4">Stores may not have loaded correctly. Try refreshing or check the Stores settings.</p>
+            <button onClick={reloadStores} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+              Try Again
+            </button>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {stores.map(store => {
              const thisStoreReports = reports.filter(r => r.storeId === store.id);
@@ -332,6 +373,7 @@ export const Analytics: React.FC = () => {
              );
           })}
         </div>
+        )}
       </div>
     );
   }

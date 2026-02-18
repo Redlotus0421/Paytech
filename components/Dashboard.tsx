@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { User, UserRole, ReportData, Store, GeneralExpense } from '../types';
 import { storageService } from '../services/storageService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Legend, CartesianGrid } from 'recharts';
-import { TrendingUp, AlertOctagon, DollarSign, Loader2, CreditCard, Wallet, FileText, Calendar, Filter } from 'lucide-react';
+import { TrendingUp, AlertOctagon, DollarSign, Loader2, CreditCard, Wallet, FileText, Calendar, Filter, RefreshCw } from 'lucide-react';
 
 const calculateReportMetrics = (report: ReportData) => {
     const startFund = Number(report.totalStartFund || 0);
@@ -69,25 +69,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const years = Array.from({length: 5}, (_, i) => currentYear - i);
 
   useEffect(() => {
-    const loadData = async () => {
-        setIsLoading(true);
-        try {
-            const [allStores, allReports, allExpenses] = await Promise.all([
-                storageService.fetchStores(),
-                storageService.fetchReports(),
-                storageService.fetchGeneralExpenses()
-            ]);
-            setStores(allStores);
-            setReports(allReports);
-            setGeneralExpenses(allExpenses);
-        } catch (error) {
-            console.error("Failed to load dashboard data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    loadData();
+    loadDashboardData();
   }, []);
+
+  const loadDashboardData = async () => {
+    setIsLoading(true);
+    try {
+        const [allStores, allReports, allExpenses] = await Promise.all([
+            storageService.fetchStores(),
+            storageService.fetchReports(),
+            storageService.fetchGeneralExpenses()
+        ]);
+        setStores(allStores);
+        setReports(allReports);
+        setGeneralExpenses(allExpenses);
+    } catch (error) {
+        console.error("Failed to load dashboard data:", error);
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
   const filteredReports = useMemo(() => {
     let data = reports;
@@ -289,9 +290,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   return (
     <div className="flex flex-col gap-6 w-full">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h2 className="text-xl font-bold text-gray-900">
-            {user.role === UserRole.ADMIN ? 'Global Overview' : 'Store Performance'}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold text-gray-900">
+              {user.role === UserRole.ADMIN ? 'Global Overview' : 'Store Performance'}
+          </h2>
+          <button onClick={loadDashboardData} className="text-gray-400 hover:text-gray-700 transition-colors" title="Refresh data">
+            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+          </button>
+        </div>
         
         <div className="flex flex-col sm:flex-row gap-3 bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
             <div className="flex bg-gray-100 p-1 rounded-md">

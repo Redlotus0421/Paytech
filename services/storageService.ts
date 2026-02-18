@@ -80,17 +80,82 @@ export const storageService = {
     return u ? JSON.parse(u) : null;
   },
   fetchStores: async (): Promise<Store[]> => {
-    const { data, error } = await supabase.from('stores').select('*');
-    if (error) { console.error('Error fetching stores:', error); return []; }
-    return data || [];
+    const CACHE_KEY = 'cfs_stores_cache';
+    
+    // Retry logic: try up to 3 times with short delay
+    let lastError: any = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const { data, error } = await supabase.from('stores').select('*');
+        if (error) {
+          console.error(`Error fetching stores (attempt ${attempt}/3):`, error);
+          lastError = error;
+          if (attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
+          continue;
+        }
+        
+        // RLS may silently return empty — if we previously had stores cached
+        // and now get 0 results, retry before giving up
+        if ((!data || data.length === 0) && attempt < 3) {
+          const cached = localStorage.getItem(CACHE_KEY);
+          if (cached) {
+            const cachedStores = JSON.parse(cached);
+            if (cachedStores.length > 0) {
+              console.warn(`fetchStores: got 0 stores from DB but cache has ${cachedStores.length} — retrying (attempt ${attempt}/3)`);
+              await new Promise(r => setTimeout(r, 500 * attempt));
+              continue;
+            }
+          }
+        }
+        
+        const stores: Store[] = data || [];
+        
+        // Cache to localStorage for fallback
+        if (stores.length > 0) {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(stores));
+        }
+        
+        return stores;
+      } catch (e) {
+        console.error(`fetchStores unexpected error (attempt ${attempt}/3):`, e);
+        lastError = e;
+        if (attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
+      }
+    }
+    
+    // All retries failed — use localStorage cache as fallback
+    console.warn('fetchStores: all retries failed, using localStorage cache');
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const cachedStores = JSON.parse(cached);
+        if (cachedStores.length > 0) {
+          console.log(`fetchStores: returning ${cachedStores.length} cached stores`);
+          return cachedStores;
+        }
+      } catch (e) { /* ignore parse errors */ }
+    }
+    
+    return [];
   },
   addStore: async (store: Store) => {
     const { error } = await supabase.from('stores').insert([store]);
     if (error) throw error;
+    // Update localStorage cache so stores appear immediately even if next fetch has RLS issues
+    try {
+      const cached = JSON.parse(localStorage.getItem('cfs_stores_cache') || '[]');
+      cached.push(store);
+      localStorage.setItem('cfs_stores_cache', JSON.stringify(cached));
+    } catch (e) { /* ignore cache error */ }
   },
   deleteStore: async (storeId: string) => {
     const { error } = await supabase.from('stores').delete().eq('id', storeId);
     if (error) throw error;
+    // Update localStorage cache
+    try {
+      const cached = JSON.parse(localStorage.getItem('cfs_stores_cache') || '[]');
+      localStorage.setItem('cfs_stores_cache', JSON.stringify(cached.filter((s: Store) => s.id !== storeId)));
+    } catch (e) { /* ignore */ }
   },
   deleteStoreAndData: async (storeId: string) => {
     // Delete related data first (manual cascade)
@@ -103,15 +168,67 @@ export const storageService = {
     // Finally delete the store
     const { error } = await supabase.from('stores').delete().eq('id', storeId);
     if (error) throw error;
+    // Update localStorage cache
+    try {
+      const cached = JSON.parse(localStorage.getItem('cfs_stores_cache') || '[]');
+      localStorage.setItem('cfs_stores_cache', JSON.stringify(cached.filter((s: Store) => s.id !== storeId)));
+    } catch (e) { /* ignore */ }
   },
   fetchUsers: async (): Promise<User[]> => {
-    const { data, error } = await supabase.from('users').select('*');
-    if (error) { console.error('Error fetching users:', error); return []; }
-    return (data || []).map((u: any) => ({
-        id: u.id, username: u.username, name: u.name, role: u.role,
-        storeId: u.store_id, status: u.status, password: u.password,
-        permissions: u.permissions || []
-    }));
+    const CACHE_KEY = 'cfs_users_cache';
+    
+    // Retry logic: try up to 3 times with short delay
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const { data, error } = await supabase.from('users').select('*');
+        if (error) {
+          console.error(`Error fetching users (attempt ${attempt}/3):`, error);
+          if (attempt < 3) { await new Promise(r => setTimeout(r, 500 * attempt)); continue; }
+          break;
+        }
+        
+        // RLS may silently return empty — retry if we have a cache and got 0 results
+        if ((!data || data.length === 0) && attempt < 3) {
+          const cached = localStorage.getItem(CACHE_KEY);
+          if (cached) {
+            const cachedUsers = JSON.parse(cached);
+            if (cachedUsers.length > 0) {
+              console.warn(`fetchUsers: got 0 users from DB but cache has ${cachedUsers.length} — retrying (attempt ${attempt}/3)`);
+              await new Promise(r => setTimeout(r, 500 * attempt));
+              continue;
+            }
+          }
+        }
+        
+        const users: User[] = (data || []).map((u: any) => ({
+          id: u.id, username: u.username, name: u.name, role: u.role,
+          storeId: u.store_id, status: u.status, password: u.password,
+          permissions: u.permissions || []
+        }));
+        
+        // Cache for fallback
+        if (users.length > 0) {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(users));
+        }
+        
+        return users;
+      } catch (e) {
+        console.error(`fetchUsers unexpected error (attempt ${attempt}/3):`, e);
+        if (attempt < 3) { await new Promise(r => setTimeout(r, 500 * attempt)); continue; }
+      }
+    }
+    
+    // All retries failed — use localStorage cache
+    console.warn('fetchUsers: all retries failed, using localStorage cache');
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const cachedUsers = JSON.parse(cached);
+        if (cachedUsers.length > 0) return cachedUsers;
+      } catch (e) { /* ignore */ }
+    }
+    
+    return [];
   },
   fetchReports: async (): Promise<ReportData[]> => {
     const { data, error } = await supabase.from('reports').select('*');

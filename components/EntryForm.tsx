@@ -439,8 +439,14 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1">Store</label>
                         <select value={selectedStoreId} onChange={e => { setSelectedStoreId(e.target.value); setIsSodSaved(false); }} disabled={user.role === UserRole.EMPLOYEE} className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 ${user.role === UserRole.EMPLOYEE ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
+                            {stores.length === 0 && <option value="">Loading stores...</option>}
                             {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
+                        {stores.length === 0 && (
+                          <button type="button" onClick={() => storageService.fetchStores().then(data => { setStores(data); if (data.length > 0 && !selectedStoreId) setSelectedStoreId(data[0].id); })} className="mt-1 text-xs text-blue-600 hover:text-blue-800 underline">
+                            Stores not loading? Click to retry
+                          </button>
+                        )}
                     </div>
                     <InputRow label="Date" value={date} setter={setDate} type="date" />
                 </div>

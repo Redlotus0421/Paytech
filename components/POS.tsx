@@ -180,8 +180,18 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                         onChange={e => setActiveStoreId(e.target.value)}
                         className="p-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
                     >
+                        {stores.length === 0 && <option value="">Loading stores...</option>}
                         {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
+                )}
+                {stores.length === 0 && (
+                  <button onClick={async () => {
+                    const allStores = await storageService.fetchStores();
+                    setStores(allStores);
+                    if (allStores.length > 0 && !activeStoreId) setActiveStoreId(allStores[0].id);
+                  }} className="text-xs text-blue-600 hover:text-blue-800 underline ml-2">
+                    Retry
+                  </button>
                 )}
             </div>
             

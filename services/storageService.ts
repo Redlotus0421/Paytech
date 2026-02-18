@@ -298,22 +298,44 @@ export const storageService = {
   },
   fetchTransactions: async (): Promise<any[]> => {
       console.log("🔍 Attempting to fetch transactions...");
-      const { data, error } = await supabase.from('transactions').select('*');
-      if (error) { 
+      
+      // Use pagination to fetch ALL transactions (bypasses Supabase's 1000 row default limit)
+      let allData: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      
+      while (true) {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .range(from, from + batchSize - 1)
+          .order('timestamp', { ascending: false });
+        
+        if (error) { 
           console.error("❌ Error fetching transactions:", error); 
           console.error("Error details:", error.message, error.code, error.details);
-          return []; 
+          break; 
+        }
+        
+        if (!data || data.length === 0) break;
+        
+        allData = [...allData, ...data];
+        console.log(`📦 Fetched transactions batch: ${from} to ${from + data.length - 1}, total so far: ${allData.length}`);
+        
+        if (data.length < batchSize) break; // Last batch
+        from += batchSize;
       }
-        console.log("✅ Successfully fetched transactions:", data);
-        return (data || []).map((t: any) => ({
-          id: t.id, storeId: t.store_id, date: t.date, timestamp: t.timestamp, items: t.items || [],
-          totalAmount: Number(t.total_amount), paymentAmount: Number(t.payment_amount), cashierName: t.cashier_name,
-          reportId: t.report_id, status: t.status || 'COMPLETED',
-          // Audit/void metadata (may be null)
-          voidedBy: t.voided_by || null,
-          voidNote: t.void_note || null,
-          voidedAt: t.voided_at || null
-        }));
+      
+      console.log("✅ Successfully fetched all transactions:", allData.length);
+      return allData.map((t: any) => ({
+        id: t.id, storeId: t.store_id, date: t.date, timestamp: t.timestamp, items: t.items || [],
+        totalAmount: Number(t.total_amount), paymentAmount: Number(t.payment_amount), cashierName: t.cashier_name,
+        reportId: t.report_id, status: t.status || 'COMPLETED',
+        // Audit/void metadata (may be null)
+        voidedBy: t.voided_by || null,
+        voidNote: t.void_note || null,
+        voidedAt: t.voided_at || null
+      }));
   },
   getPosTransactions: async (storeId: string, date: string): Promise<PosTransaction[]> => {
       const { data, error } = await supabase.from('transactions')

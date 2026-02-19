@@ -87,11 +87,60 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
     loadData();
   }, [activeTab]);
 
+  // Auto-refresh polling for admin tabs (approvals + employee entries)
+  useEffect(() => {
+    if (!isAdmin) return;
+    
+    // Poll every 15 seconds when on approvals or time-in-out tab
+    if (activeTab === 'approvals' || activeTab === 'time-in-out') {
+      const interval = setInterval(() => {
+        if (activeTab === 'approvals') {
+          loadPendingApprovals();
+        } else if (activeTab === 'time-in-out') {
+          loadAllEmployeeEntries(entriesDateFilter);
+        }
+      }, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, entriesDateFilter, isAdmin]);
+
+  // Real-time subscription for time_entries changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('time_entries_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'time_entries' },
+        (payload) => {
+          console.log('Real-time time_entries change:', payload.eventType);
+          // Refresh the relevant data based on the active tab
+          if (activeTab === 'approvals' && isAdmin) {
+            loadPendingApprovals();
+          } else if (activeTab === 'time-in-out') {
+            if (isAdmin) {
+              loadAllEmployeeEntries(entriesDateFilter);
+            } else {
+              loadTimeEntries();
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeTab, entriesDateFilter, isAdmin]);
+
   const loadData = async () => {
     setIsLoading(true);
     try {
       if (activeTab === 'time-in-out') {
         await loadTimeEntries();
+        // Also eagerly load pending count for admin badge
+        if (isAdmin) {
+          await loadPendingApprovals();
+        }
       } else if (activeTab === 'approvals' && isAdmin) {
         await loadPendingApprovals();
       } else if (activeTab === 'schedules' && isAdmin) {
@@ -759,27 +808,57 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       await loadTimeEntries();
       
       alert(`Clock In recorded at ${formatTime(currentTime)}. Waiting for admin approval.`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error clocking in:', err);
-      // Fallback to localStorage
-      const stored = localStorage.getItem('dtr_entries_' + user.id);
-      const entries: TimeEntry[] = stored ? JSON.parse(stored) : [];
-      const entry: TimeEntry = {
-        id: uuidv4(),
-        userId: user.id,
-        userName: user.name,
-        date: today,
-        timeIn: currentTime,
-        timeInStatus: 'pending',
-        timeOutStatus: 'pending',
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      };
-      entries.unshift(entry);
-      localStorage.setItem('dtr_entries_' + user.id, JSON.stringify(entries));
-      setTodayEntry(entry);
-      setTimeEntries(entries);
-      alert(`Clock In recorded at ${formatTime(currentTime)}. Waiting for admin approval.`);
+      
+      // Check if it's a unique constraint violation (entry already exists for today)
+      if (err?.code === '23505' || err?.message?.includes('duplicate') || err?.message?.includes('unique')) {
+        // Entry already exists for this user+date — try to reload and use existing entry
+        try {
+          const { data: existingData } = await supabase
+            .from('time_entries')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .single();
+          
+          if (existingData) {
+            const existingEntry = mapTimeEntryFromDb(existingData);
+            setTodayEntry(existingEntry);
+            await loadTimeEntries();
+            alert(`You already have an entry for today. Showing your existing record.`);
+          } else {
+            alert('Failed to clock in. Please try again.');
+          }
+        } catch {
+          alert('Failed to clock in. Please try again.');
+        }
+      } else {
+        // Retry once before giving up — don't silently fall back to localStorage
+        try {
+          const retryEntry = {
+            id: uuidv4(),
+            user_id: user.id,
+            user_name: user.name,
+            date: today,
+            time_in: currentTime,
+            time_in_status: 'pending',
+            time_out_status: 'pending',
+            created_at: Date.now(),
+            updated_at: Date.now()
+          };
+          const { error: retryError } = await supabase.from('time_entries').insert([retryEntry]);
+          if (retryError) throw retryError;
+          
+          const mappedRetry = mapTimeEntryFromDb(retryEntry);
+          setTodayEntry(mappedRetry);
+          await loadTimeEntries();
+          alert(`Clock In recorded at ${formatTime(currentTime)}. Waiting for admin approval.`);
+        } catch (retryErr) {
+          console.error('Retry also failed:', retryErr);
+          alert('Failed to clock in — please check your internet connection and try again. Your clock-in was NOT recorded.');
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -822,17 +901,28 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       alert(`Clock Out recorded at ${formatTime(currentTime)}. Total hours: ${hoursWorked}. Waiting for admin approval.`);
     } catch (err) {
       console.error('Error clocking out:', err);
-      // Fallback to localStorage
-      const stored = localStorage.getItem('dtr_entries_' + user.id);
-      const entries: TimeEntry[] = stored ? JSON.parse(stored) : [];
-      const idx = entries.findIndex(e => e.id === todayEntry.id);
-      if (idx !== -1) {
-        entries[idx] = { ...entries[idx], timeOut: currentTime, timeOutStatus: 'pending', hoursWorked, updatedAt: Date.now() };
-        localStorage.setItem('dtr_entries_' + user.id, JSON.stringify(entries));
-        setTodayEntry(entries[idx]);
-        setTimeEntries(entries);
+      // Retry once before giving up — don't silently fall back to localStorage
+      try {
+        const { error: retryError } = await supabase
+          .from('time_entries')
+          .update({
+            time_out: currentTime,
+            time_out_date: currentDate,
+            time_out_status: 'pending',
+            hours_worked: hoursWorked,
+            updated_at: Date.now()
+          })
+          .eq('id', todayEntry.id);
+        
+        if (retryError) throw retryError;
+        
+        setTodayEntry({ ...todayEntry, timeOut: currentTime, timeOutDate: currentDate, timeOutStatus: 'pending', hoursWorked });
+        await loadTimeEntries();
+        alert(`Clock Out recorded at ${formatTime(currentTime)}. Total hours: ${hoursWorked}. Waiting for admin approval.`);
+      } catch (retryErr) {
+        console.error('Retry also failed:', retryErr);
+        alert('Failed to clock out — please check your internet connection and try again. Your clock-out was NOT recorded.');
       }
-      alert(`Clock Out recorded at ${formatTime(currentTime)}. Total hours: ${hoursWorked}. Waiting for admin approval.`);
     } finally {
       setIsLoading(false);
     }
@@ -1324,6 +1414,11 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
           >
             {tab.icon}
             {tab.label}
+            {tab.id === 'approvals' && pendingEntries.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full min-w-[20px] text-center">
+                {pendingEntries.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -1578,8 +1673,12 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
             <div>
               <h2 className="text-lg font-bold text-gray-900">Pending Approvals</h2>
               <p className="text-sm text-gray-500">Review and approve employee time entries</p>
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                Live — auto-refreshes every 15 seconds
+              </p>
             </div>
-            <button onClick={loadData} className="text-gray-500 hover:text-gray-700">
+            <button onClick={loadPendingApprovals} className="text-gray-500 hover:text-gray-700" title="Refresh now">
               <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
             </button>
           </div>

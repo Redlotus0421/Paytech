@@ -1269,6 +1269,9 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       
       // Refresh data
       await loadTimeEntries();
+      if (isAdmin && entriesTab === 'employee') {
+        await loadAllEmployeeEntries(entriesDateFilter);
+      }
       if (activeTab === 'approvals') {
         await loadPendingApprovals();
       }

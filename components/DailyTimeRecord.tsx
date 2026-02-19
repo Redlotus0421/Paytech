@@ -1253,12 +1253,17 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   const performDelete = async (entry: TimeEntry) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('time_entries')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('id', entry.id);
       
       if (error) throw error;
+      
+      if (count === 0) {
+        alert('Delete failed: entry was not removed. Please check Supabase RLS policies — a DELETE policy may be missing for time_entries.');
+        return;
+      }
       
       await storageService.logActivity(
         'Delete Time Entry',

@@ -1318,16 +1318,14 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       
       const updateData: any = {
         time_in: editClockIn,
-        time_in_status: 'approved',
-        approved_by: user.name,
-        approved_at: Date.now(),
+        time_in_status: editingEntry.timeInStatus || 'pending',
         updated_at: Date.now()
       };
       
       if (editClockOut) {
         updateData.time_out = editClockOut;
         updateData.time_out_date = editClockOutDate || editingEntry.date;
-        updateData.time_out_status = 'approved';
+        updateData.time_out_status = editingEntry.timeOutStatus || 'pending';
         updateData.hours_worked = hoursWorked;
       }
       

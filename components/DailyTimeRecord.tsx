@@ -45,6 +45,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   
   // Approvals state (admin only)
   const [pendingEntries, setPendingEntries] = useState<TimeEntry[]>([]);
+  const [approvedEntries, setApprovedEntries] = useState<TimeEntry[]>([]);
   
   // Schedules state
   const [employees, setEmployees] = useState<User[]>([]);
@@ -96,6 +97,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       const interval = setInterval(() => {
         if (activeTab === 'approvals') {
           loadPendingApprovals();
+          loadApprovedEntries();
         } else if (activeTab === 'time-in-out') {
           loadAllEmployeeEntries(entriesDateFilter);
         }
@@ -116,6 +118,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
           // Refresh the relevant data based on the active tab
           if (activeTab === 'approvals' && isAdmin) {
             loadPendingApprovals();
+            loadApprovedEntries();
           } else if (activeTab === 'time-in-out') {
             if (isAdmin) {
               loadAllEmployeeEntries(entriesDateFilter);
@@ -143,6 +146,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
         }
       } else if (activeTab === 'approvals' && isAdmin) {
         await loadPendingApprovals();
+        await loadApprovedEntries();
       } else if (activeTab === 'schedules' && isAdmin) {
         await loadEmployees();
       } else if (activeTab === 'payroll' && isAdmin) {
@@ -308,6 +312,26 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       setPendingEntries(allEntries.filter(e => 
         e.timeInStatus === 'pending' || e.timeOutStatus === 'pending'
       ));
+    }
+  };
+
+  const loadApprovedEntries = async () => {
+    try {
+      // Fetch entries where both time_in and time_out are approved
+      const { data, error } = await supabase
+        .from('time_entries')
+        .select('*')
+        .eq('time_in_status', 'approved')
+        .eq('time_out_status', 'approved')
+        .order('date', { ascending: false });
+      
+      if (error) throw error;
+      
+      const entries = (data || []).map(mapTimeEntryFromDb);
+      setApprovedEntries(entries);
+    } catch (err) {
+      console.error('Error loading approved entries:', err);
+      setApprovedEntries([]);
     }
   };
 
@@ -963,6 +987,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       );
       
       await loadPendingApprovals();
+      await loadApprovedEntries();
     } catch (err) {
       console.error('Error updating approval:', err);
       alert('Failed to update approval status');
@@ -1674,135 +1699,196 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
 
       {/* Approvals Tab (Admin Only) */}
       {activeTab === 'approvals' && isAdmin && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Pending Approvals</h2>
-              <p className="text-sm text-gray-500">Review and approve employee time entries</p>
-              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                Live — auto-refreshes every 15 seconds
-              </p>
+        <div className="space-y-6">
+          {/* Pending Approvals Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Pending Approvals</h2>
+                <p className="text-sm text-gray-500">Review and approve employee time entries</p>
+                <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                  Live — auto-refreshes every 15 seconds
+                </p>
+              </div>
+              <button onClick={() => { loadPendingApprovals(); loadApprovedEntries(); }} className="text-gray-500 hover:text-gray-700" title="Refresh now">
+                <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+              </button>
             </div>
-            <button onClick={loadPendingApprovals} className="text-gray-500 hover:text-gray-700" title="Refresh now">
-              <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
-            </button>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-600">Time In</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-600">Clock In Action</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-600">Clock Out Action</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-600">Hours</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-600">Edit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingEntries.map(entry => (
-                  <tr key={entry.id} className="border-b border-gray-100">
-                    <td className="py-3 px-2 font-medium">{entry.userName}</td>
-                    <td className="py-3 px-2">
-                      <div className="text-xs text-gray-500">{entry.date}</div>
-                      <div>{formatTime(entry.timeIn)}</div>
-                    </td>
-                    <td className="py-3 px-2">
-                      {entry.timeInStatus === 'pending' ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleApproval(entry.id, 'timeIn', true)}
-                            disabled={isLoading}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
-                            title="Approve Clock In"
-                          >
-                            <Check size={14} />
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleApproval(entry.id, 'timeIn', false)}
-                            disabled={isLoading}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
-                            title="Reject Clock In"
-                          >
-                            <X size={14} />
-                            Reject
-                          </button>
-                        </div>
-                      ) : (
-                        <StatusBadge status={entry.timeInStatus} />
-                      )}
-                    </td>
-                    <td className="py-3 px-2">
-                      {entry.timeOut ? (
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <div className="text-xs text-gray-500">{entry.timeOutDate || entry.date}</div>
-                            <div>{formatTime(entry.timeOut)}</div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Time In</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Clock In Action</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Clock Out Action</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Hours</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Edit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingEntries.map(entry => (
+                    <tr key={entry.id} className="border-b border-gray-100">
+                      <td className="py-3 px-2 font-medium">{entry.userName}</td>
+                      <td className="py-3 px-2">
+                        <div className="text-xs text-gray-500">{entry.date}</div>
+                        <div>{formatTime(entry.timeIn)}</div>
+                      </td>
+                      <td className="py-3 px-2">
+                        {entry.timeInStatus === 'pending' ? (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApproval(entry.id, 'timeIn', true)}
+                              disabled={isLoading}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+                              title="Approve Clock In"
+                            >
+                              <Check size={14} />
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleApproval(entry.id, 'timeIn', false)}
+                              disabled={isLoading}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+                              title="Reject Clock In"
+                            >
+                              <X size={14} />
+                              Reject
+                            </button>
                           </div>
+                        ) : (
+                          <StatusBadge status={entry.timeInStatus} />
+                        )}
+                      </td>
+                      <td className="py-3 px-2">
+                        {entry.timeOut ? (
+                          <div className="flex items-center gap-2">
+                            <div>
+                              <div className="text-xs text-gray-500">{entry.timeOutDate || entry.date}</div>
+                              <div>{formatTime(entry.timeOut)}</div>
+                            </div>
+                            <StatusBadge status={entry.timeOutStatus} />
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2">
+                        {entry.timeOut && entry.timeOutStatus === 'pending' ? (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApproval(entry.id, 'timeOut', true)}
+                              disabled={isLoading}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
+                              title="Approve Clock Out"
+                            >
+                              <Check size={14} />
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleApproval(entry.id, 'timeOut', false)}
+                              disabled={isLoading}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+                              title="Reject Clock Out"
+                            >
+                              <X size={14} />
+                              Reject
+                            </button>
+                          </div>
+                        ) : entry.timeOut ? (
                           <StatusBadge status={entry.timeOutStatus} />
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-2">
-                      {entry.timeOut && entry.timeOutStatus === 'pending' ? (
-                        <div className="flex gap-2">
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2">
+                        <span className="text-gray-600">
+                          {entry.hoursWorked ? `${entry.hoursWorked} hrs` : '-'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2">
+                        {!entry.timeOut && (
                           <button
-                            onClick={() => handleApproval(entry.id, 'timeOut', true)}
-                            disabled={isLoading}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors"
-                            title="Approve Clock Out"
+                            onClick={() => handleEditClick(entry)}
+                            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Add clock out time"
                           >
-                            <Check size={14} />
-                            Approve
+                            <Edit size={14} />
+                            Edit
                           </button>
-                          <button
-                            onClick={() => handleApproval(entry.id, 'timeOut', false)}
-                            disabled={isLoading}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
-                            title="Reject Clock Out"
-                          >
-                            <X size={14} />
-                            Reject
-                          </button>
-                        </div>
-                      ) : entry.timeOut ? (
-                        <StatusBadge status={entry.timeOutStatus} />
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-2">
-                      <span className="text-gray-600">
-                        {entry.hoursWorked ? `${entry.hoursWorked} hrs` : '-'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-2">
-                      {!entry.timeOut && (
-                        <button
-                          onClick={() => handleEditClick(entry)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="Add clock out time"
-                        >
-                          <Edit size={14} />
-                          Edit
-                        </button>
-                      )}
-                    </td>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {pendingEntries.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-gray-400">No pending approvals</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Approvals History Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Approvals</h2>
+                <p className="text-sm text-gray-500">Saved history of approved time entries</p>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Employee</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Date</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Time In</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Clock In Action</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Time Out</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Clock Out Action</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Hours</th>
                   </tr>
-                ))}
-                {pendingEntries.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray-400">No pending approvals</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {approvedEntries.map(entry => (
+                    <tr key={entry.id} className="border-b border-gray-100">
+                      <td className="py-3 px-2 font-medium">{entry.userName}</td>
+                      <td className="py-3 px-2 text-gray-600">{entry.date}</td>
+                      <td className="py-3 px-2">{formatTime(entry.timeIn)}</td>
+                      <td className="py-3 px-2">
+                        <StatusBadge status={entry.timeInStatus} />
+                      </td>
+                      <td className="py-3 px-2">
+                        {entry.timeOut ? formatTime(entry.timeOut) : <span className="text-gray-400">-</span>}
+                      </td>
+                      <td className="py-3 px-2">
+                        {entry.timeOut ? (
+                          <StatusBadge status={entry.timeOutStatus} />
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2">
+                        <span className="text-gray-600">
+                          {entry.hoursWorked ? `${entry.hoursWorked} hrs` : '-'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {approvedEntries.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-gray-400">No approved entries yet</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

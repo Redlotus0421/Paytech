@@ -239,7 +239,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
         e.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         e.amount.toString().includes(searchQuery);
       return matchesStore && matchesCategory && matchesSearch;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }).sort((a, b) => new Date((b.date || '') + 'T00:00:00').getTime() - new Date((a.date || '') + 'T00:00:00').getTime());
   }, [expenses, filterStoreId, filterCategory, searchQuery]);
 
   const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -436,7 +436,7 @@ export const Expenses: React.FC<ExpensesProps> = ({ user }) => {
                                     return (
                                         <tr key={expense.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                                                {new Date(expense.date).toLocaleDateString()}
+                                                {new Date((expense.date || '') + 'T00:00:00').toLocaleDateString()}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                                                 {storeName}

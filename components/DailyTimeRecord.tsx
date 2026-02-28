@@ -46,6 +46,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   // Approvals state (admin only)
   const [pendingEntries, setPendingEntries] = useState<TimeEntry[]>([]);
   const [approvedEntries, setApprovedEntries] = useState<TimeEntry[]>([]);
+  const [approvalSearchFilter, setApprovalSearchFilter] = useState<string>('');
   
   // Schedules state
   const [employees, setEmployees] = useState<User[]>([]);
@@ -60,6 +61,7 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
   const [cutoffs, setCutoffs] = useState<PayrollCutoff[]>([]);
   const [selectedCutoff, setSelectedCutoff] = useState<string>('');
   const [payrollSummaries, setPayrollSummaries] = useState<PayrollSummary[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
   const [showCutoffModal, setShowCutoffModal] = useState(false);
   const [newCutoff, setNewCutoff] = useState({ name: '', startDate: '', endDate: '' });
   const [editingCutoff, setEditingCutoff] = useState<PayrollCutoff | null>(null);
@@ -480,6 +482,9 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
 
   const loadPayrollData = async () => {
     try {
+      // Load employee details first
+      await loadEmployeeDetails();
+      
       const { data, error } = await supabase
         .from('payroll_cutoffs')
         .select('*')
@@ -502,6 +507,13 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       if (loadedCutoffs.length > 0) {
         setSelectedCutoff(loadedCutoffs[0].id);
         await loadPayrollSummary(loadedCutoffs[0].id);
+      }
+      // load stores for mapping payroll rows to store IDs when posting expenses
+      try {
+        const s = await storageService.fetchStores();
+        setStores(s);
+      } catch (err) {
+        console.error('Failed to load stores for payroll posting:', err);
       }
     } catch (err) {
       console.error('Error loading payroll data:', err);
@@ -556,6 +568,56 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
       setPayrollSummaries(summaries);
     } catch (err) {
       console.error('Error loading payroll summary:', err);
+    }
+  };
+
+  // Post payroll summaries as general_expenses rows
+  const postPayrollToExpenses = async () => {
+    if (!selectedCutoff) {
+      alert('No cutoff selected');
+      return;
+    }
+
+    if (!confirm('Post all payroll summaries for the selected cutoff to Expenses?')) return;
+
+    const cutoff = cutoffs.find(c => c.id === selectedCutoff);
+    const expenseDate = cutoff ? cutoff.endDate : new Date().toISOString().split('T')[0];
+
+    try {
+      for (const summary of payrollSummaries) {
+        // Infer store from userName if possible: 'Name - StoreName'
+        let inferredStoreId: string | undefined = undefined;
+        if (summary.userName && summary.userName.includes(' - ')) {
+          const parts = summary.userName.split(' - ');
+          const storeName = parts[1].trim();
+          const match = stores.find(s => (s.name || s.store_name || '').toLowerCase() === storeName.toLowerCase());
+          if (match) inferredStoreId = match.id;
+        }
+
+        // Fallback: if only one store exists, use it; otherwise leave empty so admin can edit
+        if (!inferredStoreId && stores.length === 1) inferredStoreId = stores[0].id;
+
+        const expense = {
+          id: crypto ? (crypto as any).randomUUID?.() || (Math.random().toString(36).slice(2)) : (Math.random().toString(36).slice(2)),
+          storeId: inferredStoreId || '',
+          date: expenseDate,
+          category: 'Payroll',
+          amount: Number((Math.round((summary.grossPay + Number.EPSILON) * 100) / 100).toFixed(2)),
+          description: `${summary.userName} - ${summary.totalHours.toFixed(2)} hrs`,
+          recordedBy: storageService.getCurrentUser()?.id || 'system'
+        };
+
+        try {
+          await storageService.addGeneralExpense(expense as any);
+        } catch (e) {
+          console.error('Failed to add expense for', summary.userName, e);
+        }
+      }
+
+      alert('Payroll posted to Expenses (some entries may need store mapping).');
+    } catch (e) {
+      console.error('Error posting payroll to expenses:', e);
+      alert('Failed to post payroll to expenses. See console for details.');
     }
   };
 
@@ -1575,75 +1637,81 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {/* My Entries - Non-admin users */}
-                    {!isAdmin && timeEntries.map(entry => (
-                      <tr key={entry.id} className="border-b border-gray-100">
-                        <td className="py-3 px-2">
-                          <div className="text-xs text-gray-500">{entry.date}</div>
-                          <div>{formatTime(entry.timeIn)}</div>
-                        </td>
-                        <td className="py-3 px-2"><StatusBadge status={entry.timeInStatus} /></td>
-                        <td className="py-3 px-2">
-                          {entry.timeOut ? (
-                            <>
-                              <div className="text-xs text-gray-500">{entry.timeOutDate || entry.date}</div>
-                              <div>{formatTime(entry.timeOut)}</div>
-                            </>
-                          ) : '-'}
-                        </td>
-                        <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
-                        <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
-                      </tr>
-                    ))}
-                    {!isAdmin && timeEntries.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-gray-400">No entries found</td>
-                      </tr>
+                    {/* Non-admin view */}
+                    {!isAdmin && (
+                      timeEntries.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-2 py-6 text-center text-gray-500">No time entries found.</td>
+                        </tr>
+                      ) : (
+                        timeEntries.map(entry => (
+                          <tr key={entry.id} className="border-b border-gray-100">
+                            <td className="py-3 px-2">
+                              <div className="text-xs text-gray-500">{entry.date}</div>
+                              <div>{formatTime(entry.timeIn)}</div>
+                            </td>
+                            <td className="py-3 px-2"><StatusBadge status={entry.timeInStatus} /></td>
+                            <td className="py-3 px-2">
+                              {entry.timeOut ? (
+                                <>
+                                  <div className="text-xs text-gray-500">{entry.timeOutDate || entry.date}</div>
+                                  <div>{formatTime(entry.timeOut)}</div>
+                                </>
+                              ) : '-'}
+                            </td>
+                            <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
+                            <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
+                          </tr>
+                        ))
+                      )
                     )}
-                    
-                    {/* Employee Entries (Admin only) */}
-                    {isAdmin && allEmployeeEntries.map(entry => (
-                      <tr key={entry.id} className="border-b border-gray-100">
-                        <td className="py-3 px-2 font-medium">{entry.userName}</td>
-                        <td className="py-3 px-2">
-                          <div className="text-xs text-gray-500">{entry.date}</div>
-                          <div>{formatTime(entry.timeIn)}</div>
-                        </td>
-                        <td className="py-3 px-2"><StatusBadge status={entry.timeInStatus} /></td>
-                        <td className="py-3 px-2">
-                          {entry.timeOut ? (
-                            <>
-                              <div className="text-xs text-gray-500">{entry.timeOutDate || entry.date}</div>
-                              <div>{formatTime(entry.timeOut)}</div>
-                            </>
-                          ) : '-'}
-                        </td>
-                        <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
-                        <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
-                        <td className="py-3 px-2">
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleEditClick(entry)}
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                              title="Edit time entry"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClick(entry)}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                              title="Delete time entry"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {isAdmin && allEmployeeEntries.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-gray-400">No employee entries for this date</td>
-                      </tr>
+
+                    {/* Admin view */}
+                    {isAdmin && (
+                      allEmployeeEntries.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-gray-400">No employee entries for this date</td>
+                        </tr>
+                      ) : (
+                        allEmployeeEntries.map(entry => (
+                          <tr key={entry.id} className="border-b border-gray-100">
+                            {isAdmin && <td className="py-3 px-2 font-medium">{entry.userName}</td>}
+                            <td className="py-3 px-2">
+                              <div className="text-xs text-gray-500">{entry.date}</div>
+                              <div>{formatTime(entry.timeIn)}</div>
+                            </td>
+                            <td className="py-3 px-2"><StatusBadge status={entry.timeInStatus} /></td>
+                            <td className="py-3 px-2">
+                              {entry.timeOut ? (
+                                <>
+                                  <div className="text-xs text-gray-500">{entry.timeOutDate || entry.date}</div>
+                                  <div>{formatTime(entry.timeOut)}</div>
+                                </>
+                              ) : '-'}
+                            </td>
+                            <td className="py-3 px-2">{entry.timeOut ? <StatusBadge status={entry.timeOutStatus} /> : <span className="text-gray-400">N/A</span>}</td>
+                            <td className="py-3 px-2">{(entry.hoursWorked !== undefined && entry.hoursWorked !== null) ? `${entry.hoursWorked} hrs` : '-'}</td>
+                            <td className="py-3 px-2">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleEditClick(entry)}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                  title="Edit time entry"
+                                >
+                                  <Edit size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(entry)}
+                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                  title="Delete time entry"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )
                     )}
                   </tbody>
                 </table>
@@ -1842,6 +1910,21 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
               </div>
             </div>
             
+            <div className="mb-4">
+              <select
+                value={approvalSearchFilter}
+                onChange={(e) => setApprovalSearchFilter(e.target.value)}
+                className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Employees</option>
+                {Array.from(new Set(approvedEntries.map(entry => entry.userName)))
+                  .sort()
+                  .map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+              </select>
+            </div>
+            
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -1856,7 +1939,11 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {approvedEntries.map(entry => (
+                  {approvedEntries
+                    .filter(entry => 
+                      approvalSearchFilter === '' || entry.userName === approvalSearchFilter
+                    )
+                    .map(entry => (
                     <tr key={entry.id} className="border-b border-gray-100">
                       <td className="py-3 px-2 font-medium">{entry.userName}</td>
                       <td className="py-3 px-2 text-gray-600">{entry.date}</td>
@@ -1881,9 +1968,13 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                       </td>
                     </tr>
                   ))}
-                  {approvedEntries.length === 0 && (
+                  {approvedEntries.filter(entry => 
+                    entry.userName.toLowerCase().includes(approvalSearchFilter.toLowerCase())
+                  ).length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-gray-400">No approved entries yet</td>
+                      <td colSpan={7} className="py-8 text-center text-gray-400">
+                        {approvedEntries.length === 0 ? 'No approved entries yet' : 'No entries match your search'}
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -2080,6 +2171,17 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
                 <p className="text-sm text-gray-500">Manage cutoff periods and view payroll summaries</p>
               </div>
               <div className="flex gap-2">
+                {selectedCutoff && payrollSummaries.length > 0 && (
+                  <button
+                    onClick={postPayrollToExpenses}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700"
+                    title="Post payroll summaries as Expenses"
+                  >
+                    <DollarSign size={18} />
+                    Post Payroll to Expenses
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowCutoffModal(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-gray-900 font-medium rounded-lg hover:bg-yellow-500"
@@ -2095,8 +2197,9 @@ export const DailyTimeRecord: React.FC<DailyTimeRecordProps> = ({ user }) => {
               <div className="flex gap-2 items-start">
                 <select
                   value={selectedCutoff}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     setSelectedCutoff(e.target.value);
+                    await loadEmployeeDetails();
                     loadPayrollSummary(e.target.value);
                   }}
                   className="flex-1 max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"

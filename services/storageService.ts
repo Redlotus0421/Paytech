@@ -588,15 +588,28 @@ export const storageService = {
   fetchGeneralExpenses: async (): Promise<GeneralExpense[]> => {
     const { data, error } = await supabase.from('general_expenses').select('*');
     if (error) { console.error('Error fetching general expenses:', error); return []; }
-    return (data || []).map((e: any) => ({
-      id: e.id,
-      storeId: e.store_id,
-      date: e.date,
-      category: e.category,
-      amount: Number(e.amount),
-      description: e.description,
-      recordedBy: e.recorded_by
-    }));
+    // Normalize date to YYYY-MM-DD (strip any time/timezone) so client-side date parsing
+    // doesn't produce off-by-one days due to timezone conversions
+    return (data || []).map((e: any) => {
+      let rawDate = e.date;
+      try {
+        if (rawDate && typeof rawDate === 'string' && rawDate.includes('T')) {
+          rawDate = rawDate.split('T')[0];
+        }
+      } catch (_) {
+        rawDate = e.date;
+      }
+
+      return {
+        id: e.id,
+        storeId: e.store_id,
+        date: rawDate,
+        category: e.category,
+        amount: Number(e.amount),
+        description: e.description,
+        recordedBy: e.recorded_by
+      } as GeneralExpense;
+    });
   },
   addGeneralExpense: async (expense: GeneralExpense) => {
     const dbExpense = {

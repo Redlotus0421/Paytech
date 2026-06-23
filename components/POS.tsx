@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { User, Store, InventoryItem, CartItem, UserRole, PosTransaction } from '../types';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { User, Store, InventoryItem, CartItem, UserRole, PosTransaction, InventoryUnit } from '../types';
 import { storageService } from '../services/storageService';
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Loader2, Edit2, X } from 'lucide-react';
+import { BarcodeScanner } from './BarcodeScanner';
+import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Loader2, Edit2, X, ScanLine } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface POSProps {
@@ -19,9 +20,74 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
+    const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
     const [editingPrice, setEditingPrice] = useState<string>('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [showScanner, setShowScanner] = useState(false);
+    const wedgeInputRef = useRef<HTMLInputElement>(null);
+
+  const getCartUnitIds = useCallback((cartItems: CartItem[]) => {
+    return cartItems.flatMap(c => c.unitIds || []);
+  }, []);
+
+  const processBarcode = useCallback(async (barcode: string) => {
+    const trimmed = barcode.trim();
+    if (!trimmed) return;
+
+    const result = await storageService.lookupUnitByBarcode(trimmed);
+    if (!result) {
+      alert(`Barcode not found: ${trimmed}`);
+      return;
+    }
+
+    const { unit, item } = result;
+
+    if (unit.storeId !== activeStoreId) {
+      alert('This item belongs to a different store.');
+      return;
+    }
+
+    if (unit.status !== 'available') {
+      alert('This item has already been sold or is unavailable.');
+      return;
+    }
+
+    const inCart = getCartUnitIds(cart);
+    if (inCart.includes(unit.id)) {
+      alert('This barcode is already in the cart.');
+      return;
+    }
+
+    if (item.stock <= 0) {
+      alert('Item out of stock');
+      return;
+    }
+
+    setCart(prev => {
+      const existing = prev.find(c => c.id === item.id && c.unitIds && c.unitIds.length > 0);
+      if (existing) {
+        return prev.map(c =>
+          c.id === item.id && c.unitIds
+            ? {
+                ...c,
+                quantity: c.quantity + 1,
+                unitIds: [...(c.unitIds || []), unit.id],
+                barcodes: [...(c.barcodes || []), unit.barcode],
+              }
+            : c
+        );
+      }
+      return [...prev, {
+        ...item,
+        quantity: 1,
+        unitIds: [unit.id],
+        barcodes: [unit.barcode],
+      }];
+    });
+
+    setSearchTerm('');
+    setShowScanner(false);
+  }, [activeStoreId, cart, getCartUnitIds]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -58,43 +124,52 @@ export const POS: React.FC<POSProps> = ({ user }) => {
     if (item.stock <= 0) return alert("Item out of stock");
 
     setCart(prev => {
-        const existing = prev.find(c => c.id === item.id);
+        const existing = prev.find(c => c.id === item.id && !c.unitIds?.length);
         if (existing) {
-            // Check stock limit in cart
             if (existing.quantity >= item.stock) {
                 alert("Max stock reached");
                 return prev;
             }
-            return prev.map(c => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c);
+            return prev.map(c => c.id === item.id && !c.unitIds?.length ? { ...c, quantity: c.quantity + 1 } : c);
         }
         return [...prev, { ...item, quantity: 1 }];
     });
   };
 
-  const updateQuantity = (itemId: string, delta: number) => {
-    setCart(prev => prev.map(c => {
-        if (c.id === itemId) {
+  const updateQuantity = (cartIdx: number, delta: number) => {
+    setCart(prev => prev.map((c, idx) => {
+        if (idx === cartIdx) {
             const newQty = c.quantity + delta;
-            // Prevent going below 1 (use remove instead) and above stock
             if (newQty < 1) return c;
-            if (newQty > c.stock) return c; 
+            if (newQty > c.stock) return c;
+
+            if (c.unitIds && c.unitIds.length > 0) {
+              if (delta > 0) {
+                alert('Scan another barcode to add more of this item.');
+                return c;
+              }
+              const newUnitIds = c.unitIds.slice(0, newQty);
+              const newBarcodes = (c.barcodes || []).slice(0, newQty);
+              return { ...c, quantity: newQty, unitIds: newUnitIds, barcodes: newBarcodes };
+            }
+
             return { ...c, quantity: newQty };
         }
         return c;
     }));
   };
 
-  const removeFromCart = (itemId: string) => {
-      const item = cart.find(c => c.id === itemId);
+  const removeFromCart = (cartIdx: number) => {
+      const item = cart[cartIdx];
       if (item) {
           storageService.logActivity('Void Item', `Removed ${item.quantity}x ${item.name} from cart`, user.id, user.name);
       }
-      setCart(prev => prev.filter(c => c.id !== itemId));
+      setCart(prev => prev.filter((_, idx) => idx !== cartIdx));
   };
 
-  const updatePrice = (itemId: string, newPrice: number) => {
-      setCart(prev => prev.map(c => 
-          c.id === itemId ? { ...c, price: newPrice } : c
+  const updatePrice = (cartIdx: number, newPrice: number) => {
+      setCart(prev => prev.map((c, idx) => 
+          idx === cartIdx ? { ...c, price: newPrice } : c
       ));
       setEditingPriceId(null);
       setEditingPrice('');
@@ -114,32 +189,61 @@ export const POS: React.FC<POSProps> = ({ user }) => {
       setIsLoading(true);
 
       try {
-        // Process Transaction
-        // 1. Update Inventory Stock (Async)
+        const transactionId = uuidv4();
+        const resolvedCart: CartItem[] = [];
+        const usedUnitIds: string[] = [];
+
         for (const item of cart) {
-            await storageService.updateInventoryStock(item.id, -item.quantity);
+          let unitIds = [...(item.unitIds || [])];
+          let barcodes = [...(item.barcodes || [])];
+
+          if (unitIds.length < item.quantity) {
+            const needed = item.quantity - unitIds.length;
+            const hasUnits = await storageService.itemHasUnits(item.id);
+            if (hasUnits) {
+              const exclude = [...usedUnitIds, ...unitIds];
+              const fifoUnits = await storageService.getAvailableUnits(item.id, needed, exclude);
+              if (fifoUnits.length < needed) {
+                alert(`Not enough available units for "${item.name}". Need ${needed}, found ${fifoUnits.length}.`);
+                setIsLoading(false);
+                return;
+              }
+              unitIds = [...unitIds, ...fifoUnits.map((u: InventoryUnit) => u.id)];
+              barcodes = [...barcodes, ...fifoUnits.map((u: InventoryUnit) => u.barcode)];
+            }
+          }
+
+          usedUnitIds.push(...unitIds);
+          resolvedCart.push({ ...item, unitIds: unitIds.length ? unitIds : undefined, barcodes: barcodes.length ? barcodes : undefined });
         }
 
-        // 2. Save POS Transaction Log (For Reports) - NOW AWAITED
+        for (const item of resolvedCart) {
+          if (item.unitIds?.length) {
+            await storageService.markUnitsSold(item.unitIds, transactionId);
+            await storageService.syncStockFromUnits(item.id);
+          } else {
+            await storageService.updateInventoryStock(item.id, -item.quantity);
+          }
+        }
+
         const transaction: PosTransaction = {
-            id: uuidv4(),
+            id: transactionId,
             storeId: activeStoreId,
             date: date,
             timestamp: Date.now(),
-            items: [...cart],
+            items: resolvedCart,
             totalAmount: cartTotal,
             paymentAmount: pay,
             cashierName: user.name
         };
-        await storageService.savePosTransaction(transaction); // <--- AWAIT HERE
+        await storageService.savePosTransaction(transaction);
         
         await storageService.logActivity('POS Transaction', `Processed sale of ₱${cartTotal.toFixed(2)} (${cart.length} items)`, user.id, user.name);
 
-        // 3. Generate Receipt Data
         const receipt = {
             date: `${date} ${new Date().toLocaleTimeString()}`,
             storeName: stores.find(s => s.id === activeStoreId)?.name || 'Store',
-            items: [...cart],
+            items: [...resolvedCart],
             total: cartTotal,
             payment: pay,
             change: pay - cartTotal,
@@ -148,11 +252,9 @@ export const POS: React.FC<POSProps> = ({ user }) => {
         setReceiptData(receipt);
         setShowReceipt(true);
         
-        // 4. Clear Cart (in background, UI shows receipt)
         setCart([]);
         setPaymentAmount('');
         
-        // Refresh inventory list to show new stock
         const allInventory = await storageService.getInventory();
         setItems(allInventory.filter(i => i.storeId === activeStoreId));
       } catch (error) {
@@ -161,6 +263,27 @@ export const POS: React.FC<POSProps> = ({ user }) => {
       } finally {
         setIsLoading(false);
       }
+  };
+
+  const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchTerm.trim()) {
+      const trimmed = searchTerm.trim();
+      if (trimmed.startsWith('PT-')) {
+        e.preventDefault();
+        await processBarcode(trimmed);
+      }
+    }
+  };
+
+  const handleWedgeKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const value = wedgeInputRef.current?.value || '';
+      if (value.trim()) {
+        await processBarcode(value);
+        if (wedgeInputRef.current) wedgeInputRef.current.value = '';
+      }
+    }
   };
 
   const closeReceipt = () => {
@@ -195,15 +318,32 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                 )}
             </div>
             
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-4 border-b border-gray-100 flex gap-2 items-center">
                 <input
                     type="text"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    placeholder="Search items by name or category..."
-                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                    onKeyDown={handleSearchKeyDown}
+                    placeholder="Search items or scan barcode..."
+                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
                 />
+                <button
+                    onClick={() => setShowScanner(true)}
+                    className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded text-sm font-medium hover:bg-purple-700 whitespace-nowrap"
+                    title="Open camera scanner"
+                >
+                    <ScanLine size={18} /> Scan
+                </button>
             </div>
+            <input
+                ref={wedgeInputRef}
+                type="text"
+                onKeyDown={handleWedgeKeyDown}
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
+                autoComplete="off"
+            />
             
             <div className="flex-1 overflow-y-auto bg-white">
                 {isLoading ? (
@@ -291,15 +431,20 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                         <p>Cart is empty</p>
                     </div>
                 ) : (
-                    cart.map(item => (
-                        <div key={item.id} className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-100">
+                    cart.map((item, cartIdx) => (
+                        <div key={`${item.id}-${cartIdx}-${item.unitIds?.join('-') || 'manual'}`} className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-100">
                             <div className="flex-1 min-w-0 pr-2">
                                 <div className="font-medium text-gray-900 truncate">{item.name}</div>
+                                {item.barcodes && item.barcodes.length > 0 && (
+                                  <div className="text-[10px] font-mono text-purple-600 truncate">
+                                    {item.barcodes.join(', ')}
+                                  </div>
+                                )}
                                 <div className="text-xs text-gray-500">
                                     Cost: ₱{item.cost?.toFixed(2) || '0.00'}
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">
-                                    {editingPriceId === item.id ? (
+                                    {editingPriceId === cartIdx ? (
                                         <div className="flex items-center gap-1">
                                             <span className="text-gray-600">Sale: ₱</span>
                                             <input 
@@ -314,7 +459,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                                                 onClick={() => {
                                                     const newPrice = parseFloat(editingPrice);
                                                     if (!isNaN(newPrice) && newPrice > 0) {
-                                                        updatePrice(item.id, newPrice);
+                                                        updatePrice(cartIdx, newPrice);
                                                     }
                                                 }}
                                                 className="text-green-600 hover:text-green-800 text-xs font-bold"
@@ -336,7 +481,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                                             <span className="font-medium text-gray-900">Sale: ₱{item.price.toFixed(2)}</span>
                                             <button 
                                                 onClick={() => {
-                                                    setEditingPriceId(item.id);
+                                                    setEditingPriceId(cartIdx);
                                                     setEditingPrice(item.price.toString());
                                                 }}
                                                 className="text-blue-500 hover:text-blue-700"
@@ -351,14 +496,14 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1 bg-white rounded border border-gray-200">
-                                    <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-gray-100 text-gray-600"><Minus size={12}/></button>
+                                    <button onClick={() => updateQuantity(cartIdx, -1)} className="p-1 hover:bg-gray-100 text-gray-600"><Minus size={12}/></button>
                                     <span className="text-sm w-6 text-center font-medium text-gray-900">{item.quantity}</span>
-                                    <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-gray-100 text-gray-600"><Plus size={12}/></button>
+                                    <button onClick={() => updateQuantity(cartIdx, 1)} className="p-1 hover:bg-gray-100 text-gray-600"><Plus size={12}/></button>
                                 </div>
                                 <div className="font-bold text-gray-900 w-16 text-right">
                                     ₱{(item.price * item.quantity).toFixed(2)}
                                 </div>
-                                <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
+                                <button onClick={() => removeFromCart(cartIdx)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
                             </div>
                         </div>
                     ))
@@ -425,12 +570,17 @@ export const POS: React.FC<POSProps> = ({ user }) => {
 
                         <div className="space-y-2 mb-4">
                             {receiptData.items.map((item: any, idx: number) => (
-                                <div key={idx} className="flex justify-between text-gray-800">
-                                    <span className="truncate w-32">{item.name}</span>
-                                    <div className="flex gap-4">
-                                        <span className="text-gray-500">x{item.quantity}</span>
-                                        <span className="font-semibold text-right w-16">₱{(item.price * item.quantity).toFixed(2)}</span>
+                                <div key={idx} className="text-gray-800">
+                                    <div className="flex justify-between">
+                                        <span className="truncate w-32">{item.name}</span>
+                                        <div className="flex gap-4">
+                                            <span className="text-gray-500">x{item.quantity}</span>
+                                            <span className="font-semibold text-right w-16">₱{(item.price * item.quantity).toFixed(2)}</span>
+                                        </div>
                                     </div>
+                                    {item.barcodes?.length > 0 && (
+                                      <div className="text-[10px] text-gray-400 font-mono pl-1">{item.barcodes.join(', ')}</div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -461,6 +611,13 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                    </div>
                </div>
            </div>
+       )}
+
+       {showScanner && (
+         <BarcodeScanner
+           onScan={processBarcode}
+           onClose={() => setShowScanner(false)}
+         />
        )}
     </div>
   );

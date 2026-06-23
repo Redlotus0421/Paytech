@@ -99,8 +99,25 @@ export interface InventoryItem {
   category?: string;
   isHidden?: boolean;
 }
+
+export type BarcodeFormat = 'code128' | 'qr';
+export type UnitStatus = 'available' | 'sold' | 'voided';
+
+export interface InventoryUnit {
+  id: string;
+  inventoryId: string;
+  storeId: string;
+  barcode: string;
+  status: UnitStatus;
+  transactionId?: string;
+  soldAt?: number;
+  createdAt: number;
+}
+
 export interface CartItem extends InventoryItem {
   quantity: number;
+  unitIds?: string[];
+  barcodes?: string[];
 }
 
 export interface ActivityLog {

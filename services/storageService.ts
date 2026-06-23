@@ -1,5 +1,27 @@
-import { User, Store, ReportData, UserRole, InventoryItem, PosTransaction, GeneralExpense, ActivityLog } from '../types';
+import { User, Store, ReportData, UserRole, InventoryItem, InventoryUnit, PosTransaction, GeneralExpense, ActivityLog, UnitStatus } from '../types';
 import { supabase } from './supabaseClient';
+import { v4 as uuidv4 } from 'uuid';
+
+const BARCODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+const mapInventoryUnit = (row: any): InventoryUnit => ({
+  id: row.id,
+  inventoryId: row.inventory_id,
+  storeId: row.store_id,
+  barcode: row.barcode,
+  status: row.status as UnitStatus,
+  transactionId: row.transaction_id || undefined,
+  soldAt: row.sold_at ? new Date(row.sold_at).getTime() : undefined,
+  createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+});
+
+const generateBarcodeValue = (seq: number): string => {
+  let segment = '';
+  for (let i = 0; i < 6; i++) {
+    segment += BARCODE_CHARS[Math.floor(Math.random() * BARCODE_CHARS.length)];
+  }
+  return `PT-${segment}-${String(seq).padStart(4, '0')}`;
+};
 
 const KEYS = {
   USERS: 'cfs_users',
@@ -395,6 +417,159 @@ export const storageService = {
     const { error } = await supabase.from('inventory').delete().eq('id', itemId);
     if (error) throw error;
   },
+
+  getInventoryUnits: async (inventoryId: string, status?: UnitStatus): Promise<InventoryUnit[]> => {
+    let query = supabase.from('inventory_units').select('*').eq('inventory_id', inventoryId).order('created_at', { ascending: true });
+    if (status) query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error fetching inventory units:', error.message);
+      return [];
+    }
+    return (data || []).map(mapInventoryUnit);
+  },
+
+  getInventoryUnitCounts: async (inventoryId: string): Promise<{ available: number; sold: number; total: number }> => {
+    const units = await storageService.getInventoryUnits(inventoryId);
+    const available = units.filter(u => u.status === 'available').length;
+    const sold = units.filter(u => u.status === 'sold').length;
+    return { available, sold, total: units.length };
+  },
+
+  generateInventoryUnits: async (inventoryId: string, count: number): Promise<{ success: boolean; units?: InventoryUnit[]; error?: string }> => {
+    if (count <= 0) return { success: false, error: 'Count must be greater than 0' };
+
+    const { data: item, error: itemError } = await supabase.from('inventory').select('*').eq('id', inventoryId).single();
+    if (itemError || !item) return { success: false, error: 'Inventory item not found' };
+
+    const existing = await storageService.getInventoryUnits(inventoryId);
+    const startSeq = existing.length + 1;
+    const rows = [];
+    const usedBarcodes = new Set(existing.map(u => u.barcode));
+
+    for (let i = 0; i < count; i++) {
+      let barcode = generateBarcodeValue(startSeq + i);
+      let attempts = 0;
+      while (usedBarcodes.has(barcode) && attempts < 10) {
+        barcode = generateBarcodeValue(startSeq + i + attempts);
+        attempts++;
+      }
+      usedBarcodes.add(barcode);
+      rows.push({
+        id: uuidv4(),
+        inventory_id: inventoryId,
+        store_id: item.store_id,
+        barcode,
+        status: 'available',
+      });
+    }
+
+    const { data, error } = await supabase.from('inventory_units').insert(rows).select('*');
+    if (error) {
+      console.error('Error generating inventory units:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    await storageService.syncStockFromUnits(inventoryId);
+    return { success: true, units: (data || []).map(mapInventoryUnit) };
+  },
+
+  lookupUnitByBarcode: async (barcode: string): Promise<{ unit: InventoryUnit; item: InventoryItem } | null> => {
+    const trimmed = barcode.trim();
+    if (!trimmed) return null;
+
+    const { data: unitRow, error } = await supabase.from('inventory_units').select('*').eq('barcode', trimmed).maybeSingle();
+    if (error || !unitRow) return null;
+
+    const { data: itemRow, error: itemError } = await supabase.from('inventory').select('*').eq('id', unitRow.inventory_id).single();
+    if (itemError || !itemRow) return null;
+
+    const item: InventoryItem = {
+      id: itemRow.id,
+      storeId: itemRow.store_id,
+      name: itemRow.name,
+      cost: Number(itemRow.cost),
+      price: Number(itemRow.price),
+      stock: Number(itemRow.stock),
+      category: itemRow.category || '',
+      isHidden: itemRow.is_hidden,
+    };
+
+    return { unit: mapInventoryUnit(unitRow), item };
+  },
+
+  getAvailableUnits: async (inventoryId: string, limit: number, excludeIds: string[] = []): Promise<InventoryUnit[]> => {
+    const { data, error } = await supabase
+      .from('inventory_units')
+      .select('*')
+      .eq('inventory_id', inventoryId)
+      .eq('status', 'available')
+      .order('created_at', { ascending: true })
+      .limit(limit + excludeIds.length);
+
+    if (error || !data) return [];
+    return data.map(mapInventoryUnit).filter(u => !excludeIds.includes(u.id)).slice(0, limit);
+  },
+
+  markUnitsSold: async (unitIds: string[], transactionId: string): Promise<void> => {
+    if (unitIds.length === 0) return;
+    const soldAt = new Date().toISOString();
+    const { error } = await supabase
+      .from('inventory_units')
+      .update({ status: 'sold', transaction_id: transactionId, sold_at: soldAt })
+      .in('id', unitIds)
+      .eq('status', 'available');
+    if (error) throw new Error(error.message);
+  },
+
+  markUnitsAvailable: async (unitIds: string[]): Promise<void> => {
+    if (unitIds.length === 0) return;
+    const { error } = await supabase
+      .from('inventory_units')
+      .update({ status: 'available', transaction_id: null, sold_at: null })
+      .in('id', unitIds);
+    if (error) throw new Error(error.message);
+  },
+
+  deleteAvailableUnits: async (inventoryId: string, count: number): Promise<{ success: boolean; error?: string }> => {
+    if (count <= 0) return { success: true };
+
+    const available = await storageService.getInventoryUnits(inventoryId, 'available');
+    if (available.length < count) {
+      return { success: false, error: `Cannot remove ${count} units. Only ${available.length} available unit(s) exist.` };
+    }
+
+    const toDelete = available.slice(0, count).map(u => u.id);
+    const { error } = await supabase.from('inventory_units').delete().in('id', toDelete);
+    if (error) return { success: false, error: error.message };
+
+    await storageService.syncStockFromUnits(inventoryId);
+    return { success: true };
+  },
+
+  syncStockFromUnits: async (inventoryId: string): Promise<void> => {
+    const { count, error: countError } = await supabase
+      .from('inventory_units')
+      .select('*', { count: 'exact', head: true })
+      .eq('inventory_id', inventoryId)
+      .eq('status', 'available');
+
+    if (countError) {
+      console.error('Error counting available units:', countError.message);
+      return;
+    }
+
+    await supabase.from('inventory').update({ stock: count ?? 0 }).eq('id', inventoryId);
+  },
+
+  itemHasUnits: async (inventoryId: string): Promise<boolean> => {
+    const { count, error } = await supabase
+      .from('inventory_units')
+      .select('*', { count: 'exact', head: true })
+      .eq('inventory_id', inventoryId);
+    if (error) return false;
+    return (count ?? 0) > 0;
+  },
   savePosTransaction: async (transaction: PosTransaction) => {
       console.log("💾 Saving POS Transaction to DB:", transaction);
       const dbTx = {
@@ -489,9 +664,16 @@ export const storageService = {
           if (minimalErr) throw minimalErr;
         }
 
-        // Restore inventory stock for each item in the transaction
+        // Restore inventory units and stock for each item in the transaction
         const items = tx.items as any[];
-        for (const item of items) { await storageService.updateInventoryStock(item.id, item.quantity); }
+        for (const item of items) {
+          if (item.unitIds?.length) {
+            await storageService.markUnitsAvailable(item.unitIds);
+            await storageService.syncStockFromUnits(item.id);
+          } else {
+            await storageService.updateInventoryStock(item.id, item.quantity);
+          }
+        }
 
         // Log the activity
         if (voidedById && voidedByName) {

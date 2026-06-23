@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, Store, InventoryItem, UserRole, ReportData } from '../types';
 import { storageService } from '../services/storageService';
-import { Package, Plus, X, Check, Loader2, Search, TrendingUp, DollarSign, ShoppingCart, BarChart3, Trash2, Lock, Eye, EyeOff, Download } from 'lucide-react';
+import { Package, Plus, X, Check, Loader2, Search, TrendingUp, DollarSign, ShoppingCart, BarChart3, Trash2, Lock, Eye, EyeOff, Download, Barcode } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { InventoryUnitsModal } from './InventoryUnitsModal';
 
 interface InventoryProps {
   user: User;
@@ -37,6 +38,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [authError, setAuthError] = useState('');
   const [authTitle, setAuthTitle] = useState('');
+  const [unitsModalItem, setUnitsModalItem] = useState<InventoryItem | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -82,6 +84,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
     setIsLoading(true);
 
     let result;
+    let savedItemId: string | null = null;
     if (editingItem) {
         const updatedItem: InventoryItem = {
             ...editingItem,
@@ -92,12 +95,26 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             stock: parseInt(newItemStock),
             category: newItemCategory
         };
+        const oldStock = Number(editingItem.stock);
+        const newStock = Number(updatedItem.stock);
+
+        if (newStock < oldStock) {
+            const removeCount = oldStock - newStock;
+            const hasUnits = await storageService.itemHasUnits(editingItem.id);
+            if (hasUnits) {
+                const deleteResult = await storageService.deleteAvailableUnits(editingItem.id, removeCount);
+                if (!deleteResult.success) {
+                    setIsLoading(false);
+                    return alert(deleteResult.error || 'Cannot reduce stock: not enough available barcoded units.');
+                }
+            }
+        }
+
         result = await storageService.updateInventoryItem(updatedItem);
+        savedItemId = updatedItem.id;
 
         // Calculate changes for log
         const changes = [];
-        const oldStock = Number(editingItem.stock);
-        const newStock = Number(updatedItem.stock);
         if (oldStock !== newStock) changes.push(`Stock: ${oldStock} -> ${newStock}`);
         
         const oldPrice = Number(editingItem.price);
@@ -127,6 +144,7 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
             category: newItemCategory
         };
         result = await storageService.addInventoryItem(item);
+        savedItemId = item.id;
         await storageService.logActivity('Add Inventory', `Added new item: ${item.name} to ${stores.find(s => s.id === newItemStoreId)?.name}`, user.id, user.name);
     }
 
@@ -135,6 +153,26 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
         console.error('❌ Save failed:', result.error);
         alert(`Failed to save item:\n${errorMsg}`);
     } else {
+        const stockNum = parseInt(newItemStock);
+        const oldStock = editingItem ? Number(editingItem.stock) : 0;
+
+        if (savedItemId && stockNum > 0) {
+            if (!editingItem) {
+                if (confirm(`Generate ${stockNum} barcode(s) for this new item now?`)) {
+                    await storageService.generateInventoryUnits(savedItemId, stockNum);
+                }
+            } else if (stockNum > oldStock) {
+                const toGenerate = stockNum - oldStock;
+                if (confirm(`Stock increased by ${toGenerate}. Generate ${toGenerate} new barcode(s)?`)) {
+                    await storageService.generateInventoryUnits(savedItemId, toGenerate);
+                }
+            }
+        }
+
+        if (savedItemId && await storageService.itemHasUnits(savedItemId)) {
+            await storageService.syncStockFromUnits(savedItemId);
+        }
+
         // Set filter to show the store we just added/edited the item for
         setFilterStoreId(newItemStoreId);
         await refreshInventory();
@@ -553,6 +591,13 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-center flex items-center justify-center gap-2">
+                                        <button
+                                            onClick={() => setUnitsModalItem(item)}
+                                            className="text-purple-600 hover:text-purple-800 text-xs font-medium px-3 py-1 hover:bg-purple-100 rounded transition-colors flex items-center gap-1"
+                                            title="Manage barcodes"
+                                        >
+                                            <Barcode size={16} />
+                                        </button>
                                         <button 
                                             onClick={() => handleToggleVisibility(item)}
                                             className="text-gray-500 hover:text-gray-700 text-xs font-medium px-3 py-1 hover:bg-gray-100 rounded transition-colors"
@@ -585,6 +630,14 @@ export const Inventory: React.FC<InventoryProps> = ({ user }) => {
                 </table>
             </div>
         </div>
+
+        {unitsModalItem && (
+            <InventoryUnitsModal
+                item={unitsModalItem}
+                onClose={() => setUnitsModalItem(null)}
+                onUnitsChanged={refreshInventory}
+            />
+        )}
 
         {/* Auth Modal */}
         {isAuthModalOpen && (

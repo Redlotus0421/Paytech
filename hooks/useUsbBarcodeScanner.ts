@@ -22,9 +22,14 @@ const persistScannerDetected = (): void => {
   }
 };
 
-const isExcludedTarget = (target: EventTarget | null, scanInputRef: RefObject<HTMLInputElement | null>): boolean => {
+const isExcludedTarget = (
+  target: EventTarget | null,
+  wedgeInputRef: RefObject<HTMLInputElement | null>,
+  searchInputRef: RefObject<HTMLInputElement | null>
+): boolean => {
   if (!(target instanceof HTMLElement)) return false;
-  if (scanInputRef.current && target === scanInputRef.current) return true;
+  if (wedgeInputRef.current && target === wedgeInputRef.current) return true;
+  if (searchInputRef.current && target === searchInputRef.current) return true;
   if (target.closest('[data-pos-exclude-wedge]')) return true;
   if (target.tagName === 'TEXTAREA') return true;
   if (target instanceof HTMLInputElement) {
@@ -36,12 +41,19 @@ const isExcludedTarget = (target: EventTarget | null, scanInputRef: RefObject<HT
 
 interface UseUsbBarcodeScannerOptions {
   enabled: boolean;
-  scanInputRef: RefObject<HTMLInputElement | null>;
+  wedgeInputRef: RefObject<HTMLInputElement | null>;
+  searchInputRef: RefObject<HTMLInputElement | null>;
   onScan: (barcode: string) => void;
   onScannerDetected?: () => void;
 }
 
-export const useUsbBarcodeScanner = ({ enabled, scanInputRef, onScan, onScannerDetected }: UseUsbBarcodeScannerOptions) => {
+export const useUsbBarcodeScanner = ({
+  enabled,
+  wedgeInputRef,
+  searchInputRef,
+  onScan,
+  onScannerDetected,
+}: UseUsbBarcodeScannerOptions) => {
   const [scannerDetected, setScannerDetected] = useState(readScannerDetected);
   const onScanRef = useRef(onScan);
   const onScannerDetectedRef = useRef(onScannerDetected);
@@ -96,7 +108,7 @@ export const useUsbBarcodeScanner = ({ enabled, scanInputRef, onScan, onScannerD
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isExcludedTarget(e.target, scanInputRef)) return;
+      if (isExcludedTarget(e.target, wedgeInputRef, searchInputRef)) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       const now = Date.now();
@@ -128,7 +140,7 @@ export const useUsbBarcodeScanner = ({ enabled, scanInputRef, onScan, onScannerD
       window.removeEventListener('keydown', handleKeyDown);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [enabled, scanInputRef, submitBarcode, resetBuffer]);
+  }, [enabled, wedgeInputRef, searchInputRef, submitBarcode, resetBuffer]);
 
-  return { scannerDetected, markScannerDetected };
+  return { scannerDetected, markScannerDetected, clearBuffer: resetBuffer };
 };

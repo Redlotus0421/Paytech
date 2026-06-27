@@ -27,18 +27,32 @@ export const POS: React.FC<POSProps> = ({ user }) => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [showScanner, setShowScanner] = useState(false);
     const [viewBarcodesCartIdx, setViewBarcodesCartIdx] = useState<number | null>(null);
-    const scanInputRef = useRef<HTMLInputElement>(null);
+    const wedgeInputRef = useRef<HTMLInputElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const paymentInputRef = useRef<HTMLInputElement>(null);
     const cartUnitIdsRef = useRef<Set<string>>(new Set());
     const processingBarcodesRef = useRef<Set<string>>(new Set());
+    const lastSuccessfulScanRef = useRef<{ barcode: string; unitId: string; at: number } | null>(null);
 
-  const focusScanInput = useCallback(() => {
+  const focusWedgeInput = useCallback(() => {
     setTimeout(() => {
       if (showScanner || showReceipt) return;
-      if (document.activeElement === paymentInputRef.current) return;
-      scanInputRef.current?.focus();
+      const active = document.activeElement;
+      if (active === paymentInputRef.current || active === searchInputRef.current) return;
+      if (active instanceof HTMLElement && active.closest('[data-pos-exclude-wedge]')) return;
+      wedgeInputRef.current?.focus();
     }, 50);
   }, [showScanner, showReceipt]);
+
+  const handleWedgeBlur = () => {
+    setTimeout(() => {
+      if (showScanner || showReceipt) return;
+      const active = document.activeElement;
+      if (active === paymentInputRef.current || active === searchInputRef.current) return;
+      if (active instanceof HTMLElement && active.closest('[data-pos-exclude-wedge]')) return;
+      wedgeInputRef.current?.focus();
+    }, 10);
+  };
 
   const getCartUnitIds = useCallback((cartItems: CartItem[]) => {
     return cartItems.flatMap(c => c.unitIds || []);
@@ -50,11 +64,20 @@ export const POS: React.FC<POSProps> = ({ user }) => {
 
   const processBarcodeRef = useRef<(barcode: string) => Promise<void>>(async () => {});
 
-  const { scannerDetected, markScannerDetected } = useUsbBarcodeScanner({
+  const { scannerDetected, markScannerDetected, clearBuffer: clearWedgeBuffer } = useUsbBarcodeScanner({
     enabled: !showScanner && !showReceipt,
-    scanInputRef,
+    wedgeInputRef,
+    searchInputRef,
     onScan: (barcode) => { processBarcodeRef.current(barcode); },
   });
+
+  const releaseBarcodeProcessing = (barcode: string, delayMs = 0) => {
+    if (delayMs > 0) {
+      setTimeout(() => processingBarcodesRef.current.delete(barcode), delayMs);
+    } else {
+      processingBarcodesRef.current.delete(barcode);
+    }
+  };
 
   const processBarcode = useCallback(async (barcode: string) => {
     const trimmed = normalizeBarcodeInput(barcode);
@@ -67,8 +90,8 @@ export const POS: React.FC<POSProps> = ({ user }) => {
       const result = await storageService.lookupUnitByBarcode(trimmed);
       if (!result) {
         alert(`Barcode not found: ${trimmed}`);
-        setSearchTerm('');
-        focusScanInput();
+        focusWedgeInput();
+        releaseBarcodeProcessing(trimmed);
         return;
       }
 
@@ -76,31 +99,39 @@ export const POS: React.FC<POSProps> = ({ user }) => {
 
       if (unit.storeId !== activeStoreId) {
         alert('This item belongs to a different store.');
-        setSearchTerm('');
-        focusScanInput();
+        focusWedgeInput();
+        releaseBarcodeProcessing(trimmed);
         return;
       }
 
       if (unit.status !== 'available') {
         alert('This item has already been sold or is unavailable.');
-        setSearchTerm('');
-        focusScanInput();
+        focusWedgeInput();
+        releaseBarcodeProcessing(trimmed);
         return;
       }
 
       if (cartUnitIdsRef.current.has(unit.id)) {
+        const last = lastSuccessfulScanRef.current;
+        if (last?.barcode === trimmed && Date.now() - last.at < 1500) {
+          focusWedgeInput();
+          releaseBarcodeProcessing(trimmed, 1500);
+          return;
+        }
         alert('This barcode is already in the cart.');
-        setSearchTerm('');
-        focusScanInput();
+        focusWedgeInput();
+        releaseBarcodeProcessing(trimmed);
         return;
       }
 
       if (item.stock <= 0) {
         alert('Item out of stock');
-        setSearchTerm('');
-        focusScanInput();
+        focusWedgeInput();
+        releaseBarcodeProcessing(trimmed);
         return;
       }
+
+      cartUnitIdsRef.current.add(unit.id);
 
       let added = false;
       setCart(prev => {
@@ -110,7 +141,6 @@ export const POS: React.FC<POSProps> = ({ user }) => {
         const existing = prev.find(c => c.id === item.id && c.unitIds && c.unitIds.length > 0);
         if (existing) {
           added = true;
-          cartUnitIdsRef.current.add(unit.id);
           return prev.map(c =>
             c.id === item.id && c.unitIds
               ? {
@@ -124,7 +154,6 @@ export const POS: React.FC<POSProps> = ({ user }) => {
         }
 
         added = true;
-        cartUnitIdsRef.current.add(unit.id);
         return [...prev, {
           ...item,
           quantity: 1,
@@ -134,18 +163,20 @@ export const POS: React.FC<POSProps> = ({ user }) => {
       });
 
       if (!added) {
-        alert('This barcode is already in the cart.');
-      } else {
-        markScannerDetected();
+        cartUnitIdsRef.current.delete(unit.id);
+        releaseBarcodeProcessing(trimmed);
+        return;
       }
 
-      setSearchTerm('');
+      lastSuccessfulScanRef.current = { barcode: trimmed, unitId: unit.id, at: Date.now() };
+      markScannerDetected();
       setShowScanner(false);
-      focusScanInput();
-    } finally {
-      processingBarcodesRef.current.delete(trimmed);
+      focusWedgeInput();
+      releaseBarcodeProcessing(trimmed, 1500);
+    } catch {
+      releaseBarcodeProcessing(trimmed);
     }
-  }, [activeStoreId, focusScanInput, markScannerDetected]);
+  }, [activeStoreId, focusWedgeInput, markScannerDetected]);
 
   processBarcodeRef.current = processBarcode;
 
@@ -177,15 +208,15 @@ export const POS: React.FC<POSProps> = ({ user }) => {
             setPaymentAmount('');
             setShowReceipt(false);
             setIsLoading(false);
-            focusScanInput();
+            focusWedgeInput();
         }
     };
     loadInventory();
-  }, [activeStoreId, focusScanInput]);
+  }, [activeStoreId, focusWedgeInput]);
 
   useEffect(() => {
-    focusScanInput();
-  }, [focusScanInput]);
+    focusWedgeInput();
+  }, [focusWedgeInput]);
 
   const addToCart = (item: InventoryItem) => {
     if (item.stock <= 0) return alert("Item out of stock");
@@ -232,7 +263,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
           storageService.logActivity('Void Item', `Removed ${item.quantity}x ${item.name} from cart`, user.id, user.name);
       }
       setCart(prev => prev.filter((_, idx) => idx !== cartIdx));
-      focusScanInput();
+      focusWedgeInput();
   };
 
   const updatePrice = (cartIdx: number, newPrice: number) => {
@@ -333,11 +364,14 @@ export const POS: React.FC<POSProps> = ({ user }) => {
       }
   };
 
-  const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchTerm.trim()) {
-      const trimmed = normalizeBarcodeInput(searchTerm);
-      if (isValidPaytechBarcode(trimmed)) {
-        e.preventDefault();
+  const handleWedgeKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const raw = e.currentTarget.value;
+      e.currentTarget.value = '';
+      clearWedgeBuffer();
+      const trimmed = normalizeBarcodeInput(raw);
+      if (trimmed && isValidPaytechBarcode(trimmed)) {
         await processBarcode(trimmed);
       }
     }
@@ -346,12 +380,12 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   const closeReceipt = () => {
       setShowReceipt(false);
       setReceiptData(null);
-      focusScanInput();
+      focusWedgeInput();
   };
 
   const closeCameraScanner = () => {
       setShowScanner(false);
-      focusScanInput();
+      focusWedgeInput();
   };
 
   return (
@@ -398,13 +432,12 @@ export const POS: React.FC<POSProps> = ({ user }) => {
             
             <div className="p-4 border-b border-gray-100 flex gap-2 items-center">
                 <input
-                    ref={scanInputRef}
+                    ref={searchInputRef}
                     type="text"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    onKeyDown={handleSearchKeyDown}
-                    placeholder="Scan barcode here (USB scanner) or search by name..."
-                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                    placeholder="Search items by name or category..."
+                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                     autoComplete="off"
                 />
                 <button
@@ -416,6 +449,17 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                     <ScanLine size={18} /> Camera Scan
                 </button>
             </div>
+            <input
+                ref={wedgeInputRef}
+                type="text"
+                inputMode="none"
+                autoComplete="off"
+                aria-hidden="true"
+                tabIndex={-1}
+                onKeyDown={handleWedgeKeyDown}
+                onBlur={handleWedgeBlur}
+                className="fixed opacity-0 pointer-events-none w-0 h-0 p-0 border-0"
+            />
             
             <div className="flex-1 overflow-y-auto bg-white">
                 {isLoading ? (

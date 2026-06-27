@@ -475,7 +475,7 @@ export const storageService = {
   },
 
   lookupUnitByBarcode: async (barcode: string): Promise<{ unit: InventoryUnit; item: InventoryItem } | null> => {
-    const trimmed = barcode.trim();
+    const trimmed = barcode.trim().toUpperCase();
     if (!trimmed) return null;
 
     const { data: unitRow, error } = await supabase.from('inventory_units').select('*').eq('barcode', trimmed).maybeSingle();

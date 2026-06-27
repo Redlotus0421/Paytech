@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { User, Store, InventoryItem, CartItem, UserRole, PosTransaction, InventoryUnit } from '../types';
 import { storageService } from '../services/storageService';
 import { BarcodeScanner } from './BarcodeScanner';
+import { isValidPaytechBarcode, normalizeBarcodeInput } from '../utils/barcode';
 import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Loader2, Edit2, X, ScanLine } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -31,8 +32,8 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   }, []);
 
   const processBarcode = useCallback(async (barcode: string) => {
-    const trimmed = barcode.trim();
-    if (!trimmed) return;
+    const trimmed = normalizeBarcodeInput(barcode);
+    if (!trimmed || !isValidPaytechBarcode(trimmed)) return;
 
     const result = await storageService.lookupUnitByBarcode(trimmed);
     if (!result) {
@@ -267,8 +268,8 @@ export const POS: React.FC<POSProps> = ({ user }) => {
 
   const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && searchTerm.trim()) {
-      const trimmed = searchTerm.trim();
-      if (trimmed.startsWith('PT-')) {
+      const trimmed = normalizeBarcodeInput(searchTerm);
+      if (isValidPaytechBarcode(trimmed)) {
         e.preventDefault();
         await processBarcode(trimmed);
       }
@@ -278,8 +279,8 @@ export const POS: React.FC<POSProps> = ({ user }) => {
   const handleWedgeKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      const value = wedgeInputRef.current?.value || '';
-      if (value.trim()) {
+      const value = normalizeBarcodeInput(wedgeInputRef.current?.value || '');
+      if (value && isValidPaytechBarcode(value)) {
         await processBarcode(value);
         if (wedgeInputRef.current) wedgeInputRef.current.value = '';
       }

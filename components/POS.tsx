@@ -29,29 +29,44 @@ export const POS: React.FC<POSProps> = ({ user }) => {
     const [viewBarcodesCartIdx, setViewBarcodesCartIdx] = useState<number | null>(null);
     const wedgeInputRef = useRef<HTMLInputElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const storeSelectRef = useRef<HTMLSelectElement>(null);
     const paymentInputRef = useRef<HTMLInputElement>(null);
+    const wedgeFocusPausedRef = useRef(false);
     const cartUnitIdsRef = useRef<Set<string>>(new Set());
     const processingBarcodesRef = useRef<Set<string>>(new Set());
     const lastSuccessfulScanRef = useRef<{ barcode: string; unitId: string; at: number } | null>(null);
 
+  const shouldSkipWedgeFocus = useCallback(() => {
+    if (wedgeFocusPausedRef.current) return true;
+    const active = document.activeElement;
+    if (
+      active === paymentInputRef.current ||
+      active === searchInputRef.current ||
+      active === storeSelectRef.current
+    ) return true;
+    if (active instanceof HTMLElement && active.closest('[data-pos-exclude-wedge]')) return true;
+    return false;
+  }, []);
+
+  const holdWedgeFocus = useCallback(() => {
+    wedgeFocusPausedRef.current = true;
+    setTimeout(() => { wedgeFocusPausedRef.current = false; }, 500);
+  }, []);
+
   const focusWedgeInput = useCallback(() => {
     setTimeout(() => {
       if (showScanner || showReceipt) return;
-      const active = document.activeElement;
-      if (active === paymentInputRef.current || active === searchInputRef.current) return;
-      if (active instanceof HTMLElement && active.closest('[data-pos-exclude-wedge]')) return;
+      if (shouldSkipWedgeFocus()) return;
       wedgeInputRef.current?.focus();
     }, 50);
-  }, [showScanner, showReceipt]);
+  }, [showScanner, showReceipt, shouldSkipWedgeFocus]);
 
   const handleWedgeBlur = () => {
     setTimeout(() => {
       if (showScanner || showReceipt) return;
-      const active = document.activeElement;
-      if (active === paymentInputRef.current || active === searchInputRef.current) return;
-      if (active instanceof HTMLElement && active.closest('[data-pos-exclude-wedge]')) return;
+      if (shouldSkipWedgeFocus()) return;
       wedgeInputRef.current?.focus();
-    }, 10);
+    }, 100);
   };
 
   const getCartUnitIds = useCallback((cartItems: CartItem[]) => {
@@ -68,6 +83,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
     enabled: !showScanner && !showReceipt,
     wedgeInputRef,
     searchInputRef,
+    storeSelectRef,
     onScan: (barcode) => { processBarcodeRef.current(barcode); },
   });
 
@@ -197,26 +213,22 @@ export const POS: React.FC<POSProps> = ({ user }) => {
     loadData();
   }, [user]);
 
-  // Load items when active store changes
+  // Load items when active store changes only (not when focus helpers change)
   useEffect(() => {
     const loadInventory = async () => {
         if (activeStoreId) {
             setIsLoading(true);
             const allInventory = await storageService.getInventory();
             setItems(allInventory.filter(i => i.storeId === activeStoreId));
-            setCart([]); // Clear cart when switching stores
+            setCart([]);
             setPaymentAmount('');
             setShowReceipt(false);
             setIsLoading(false);
-            focusWedgeInput();
+            setTimeout(() => wedgeInputRef.current?.focus(), 50);
         }
     };
     loadInventory();
-  }, [activeStoreId, focusWedgeInput]);
-
-  useEffect(() => {
-    focusWedgeInput();
-  }, [focusWedgeInput]);
+  }, [activeStoreId]);
 
   const addToCart = (item: InventoryItem) => {
     if (item.stock <= 0) return alert("Item out of stock");
@@ -316,15 +328,6 @@ export const POS: React.FC<POSProps> = ({ user }) => {
           resolvedCart.push({ ...item, unitIds: unitIds.length ? unitIds : undefined, barcodes: barcodes.length ? barcodes : undefined });
         }
 
-        for (const item of resolvedCart) {
-          if (item.unitIds?.length) {
-            await storageService.markUnitsSold(item.unitIds, transactionId);
-            await storageService.syncStockFromUnits(item.id);
-          } else {
-            await storageService.updateInventoryStock(item.id, -item.quantity);
-          }
-        }
-
         const transaction: PosTransaction = {
             id: transactionId,
             storeId: activeStoreId,
@@ -335,7 +338,18 @@ export const POS: React.FC<POSProps> = ({ user }) => {
             paymentAmount: pay,
             cashierName: user.name
         };
+
+        // Save transaction first — inventory_units.transaction_id FK requires the row to exist
         await storageService.savePosTransaction(transaction);
+
+        for (const item of resolvedCart) {
+          if (item.unitIds?.length) {
+            await storageService.markUnitsSold(item.unitIds, transactionId);
+            await storageService.syncStockFromUnits(item.id);
+          } else {
+            await storageService.updateInventoryStock(item.id, -item.quantity);
+          }
+        }
         
         await storageService.logActivity('POS Transaction', `Processed sale of ₱${cartTotal.toFixed(2)} (${cart.length} items)`, user.id, user.name);
 
@@ -410,9 +424,13 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                   )}
                 {user.role === UserRole.ADMIN && (
                     <select 
+                        ref={storeSelectRef}
                         value={activeStoreId}
                         onChange={e => setActiveStoreId(e.target.value)}
-                        className="p-1 border border-gray-300 rounded text-sm bg-white text-gray-900"
+                        onMouseDown={holdWedgeFocus}
+                        onFocus={holdWedgeFocus}
+                        data-pos-exclude-wedge
+                        className="relative z-10 p-1 border border-gray-300 rounded text-sm bg-white text-gray-900 cursor-pointer"
                     >
                         {stores.length === 0 && <option value="">Loading stores...</option>}
                         {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -436,6 +454,8 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                     type="text"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
+                    onMouseDown={holdWedgeFocus}
+                    onFocus={holdWedgeFocus}
                     placeholder="Search items by name or category..."
                     className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                     autoComplete="off"
@@ -657,6 +677,8 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                             type="number"
                             value={paymentAmount}
                             onChange={e => setPaymentAmount(e.target.value)}
+                            onMouseDown={holdWedgeFocus}
+                            onFocus={holdWedgeFocus}
                             placeholder="0.00"
                             data-pos-exclude-wedge
                             className="w-full pl-7 pr-4 py-3 border border-gray-300 rounded-lg text-lg font-bold bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"

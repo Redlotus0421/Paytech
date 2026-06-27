@@ -579,14 +579,12 @@ export const storageService = {
       };
       console.log("📤 Sending to Supabase:", dbTx);
       const { error } = await supabase.from('transactions').insert([dbTx]);
-      if(error) { 
-          console.error("❌ Error saving transaction to Supabase:", error); 
+      if (error) {
+          console.error("❌ Error saving transaction to Supabase:", error);
           console.error("Error details:", error.message, error.code, error.details);
-          alert("CRITICAL ERROR: Failed to save transaction to database. " + error.message); 
-      } 
-      else { 
-          console.log("✅ Transaction saved successfully!"); 
+          throw new Error(error.message || 'Failed to save transaction to database');
       }
+      console.log("✅ Transaction saved successfully!");
   },
   fetchTransactions: async (): Promise<any[]> => {
       console.log("🔍 Attempting to fetch transactions...");

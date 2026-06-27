@@ -25,11 +25,13 @@ const persistScannerDetected = (): void => {
 const isExcludedTarget = (
   target: EventTarget | null,
   wedgeInputRef: RefObject<HTMLInputElement | null>,
-  searchInputRef: RefObject<HTMLInputElement | null>
+  searchInputRef: RefObject<HTMLInputElement | null>,
+  storeSelectRef: RefObject<HTMLSelectElement | null>
 ): boolean => {
   if (!(target instanceof HTMLElement)) return false;
   if (wedgeInputRef.current && target === wedgeInputRef.current) return true;
   if (searchInputRef.current && target === searchInputRef.current) return true;
+  if (storeSelectRef.current && target === storeSelectRef.current) return true;
   if (target.closest('[data-pos-exclude-wedge]')) return true;
   if (target.tagName === 'TEXTAREA') return true;
   if (target instanceof HTMLInputElement) {
@@ -43,6 +45,7 @@ interface UseUsbBarcodeScannerOptions {
   enabled: boolean;
   wedgeInputRef: RefObject<HTMLInputElement | null>;
   searchInputRef: RefObject<HTMLInputElement | null>;
+  storeSelectRef: RefObject<HTMLSelectElement | null>;
   onScan: (barcode: string) => void;
   onScannerDetected?: () => void;
 }
@@ -51,6 +54,7 @@ export const useUsbBarcodeScanner = ({
   enabled,
   wedgeInputRef,
   searchInputRef,
+  storeSelectRef,
   onScan,
   onScannerDetected,
 }: UseUsbBarcodeScannerOptions) => {
@@ -108,7 +112,7 @@ export const useUsbBarcodeScanner = ({
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isExcludedTarget(e.target, wedgeInputRef, searchInputRef)) return;
+      if (isExcludedTarget(e.target, wedgeInputRef, searchInputRef, storeSelectRef)) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
       const now = Date.now();
@@ -140,7 +144,7 @@ export const useUsbBarcodeScanner = ({
       window.removeEventListener('keydown', handleKeyDown);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [enabled, wedgeInputRef, searchInputRef, submitBarcode, resetBuffer]);
+  }, [enabled, wedgeInputRef, searchInputRef, storeSelectRef, submitBarcode, resetBuffer]);
 
   return { scannerDetected, markScannerDetected, clearBuffer: resetBuffer };
 };

@@ -3,7 +3,8 @@ import { User, Store, InventoryItem, CartItem, UserRole, PosTransaction, Invento
 import { storageService } from '../services/storageService';
 import { BarcodeScanner } from './BarcodeScanner';
 import { isValidPaytechBarcode, normalizeBarcodeInput } from '../utils/barcode';
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Loader2, Edit2, X, ScanLine } from 'lucide-react';
+import { useUsbBarcodeScanner } from '../hooks/useUsbBarcodeScanner';
+import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Loader2, Edit2, X, ScanLine, Radio, Eye } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface POSProps {
@@ -25,70 +26,130 @@ export const POS: React.FC<POSProps> = ({ user }) => {
     const [editingPrice, setEditingPrice] = useState<string>('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [showScanner, setShowScanner] = useState(false);
-    const wedgeInputRef = useRef<HTMLInputElement>(null);
+    const [viewBarcodesCartIdx, setViewBarcodesCartIdx] = useState<number | null>(null);
+    const scanInputRef = useRef<HTMLInputElement>(null);
+    const paymentInputRef = useRef<HTMLInputElement>(null);
+    const cartUnitIdsRef = useRef<Set<string>>(new Set());
+    const processingBarcodesRef = useRef<Set<string>>(new Set());
+
+  const focusScanInput = useCallback(() => {
+    setTimeout(() => {
+      if (showScanner || showReceipt) return;
+      if (document.activeElement === paymentInputRef.current) return;
+      scanInputRef.current?.focus();
+    }, 50);
+  }, [showScanner, showReceipt]);
 
   const getCartUnitIds = useCallback((cartItems: CartItem[]) => {
     return cartItems.flatMap(c => c.unitIds || []);
   }, []);
 
+  useEffect(() => {
+    cartUnitIdsRef.current = new Set(getCartUnitIds(cart));
+  }, [cart, getCartUnitIds]);
+
+  const processBarcodeRef = useRef<(barcode: string) => Promise<void>>(async () => {});
+
+  const { scannerDetected, markScannerDetected } = useUsbBarcodeScanner({
+    enabled: !showScanner && !showReceipt,
+    scanInputRef,
+    onScan: (barcode) => { processBarcodeRef.current(barcode); },
+  });
+
   const processBarcode = useCallback(async (barcode: string) => {
     const trimmed = normalizeBarcodeInput(barcode);
     if (!trimmed || !isValidPaytechBarcode(trimmed)) return;
 
-    const result = await storageService.lookupUnitByBarcode(trimmed);
-    if (!result) {
-      alert(`Barcode not found: ${trimmed}`);
-      return;
-    }
+    if (processingBarcodesRef.current.has(trimmed)) return;
+    processingBarcodesRef.current.add(trimmed);
 
-    const { unit, item } = result;
-
-    if (unit.storeId !== activeStoreId) {
-      alert('This item belongs to a different store.');
-      return;
-    }
-
-    if (unit.status !== 'available') {
-      alert('This item has already been sold or is unavailable.');
-      return;
-    }
-
-    const inCart = getCartUnitIds(cart);
-    if (inCart.includes(unit.id)) {
-      alert('This barcode is already in the cart.');
-      return;
-    }
-
-    if (item.stock <= 0) {
-      alert('Item out of stock');
-      return;
-    }
-
-    setCart(prev => {
-      const existing = prev.find(c => c.id === item.id && c.unitIds && c.unitIds.length > 0);
-      if (existing) {
-        return prev.map(c =>
-          c.id === item.id && c.unitIds
-            ? {
-                ...c,
-                quantity: c.quantity + 1,
-                unitIds: [...(c.unitIds || []), unit.id],
-                barcodes: [...(c.barcodes || []), unit.barcode],
-              }
-            : c
-        );
+    try {
+      const result = await storageService.lookupUnitByBarcode(trimmed);
+      if (!result) {
+        alert(`Barcode not found: ${trimmed}`);
+        setSearchTerm('');
+        focusScanInput();
+        return;
       }
-      return [...prev, {
-        ...item,
-        quantity: 1,
-        unitIds: [unit.id],
-        barcodes: [unit.barcode],
-      }];
-    });
 
-    setSearchTerm('');
-    setShowScanner(false);
-  }, [activeStoreId, cart, getCartUnitIds]);
+      const { unit, item } = result;
+
+      if (unit.storeId !== activeStoreId) {
+        alert('This item belongs to a different store.');
+        setSearchTerm('');
+        focusScanInput();
+        return;
+      }
+
+      if (unit.status !== 'available') {
+        alert('This item has already been sold or is unavailable.');
+        setSearchTerm('');
+        focusScanInput();
+        return;
+      }
+
+      if (cartUnitIdsRef.current.has(unit.id)) {
+        alert('This barcode is already in the cart.');
+        setSearchTerm('');
+        focusScanInput();
+        return;
+      }
+
+      if (item.stock <= 0) {
+        alert('Item out of stock');
+        setSearchTerm('');
+        focusScanInput();
+        return;
+      }
+
+      let added = false;
+      setCart(prev => {
+        const allUnitIds = prev.flatMap(c => c.unitIds || []);
+        if (allUnitIds.includes(unit.id)) return prev;
+
+        const existing = prev.find(c => c.id === item.id && c.unitIds && c.unitIds.length > 0);
+        if (existing) {
+          added = true;
+          cartUnitIdsRef.current.add(unit.id);
+          return prev.map(c =>
+            c.id === item.id && c.unitIds
+              ? {
+                  ...c,
+                  quantity: c.quantity + 1,
+                  unitIds: [...(c.unitIds || []), unit.id],
+                  barcodes: [...(c.barcodes || []), unit.barcode],
+                }
+              : c
+          );
+        }
+
+        added = true;
+        cartUnitIdsRef.current.add(unit.id);
+        return [...prev, {
+          ...item,
+          quantity: 1,
+          unitIds: [unit.id],
+          barcodes: [unit.barcode],
+        }];
+      });
+
+      if (!added) {
+        alert('This barcode is already in the cart.');
+      } else {
+        markScannerDetected();
+      }
+
+      setSearchTerm('');
+      setShowScanner(false);
+      focusScanInput();
+    } finally {
+      processingBarcodesRef.current.delete(trimmed);
+    }
+  }, [activeStoreId, focusScanInput, markScannerDetected]);
+
+  processBarcodeRef.current = processBarcode;
+
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
   useEffect(() => {
     const loadData = async () => {
@@ -116,10 +177,15 @@ export const POS: React.FC<POSProps> = ({ user }) => {
             setPaymentAmount('');
             setShowReceipt(false);
             setIsLoading(false);
+            focusScanInput();
         }
     };
     loadInventory();
-  }, [activeStoreId]);
+  }, [activeStoreId, focusScanInput]);
+
+  useEffect(() => {
+    focusScanInput();
+  }, [focusScanInput]);
 
   const addToCart = (item: InventoryItem) => {
     if (item.stock <= 0) return alert("Item out of stock");
@@ -166,6 +232,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
           storageService.logActivity('Void Item', `Removed ${item.quantity}x ${item.name} from cart`, user.id, user.name);
       }
       setCart(prev => prev.filter((_, idx) => idx !== cartIdx));
+      focusScanInput();
   };
 
   const updatePrice = (cartIdx: number, newPrice: number) => {
@@ -276,28 +343,37 @@ export const POS: React.FC<POSProps> = ({ user }) => {
     }
   };
 
-  const handleWedgeKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const value = normalizeBarcodeInput(wedgeInputRef.current?.value || '');
-      if (value && isValidPaytechBarcode(value)) {
-        await processBarcode(value);
-        if (wedgeInputRef.current) wedgeInputRef.current.value = '';
-      }
-    }
-  };
-
   const closeReceipt = () => {
       setShowReceipt(false);
       setReceiptData(null);
+      focusScanInput();
+  };
+
+  const closeCameraScanner = () => {
+      setShowScanner(false);
+      focusScanInput();
   };
 
   return (
     <div className="flex flex-col md:flex-row gap-6 h-full w-full min-w-0">
        {/* Left: Item Grid */}
     <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden min-h-0">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 gap-2 flex-wrap">
                 <div className="font-bold text-gray-700">Available Items</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {scannerDetected ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+                      <Radio size={12} /> USB Scanner ready
+                    </span>
+                  ) : isTouchDevice ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-100">
+                      Camera Scan available
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                      Listening for scanner...
+                    </span>
+                  )}
                 {user.role === UserRole.ADMIN && (
                     <select 
                         value={activeStoreId}
@@ -317,34 +393,29 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                     Retry
                   </button>
                 )}
+                </div>
             </div>
             
             <div className="p-4 border-b border-gray-100 flex gap-2 items-center">
                 <input
+                    ref={scanInputRef}
                     type="text"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     onKeyDown={handleSearchKeyDown}
-                    placeholder="Search items or scan barcode..."
-                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="Scan barcode here (USB scanner) or search by name..."
+                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                    autoComplete="off"
                 />
                 <button
+                    type="button"
                     onClick={() => setShowScanner(true)}
                     className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded text-sm font-medium hover:bg-purple-700 whitespace-nowrap"
-                    title="Open camera scanner"
+                    title="Use device camera to scan barcode or QR"
                 >
-                    <ScanLine size={18} /> Scan
+                    <ScanLine size={18} /> Camera Scan
                 </button>
             </div>
-            <input
-                ref={wedgeInputRef}
-                type="text"
-                onKeyDown={handleWedgeKeyDown}
-                className="sr-only"
-                tabIndex={-1}
-                aria-hidden="true"
-                autoComplete="off"
-            />
             
             <div className="flex-1 overflow-y-auto bg-white">
                 {isLoading ? (
@@ -420,6 +491,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                     type="date" 
                     value={date} 
                     onChange={(e) => setDate(e.target.value)} 
+                    data-pos-exclude-wedge
                     className="w-full border border-gray-300 rounded px-2 py-1 text-sm font-medium text-gray-900"
                 />
             </div>
@@ -437,8 +509,17 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                             <div className="flex-1 min-w-0 pr-2">
                                 <div className="font-medium text-gray-900 truncate">{item.name}</div>
                                 {item.barcodes && item.barcodes.length > 0 && (
-                                  <div className="text-[10px] font-mono text-purple-600 truncate">
-                                    {item.barcodes.join(', ')}
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <span className="text-[10px] font-mono text-purple-600 truncate flex-1">
+                                      {item.barcodes.length} barcode{item.barcodes.length > 1 ? 's' : ''} scanned
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewBarcodesCartIdx(cartIdx)}
+                                      className="flex items-center gap-0.5 text-[10px] font-semibold text-purple-700 hover:text-purple-900 px-1.5 py-0.5 rounded bg-purple-50 hover:bg-purple-100 border border-purple-200 shrink-0"
+                                    >
+                                      <Eye size={10} /> View
+                                    </button>
                                   </div>
                                 )}
                                 <div className="text-xs text-gray-500">
@@ -454,6 +535,7 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                                                 onChange={e => setEditingPrice(e.target.value)}
                                                 placeholder={item.price.toFixed(2)}
                                                 autoFocus
+                                                data-pos-exclude-wedge
                                                 className="w-16 px-1 py-0.5 border border-gray-300 rounded text-xs"
                                             />
                                             <button 
@@ -527,10 +609,12 @@ export const POS: React.FC<POSProps> = ({ user }) => {
                     <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₱</span>
                         <input 
+                            ref={paymentInputRef}
                             type="number"
                             value={paymentAmount}
                             onChange={e => setPaymentAmount(e.target.value)}
                             placeholder="0.00"
+                            data-pos-exclude-wedge
                             className="w-full pl-7 pr-4 py-3 border border-gray-300 rounded-lg text-lg font-bold bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                         />
                     </div>
@@ -617,8 +701,48 @@ export const POS: React.FC<POSProps> = ({ user }) => {
        {showScanner && (
          <BarcodeScanner
            onScan={processBarcode}
-           onClose={() => setShowScanner(false)}
+           onClose={closeCameraScanner}
          />
+       )}
+
+       {viewBarcodesCartIdx !== null && cart[viewBarcodesCartIdx]?.barcodes && (
+         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+           <div className="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden">
+             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+               <div>
+                 <h3 className="font-bold text-gray-900">Scanned Barcodes</h3>
+                 <p className="text-sm text-gray-500 truncate">{cart[viewBarcodesCartIdx].name}</p>
+               </div>
+               <button
+                 type="button"
+                 onClick={() => setViewBarcodesCartIdx(null)}
+                 className="text-gray-400 hover:text-gray-600"
+               >
+                 <X size={24} />
+               </button>
+             </div>
+             <div className="p-4 max-h-64 overflow-y-auto space-y-2">
+               {cart[viewBarcodesCartIdx].barcodes!.map((code, idx) => (
+                 <div
+                   key={`${code}-${idx}`}
+                   className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-100"
+                 >
+                   <span className="text-xs font-bold text-gray-400 w-5">{idx + 1}.</span>
+                   <span className="text-sm font-mono text-purple-700">{code}</span>
+                 </div>
+               ))}
+             </div>
+             <div className="p-4 border-t border-gray-100 bg-gray-50">
+               <button
+                 type="button"
+                 onClick={() => setViewBarcodesCartIdx(null)}
+                 className="w-full py-2 bg-slate-900 text-white rounded font-medium hover:bg-slate-800"
+               >
+                 Close
+               </button>
+             </div>
+           </div>
+         </div>
        )}
     </div>
   );

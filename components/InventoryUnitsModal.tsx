@@ -197,6 +197,7 @@ export const InventoryUnitsModal: React.FC<InventoryUnitsModalProps> = ({ item, 
       {printUnits && (
         <BarcodePrintSheet
           itemName={item.name}
+          itemPrice={item.price}
           units={printUnits}
           format={format}
           onClose={() => setPrintUnits(null)}

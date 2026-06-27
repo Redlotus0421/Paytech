@@ -5,12 +5,19 @@ import { InventoryUnit, BarcodeFormat } from '../types';
 
 interface BarcodePrintSheetProps {
   itemName: string;
+  itemPrice: number;
   units: InventoryUnit[];
   format: BarcodeFormat;
   onClose: () => void;
 }
 
-const Code128Label: React.FC<{ barcode: string; itemName: string }> = ({ barcode, itemName }) => {
+const formatLabelPrice = (price: number) =>
+  `₱${price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
+const formatLabelTitle = (name: string, price: number) =>
+  `${name} ${formatLabelPrice(price)}`;
+
+const Code128Label: React.FC<{ barcode: string; itemName: string; itemPrice: number }> = ({ barcode, itemName, itemPrice }) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -32,22 +39,27 @@ const Code128Label: React.FC<{ barcode: string; itemName: string }> = ({ barcode
 
   return (
     <div className="barcode-label border border-gray-300 rounded p-2 flex flex-col items-center bg-white break-inside-avoid">
-      <div className="text-xs font-semibold text-gray-800 text-center truncate w-full mb-1">{itemName}</div>
+      <div className="text-xs font-bold text-gray-900 text-center w-full mb-1 leading-tight px-1">
+        {formatLabelTitle(itemName, itemPrice)}
+      </div>
       <svg ref={svgRef} className="max-w-full" />
     </div>
   );
 };
 
-const QRLabel: React.FC<{ barcode: string; itemName: string }> = ({ barcode, itemName }) => (
+const QRLabel: React.FC<{ barcode: string; itemName: string; itemPrice: number }> = ({ barcode, itemName, itemPrice }) => (
   <div className="barcode-label border border-gray-300 rounded p-2 flex flex-col items-center bg-white break-inside-avoid">
-    <div className="text-xs font-semibold text-gray-800 text-center truncate w-full mb-1">{itemName}</div>
+    <div className="text-xs font-bold text-gray-900 text-center w-full mb-1 leading-tight px-1">
+      {formatLabelTitle(itemName, itemPrice)}
+    </div>
     <QRCodeSVG value={barcode} size={100} level="M" />
     <div className="text-[10px] font-mono text-gray-600 mt-1 text-center">{barcode}</div>
   </div>
 );
 
-export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, units, format, onClose }) => {
+export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, itemPrice, units, format, onClose }) => {
   const handlePrint = () => window.print();
+  const labelTitle = formatLabelTitle(itemName, itemPrice);
 
   return (
     <>
@@ -82,7 +94,7 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
           <div className="p-4 border-b border-gray-200 flex justify-between items-center no-print">
             <div>
               <h3 className="font-bold text-gray-900">Print Barcode Labels</h3>
-              <p className="text-sm text-gray-500">{itemName} — {units.length} label(s) — {format === 'code128' ? 'Code 128' : 'QR Code'}</p>
+              <p className="text-sm text-gray-500">{labelTitle} — {units.length} label(s) — {format === 'code128' ? 'Code 128' : 'QR Code'}</p>
             </div>
             <div className="flex gap-2">
               <button onClick={handlePrint} className="px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700">
@@ -99,9 +111,9 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
               <div className="barcode-grid">
                 {units.map(unit => (
                   format === 'code128' ? (
-                    <Code128Label key={unit.id} barcode={unit.barcode} itemName={itemName} />
+                    <Code128Label key={unit.id} barcode={unit.barcode} itemName={itemName} itemPrice={itemPrice} />
                   ) : (
-                    <QRLabel key={unit.id} barcode={unit.barcode} itemName={itemName} />
+                    <QRLabel key={unit.id} barcode={unit.barcode} itemName={itemName} itemPrice={itemPrice} />
                   )
                 ))}
               </div>

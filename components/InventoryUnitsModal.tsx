@@ -66,6 +66,10 @@ export const InventoryUnitsModal: React.FC<InventoryUnitsModalProps> = ({ item, 
     setPrintUnits(units);
   };
 
+  const handlePrintOne = (unit: InventoryUnit) => {
+    setPrintUnits([unit]);
+  };
+
   const filteredUnits = statusFilter === 'all' ? units : units.filter(u => u.status === statusFilter);
 
   return (
@@ -177,9 +181,17 @@ export const InventoryUnitsModal: React.FC<InventoryUnitsModalProps> = ({ item, 
             ) : (
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {filteredUnits.map(unit => (
-                  <div key={unit.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded border border-gray-100">
-                    <span className="font-mono text-xs text-gray-700">{unit.barcode}</span>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                  <div key={unit.id} className="flex justify-between items-center gap-2 text-sm p-2 bg-gray-50 rounded border border-gray-100">
+                    <span className="font-mono text-xs text-gray-700 truncate flex-1 min-w-0">{unit.barcode}</span>
+                    <button
+                      type="button"
+                      onClick={() => handlePrintOne(unit)}
+                      className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 shrink-0"
+                      title="Print this label"
+                    >
+                      <Printer size={14} /> Print
+                    </button>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded shrink-0 ${
                       unit.status === 'available' ? 'bg-green-100 text-green-700' :
                       unit.status === 'sold' ? 'bg-orange-100 text-orange-700' :
                       'bg-gray-100 text-gray-600'

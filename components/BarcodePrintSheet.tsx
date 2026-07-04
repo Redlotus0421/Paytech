@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import JsBarcode from 'jsbarcode';
 import { QRCodeSVG } from 'qrcode.react';
 import { InventoryUnit, BarcodeFormat } from '../types';
@@ -59,6 +60,25 @@ const QRLabel: React.FC<{ barcode: string; itemName: string; itemPrice: number }
 
 const pxToMm = (px: number) => Math.max(15, Math.ceil((px * 25.4) / 96) + 1);
 
+const LabelPages: React.FC<{
+  units: InventoryUnit[];
+  format: BarcodeFormat;
+  itemName: string;
+  itemPrice: number;
+}> = ({ units, format, itemName, itemPrice }) => (
+  <>
+    {units.map(unit => (
+      <div key={unit.id} className="label-page">
+        {format === 'code128' ? (
+          <Code128Label barcode={unit.barcode} itemName={itemName} itemPrice={itemPrice} />
+        ) : (
+          <QRLabel barcode={unit.barcode} itemName={itemName} itemPrice={itemPrice} />
+        )}
+      </div>
+    ))}
+  </>
+);
+
 export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, itemPrice, units, format, onClose }) => {
   const printRootRef = useRef<HTMLDivElement>(null);
   const [labelPageSize, setLabelPageSize] = useState('50mm 30mm');
@@ -87,7 +107,7 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
 
   const handlePrint = () => {
     updatePageSize();
-    window.setTimeout(() => window.print(), 50);
+    window.setTimeout(() => window.print(), 300);
   };
   const labelTitle = formatLabelTitle(itemName, itemPrice);
 
@@ -104,26 +124,35 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
             padding: 0 !important;
             width: auto !important;
             height: auto !important;
+            overflow: visible !important;
           }
-          body * { visibility: hidden; }
-          #barcode-print-root, #barcode-print-root * { visibility: visible; }
+          body > *:not(#barcode-print-root) {
+            display: none !important;
+          }
           #barcode-print-root {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: auto;
-            height: auto;
+            display: block !important;
+            position: static !important;
+            left: auto !important;
+            top: auto !important;
+            width: auto !important;
+            height: auto !important;
+            overflow: visible !important;
+            visibility: visible !important;
           }
-          .no-print { display: none !important; }
+          #barcode-print-root * {
+            visibility: visible !important;
+          }
           .label-page {
             page-break-after: always;
             break-after: page;
-            display: block;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            display: block !important;
             width: fit-content;
             height: fit-content;
             padding: 0;
             margin: 0;
-            overflow: hidden;
+            overflow: visible;
           }
           .label-page:last-child {
             page-break-after: auto;
@@ -138,20 +167,41 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
           }
         }
         @media screen {
-          .label-page {
+          #barcode-print-root {
+            position: fixed;
+            left: -10000px;
+            top: 0;
+            width: auto;
+            height: auto;
+            overflow: visible;
+            pointer-events: none;
+            visibility: hidden;
+          }
+          .label-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+          }
+          .label-preview-grid .label-page {
             display: inline-block;
             width: fit-content;
             border: 1px dashed #d1d5db;
             border-radius: 4px;
             padding: 0;
-            margin-bottom: 12px;
           }
         }
       `}</style>
 
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 no-print-overlay">
+      {createPortal(
+        <div id="barcode-print-root" ref={printRootRef}>
+          <LabelPages units={units} format={format} itemName={itemName} itemPrice={itemPrice} />
+        </div>,
+        document.body
+      )}
+
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center no-print">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
             <div>
               <h3 className="font-bold text-gray-900">Print Barcode Labels</h3>
               <p className="text-sm text-gray-500">
@@ -172,16 +222,8 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
           </div>
 
           <div className="overflow-y-auto p-4 flex-1">
-            <div id="barcode-print-root" ref={printRootRef}>
-              {units.map(unit => (
-                <div key={unit.id} className="label-page">
-                  {format === 'code128' ? (
-                    <Code128Label barcode={unit.barcode} itemName={itemName} itemPrice={itemPrice} />
-                  ) : (
-                    <QRLabel barcode={unit.barcode} itemName={itemName} itemPrice={itemPrice} />
-                  )}
-                </div>
-              ))}
+            <div className="label-preview-grid">
+              <LabelPages units={units} format={format} itemName={itemName} itemPrice={itemPrice} />
             </div>
           </div>
         </div>

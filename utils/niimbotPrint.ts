@@ -4,7 +4,7 @@ import registry from 'niimbot-web-bluetooth/registry.json';
 import 'niimbot-web-bluetooth/src/niimbot.js';
 import { BarcodeFormat, NiimbotLabelSettings } from '../types';
 import type { NiimbotLabelSize, NiimbotModel, NiimbotPrinterInfo } from '../types/niimbot';
-import { buildNiimbotSize } from './niimbotLabelSizes';
+import { buildNiimbotLabel } from './niimbotLabelSizes';
 
 const MODEL_SIZE_MAP: Record<string, keyof typeof registry.sizes> = {
   b1pro: 'T50x30',
@@ -49,9 +49,11 @@ export async function renderLabelToBlobUrl(options: {
   barcode: string;
   format: BarcodeFormat;
   size: NiimbotLabelSize;
+  contentHeightPx?: number;
 }): Promise<string> {
   const { itemName, itemPrice, barcode, format, size } = options;
   const { w_px, h_px } = size;
+  const layoutH = options.contentHeightPx ?? h_px;
   const margin = size.margin ?? 10;
 
   const canvas = document.createElement('canvas');
@@ -78,16 +80,16 @@ export async function renderLabelToBlobUrl(options: {
     JsBarcode(barcodeCanvas, barcode, {
       format: 'CODE128',
       width: Math.max(1, Math.round(w_px / 320)),
-      height: Math.round(h_px * 0.34),
+      height: Math.round(layoutH * 0.34),
       displayValue: true,
-      fontSize: Math.max(12, Math.round(h_px * 0.07)),
+      fontSize: Math.max(12, Math.round(layoutH * 0.07)),
       margin: 2,
       background: '#ffffff',
       lineColor: '#000000',
     });
     ctx.drawImage(barcodeCanvas, (w_px - barcodeCanvas.width) / 2, y);
   } else {
-    const qrSize = Math.min(w_px - margin * 2, Math.round(h_px * 0.45));
+    const qrSize = Math.min(w_px - margin * 2, Math.round(layoutH * 0.45));
     const qrCanvas = document.createElement('canvas');
     await QRCode.toCanvas(qrCanvas, barcode, {
       width: qrSize,
@@ -96,7 +98,7 @@ export async function renderLabelToBlobUrl(options: {
     });
     ctx.drawImage(qrCanvas, (w_px - qrCanvas.width) / 2, y);
     y += qrCanvas.height + 6;
-    ctx.font = `${Math.max(10, Math.round(h_px * 0.05))}px monospace`;
+    ctx.font = `${Math.max(10, Math.round(layoutH * 0.05))}px monospace`;
     ctx.fillText(barcode, w_px / 2, y);
   }
 
@@ -126,7 +128,7 @@ export async function printLabelsToNiimbot(options: {
   const printerInfo = await niimbot.identify(probeModel);
   const { model, modelLabel } = resolveNiimbotConfig(printerInfo);
   const dpi = printerInfo?.dpi ?? model.dpi ?? 300;
-  const size = buildNiimbotSize(labelSettings, dpi);
+  const { printSize: size, contentHeightPx } = buildNiimbotLabel(labelSettings, dpi);
 
   onProgress?.(`Connected: ${printerInfo?.label || modelLabel}. Preparing ${barcodes.length} label(s)…`);
 
@@ -141,6 +143,7 @@ export async function printLabelsToNiimbot(options: {
           barcode: barcodes[i],
           format,
           size,
+          contentHeightPx,
         })
       );
     }

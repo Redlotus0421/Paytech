@@ -36,14 +36,14 @@ export const NiimbotLabelSettingsPanel: React.FC<NiimbotLabelSettingsPanelProps>
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-500 block mb-1" title="Fix 2nd label cut-off in multi-label jobs">
-            Feed adjust (mm)
+          <label className="text-xs text-gray-500 block mb-1" title="How far the printer advances between labels">
+            Feed pitch adjust (mm)
           </label>
           <input
             type="number"
             step="0.5"
-            min="-5"
-            max="5"
+            min="-15"
+            max="10"
             value={settings.feedAdjustMm}
             onChange={e => update({ feedAdjustMm: Number(e.target.value) || 0 })}
             className="w-24 p-2 border border-gray-300 rounded text-sm"
@@ -68,8 +68,9 @@ export const NiimbotLabelSettingsPanel: React.FC<NiimbotLabelSettingsPanelProps>
             Effective: {formatNiimbotSizeSummary(settings)}
           </p>
           <p className="text-xs text-gray-400">
-            Match label roll size to your physical stickers. If label 2 is cut off, increase Feed adjust by 0.5–1 mm.
-            If content sits too high or low, change Vertical offset.
+            Match label roll size to your physical stickers. If the printer skips a blank label between prints,
+            decrease Feed pitch adjust (try -5 to -10 mm). If labels overlap or get cut off, increase it.
+            Use Vertical offset if content sits too high or low on one label.
           </p>
         </>
       )}

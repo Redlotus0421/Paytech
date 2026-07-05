@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { InventoryItem, InventoryUnit, BarcodeFormat } from '../types';
 import { storageService } from '../services/storageService';
 import { BarcodePrintSheet } from './BarcodePrintSheet';
+import { NiimbotLabelSettingsPanel } from './NiimbotLabelSettingsPanel';
+import { useNiimbotLabelSettings } from '../hooks/useNiimbotLabelSettings';
+import { isNiimbotSupported } from '../utils/niimbotPrint';
 import { X, Loader2, Printer, Plus } from 'lucide-react';
 
 interface InventoryUnitsModalProps {
@@ -19,6 +22,8 @@ export const InventoryUnitsModal: React.FC<InventoryUnitsModalProps> = ({ item, 
   const [format, setFormat] = useState<BarcodeFormat>('code128');
   const [printUnits, setPrintUnits] = useState<InventoryUnit[] | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'sold'>('all');
+  const { labelSettings, setLabelSettings, setPreset } = useNiimbotLabelSettings();
+  const niimbotAvailable = isNiimbotSupported();
 
   const loadUnits = async () => {
     setIsLoading(true);
@@ -135,6 +140,14 @@ export const InventoryUnitsModal: React.FC<InventoryUnitsModalProps> = ({ item, 
               </button>
             </div>
 
+            {niimbotAvailable && (
+              <NiimbotLabelSettingsPanel
+                settings={labelSettings}
+                onChange={setLabelSettings}
+                onPresetChange={setPreset}
+              />
+            )}
+
             {item.stock > 0 && counts.available < item.stock && (
               <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
                 This item has stock of {item.stock} but only {counts.available} available barcode(s).
@@ -212,6 +225,9 @@ export const InventoryUnitsModal: React.FC<InventoryUnitsModalProps> = ({ item, 
           itemPrice={item.price}
           units={printUnits}
           format={format}
+          labelSettings={labelSettings}
+          onLabelSettingsChange={setLabelSettings}
+          onLabelPresetChange={setPreset}
           onClose={() => setPrintUnits(null)}
         />
       )}

@@ -2,8 +2,9 @@ import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import registry from 'niimbot-web-bluetooth/registry.json';
 import 'niimbot-web-bluetooth/src/niimbot.js';
-import { BarcodeFormat } from '../types';
+import { BarcodeFormat, NiimbotLabelSettings } from '../types';
 import type { NiimbotLabelSize, NiimbotModel, NiimbotPrinterInfo } from '../types/niimbot';
+import { buildNiimbotSize } from './niimbotLabelSizes';
 
 const MODEL_SIZE_MAP: Record<string, keyof typeof registry.sizes> = {
   b1pro: 'T50x30',
@@ -114,15 +115,18 @@ export async function printLabelsToNiimbot(options: {
   itemPrice: number;
   barcodes: string[];
   format: BarcodeFormat;
+  labelSettings: NiimbotLabelSettings;
   onProgress?: (status: string) => void;
 }) {
-  const { itemName, itemPrice, barcodes, format, onProgress } = options;
+  const { itemName, itemPrice, barcodes, format, labelSettings, onProgress } = options;
   const niimbot = getNiimbot();
   const probeModel = registry.models[registry.default_model as keyof typeof registry.models] as NiimbotModel;
 
   onProgress?.('Connecting to Niimbot…');
   const printerInfo = await niimbot.identify(probeModel);
-  const { model, size, modelLabel } = resolveNiimbotConfig(printerInfo);
+  const { model, modelLabel } = resolveNiimbotConfig(printerInfo);
+  const dpi = printerInfo?.dpi ?? model.dpi ?? 300;
+  const size = buildNiimbotSize(labelSettings, dpi);
 
   onProgress?.(`Connected: ${printerInfo?.label || modelLabel}. Preparing ${barcodes.length} label(s)…`);
 
@@ -144,6 +148,7 @@ export async function printLabelsToNiimbot(options: {
     await niimbot.printBatch(imageUrls, {
       model,
       size,
+      offsetY: labelSettings.offsetYPx,
       onProgress,
     });
   } finally {

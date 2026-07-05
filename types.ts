@@ -101,6 +101,15 @@ export interface InventoryItem {
 }
 
 export type BarcodeFormat = 'code128' | 'qr';
+
+export interface NiimbotLabelSettings {
+  presetId: string;
+  widthMm: number;
+  heightMm: number;
+  feedAdjustMm: number;
+  offsetYPx: number;
+}
+
 export type UnitStatus = 'available' | 'sold' | 'voided';
 
 export interface InventoryUnit {

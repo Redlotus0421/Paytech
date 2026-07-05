@@ -3,14 +3,19 @@ import { createPortal } from 'react-dom';
 import { Bluetooth, Loader2 } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import { QRCodeSVG } from 'qrcode.react';
-import { InventoryUnit, BarcodeFormat } from '../types';
+import { InventoryUnit, BarcodeFormat, NiimbotLabelSettings } from '../types';
 import { isNiimbotSupported, printLabelsToNiimbot } from '../utils/niimbotPrint';
+import { NiimbotLabelSettingsPanel } from './NiimbotLabelSettingsPanel';
+import { formatNiimbotSizeSummary } from '../utils/niimbotLabelSizes';
 
 interface BarcodePrintSheetProps {
   itemName: string;
   itemPrice: number;
   units: InventoryUnit[];
   format: BarcodeFormat;
+  labelSettings: NiimbotLabelSettings;
+  onLabelSettingsChange: (settings: NiimbotLabelSettings) => void;
+  onLabelPresetChange: (presetId: string) => void;
   onClose: () => void;
 }
 
@@ -81,7 +86,16 @@ const LabelPages: React.FC<{
   </>
 );
 
-export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, itemPrice, units, format, onClose }) => {
+export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({
+  itemName,
+  itemPrice,
+  units,
+  format,
+  labelSettings,
+  onLabelSettingsChange,
+  onLabelPresetChange,
+  onClose,
+}) => {
   const printRootRef = useRef<HTMLDivElement>(null);
   const [labelPageSize, setLabelPageSize] = useState('50mm 30mm');
   const [niimbotStatus, setNiimbotStatus] = useState<string | null>(null);
@@ -124,6 +138,7 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
         itemPrice,
         barcodes: units.map(unit => unit.barcode),
         format,
+        labelSettings,
         onProgress: setNiimbotStatus,
       });
       setNiimbotStatus('Done! Labels sent to Niimbot.');
@@ -233,6 +248,11 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
               <p className="text-sm text-gray-500">
                 {labelTitle} — {units.length} label(s), 1 per page ({labelPageSize}) — {format === 'code128' ? 'Code 128' : 'QR Code'}
               </p>
+              {niimbotAvailable && (
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  Niimbot: {formatNiimbotSizeSummary(labelSettings)}
+                </p>
+              )}
               <p className="text-xs text-gray-400 mt-0.5">
                 {niimbotAvailable
                   ? 'Use Print to Niimbot for direct Bluetooth printing (Chrome/Edge). Browser Print is for PDF or regular printers.'
@@ -265,7 +285,14 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
             </div>
           </div>
 
-          <div className="overflow-y-auto p-4 flex-1">
+          <div className="overflow-y-auto p-4 flex-1 space-y-4">
+            {niimbotAvailable && (
+              <NiimbotLabelSettingsPanel
+                settings={labelSettings}
+                onChange={onLabelSettingsChange}
+                onPresetChange={onLabelPresetChange}
+              />
+            )}
             <div className="label-preview-grid">
               <LabelPages units={units} format={format} itemName={itemName} itemPrice={itemPrice} />
             </div>

@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Bluetooth, Loader2 } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import { QRCodeSVG } from 'qrcode.react';
 import { InventoryUnit, BarcodeFormat } from '../types';
+import { isNiimbotSupported, printLabelsToNiimbot } from '../utils/niimbotPrint';
 
 interface BarcodePrintSheetProps {
   itemName: string;
@@ -82,6 +84,9 @@ const LabelPages: React.FC<{
 export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, itemPrice, units, format, onClose }) => {
   const printRootRef = useRef<HTMLDivElement>(null);
   const [labelPageSize, setLabelPageSize] = useState('50mm 30mm');
+  const [niimbotStatus, setNiimbotStatus] = useState<string | null>(null);
+  const [isNiimbotPrinting, setIsNiimbotPrinting] = useState(false);
+  const niimbotAvailable = isNiimbotSupported();
 
   const updatePageSize = useCallback(() => {
     const label = printRootRef.current?.querySelector('.barcode-label') as HTMLElement | null;
@@ -108,6 +113,27 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
   const handlePrint = () => {
     updatePageSize();
     window.setTimeout(() => window.print(), 300);
+  };
+
+  const handleNiimbotPrint = async () => {
+    setIsNiimbotPrinting(true);
+    setNiimbotStatus('Starting…');
+    try {
+      await printLabelsToNiimbot({
+        itemName,
+        itemPrice,
+        barcodes: units.map(unit => unit.barcode),
+        format,
+        onProgress: setNiimbotStatus,
+      });
+      setNiimbotStatus('Done! Labels sent to Niimbot.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Niimbot print failed';
+      setNiimbotStatus(message);
+      alert(message);
+    } finally {
+      setIsNiimbotPrinting(false);
+    }
   };
   const labelTitle = formatLabelTitle(itemName, itemPrice);
 
@@ -208,12 +234,30 @@ export const BarcodePrintSheet: React.FC<BarcodePrintSheetProps> = ({ itemName, 
                 {labelTitle} — {units.length} label(s), 1 per page ({labelPageSize}) — {format === 'code128' ? 'Code 128' : 'QR Code'}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">
-                In the print dialog, set Margins to None and turn off Headers and footers.
+                {niimbotAvailable
+                  ? 'Use Print to Niimbot for direct Bluetooth printing (Chrome/Edge). Browser Print is for PDF or regular printers.'
+                  : 'Browser print works for PDF or regular printers. Niimbot direct print needs Chrome or Edge over HTTPS.'}
               </p>
+              {niimbotStatus && (
+                <p className={`text-xs mt-1 ${isNiimbotPrinting ? 'text-blue-600' : 'text-gray-500'}`}>
+                  {isNiimbotPrinting && <Loader2 size={12} className="inline animate-spin mr-1" />}
+                  {niimbotStatus}
+                </p>
+              )}
             </div>
             <div className="flex gap-2">
+              {niimbotAvailable && (
+                <button
+                  onClick={handleNiimbotPrint}
+                  disabled={isNiimbotPrinting}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded font-medium hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isNiimbotPrinting ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
+                  Print to Niimbot
+                </button>
+              )}
               <button onClick={handlePrint} className="px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700">
-                Print
+                Browser Print
               </button>
               <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-medium">
                 Close

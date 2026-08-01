@@ -302,6 +302,14 @@ export const storageService = {
     if(txError) console.error("Error linking transactions to report:", txError);
   },
   deleteReport: async (reportId: string) => {
+      // Unlink POS transactions first so they reappear as pending when creating a new report.
+      // Without this, txs keep a deleted report_id and getPosTransactions (report_id IS NULL) skips them.
+      const { error: unlinkError } = await supabase
+        .from('transactions')
+        .update({ report_id: null })
+        .eq('report_id', reportId);
+      if (unlinkError) console.error('Error unlinking transactions from deleted report:', unlinkError);
+
       const { error } = await supabase.from('reports').delete().eq('id', reportId);
       if (error) throw error;
   },
@@ -628,15 +636,64 @@ export const storageService = {
       }));
   },
   getPosTransactions: async (storeId: string, date: string): Promise<PosTransaction[]> => {
+      // Fetch completed txs for the day, then keep only:
+      // - never linked (report_id null), OR
+      // - orphaned (report_id points to a deleted/missing report)
+      // This recovers sales after a report was deleted without unlinking (e.g. Citymall).
       const { data, error } = await supabase.from('transactions')
-        .select('*').eq('store_id', storeId).eq('date', date).is('report_id', null).eq('status', 'COMPLETED');
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('date', date)
+        .eq('status', 'COMPLETED');
       if (error) { console.error("Error fetching pending transactions:", error); return []; }
-      return (data || []).map((t: any) => ({
+
+      const txs = data || [];
+      const linkedReportIds = [...new Set(
+        txs.map((t: any) => t.report_id).filter((id: string | null) => !!id)
+      )] as string[];
+
+      let existingReportIds = new Set<string>();
+      if (linkedReportIds.length > 0) {
+        const { data: reports, error: reportsError } = await supabase
+          .from('reports')
+          .select('id')
+          .in('id', linkedReportIds);
+        if (reportsError) {
+          console.error("Error checking report existence for POS txs:", reportsError);
+        } else {
+          existingReportIds = new Set((reports || []).map((r: any) => r.id));
+        }
+      }
+
+      const orphanIds = txs
+        .filter((t: any) => t.report_id && !existingReportIds.has(t.report_id))
+        .map((t: any) => t.id);
+
+      // Heal orphans so saveReport (which links report_id IS NULL) can pick them up.
+      if (orphanIds.length > 0) {
+        const { error: healError } = await supabase
+          .from('transactions')
+          .update({ report_id: null })
+          .in('id', orphanIds);
+        if (healError) console.error("Error healing orphaned POS transactions:", healError);
+      }
+
+      return txs
+        .filter((t: any) => !t.report_id || !existingReportIds.has(t.report_id))
+        .map((t: any) => ({
           id: t.id, storeId: t.store_id, date: t.date, timestamp: t.timestamp, items: t.items,
-          totalAmount: Number(t.total_amount), paymentAmount: Number(t.payment_amount), cashierName: t.cashier_name, reportId: t.report_id
-      }));
+          totalAmount: Number(t.total_amount), paymentAmount: Number(t.payment_amount), cashierName: t.cashier_name, reportId: null
+        }));
   },
-  markPosTransactionsAsReported: async (storeId: string, date: string, reportId: string) => {},
+  markPosTransactionsAsReported: async (storeId: string, date: string, reportId: string) => {
+      const { error } = await supabase.from('transactions')
+        .update({ report_id: reportId })
+        .eq('store_id', storeId)
+        .eq('date', date)
+        .is('report_id', null)
+        .eq('status', 'COMPLETED');
+      if (error) console.error("Error marking POS transactions as reported:", error);
+  },
     voidTransaction: async (transactionId: string, voidedById?: string | null, note?: string | null, voidedByName?: string | null) => {
         const { data: tx, error: fetchError } = await supabase.from('transactions').select('*').eq('id', transactionId).single();
         if (fetchError || !tx) throw new Error("Transaction not found");

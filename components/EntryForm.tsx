@@ -145,6 +145,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
   
   // Section 2B: POS Sales (Auto-Loaded)
   const [posAggregated, setPosAggregated] = useState<CartItem[]>([]);
+  const [existingReportWarning, setExistingReportWarning] = useState<string | null>(null);
 
   // Section 3: Expenses (Shared state for SOD and EOD)
   const [bankFees, setBankFees] = useState<string>('');
@@ -188,6 +189,18 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
     const loadPosData = async () => {
         if (selectedStoreId && date) {
             try {
+                const existing = await storageService.getReportForStoreDate(selectedStoreId, date);
+                if (existing) {
+                    const posCount = (existing.posSalesDetails || []).length;
+                    setExistingReportWarning(
+                      `A report already exists for this store on ${date}` +
+                      (posCount > 0 ? ` (includes ${posCount} POS line items).` : '.') +
+                      ` Open Reports to view/edit it. Creating another report will only include NEW pending POS sales.`
+                    );
+                } else {
+                    setExistingReportWarning(null);
+                }
+
                 const posTxs = await storageService.getPosTransactions(selectedStoreId, date);
                 if (Array.isArray(posTxs)) {
                     // Iterate through all transactions and simply collect all items
@@ -204,6 +217,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                     setPosAggregated(allItems);
                 }
             } catch (error) { console.error("Failed to load POS transactions:", error); }
+        } else {
+            setExistingReportWarning(null);
         }
     };
     loadPosData();
@@ -421,6 +436,12 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
           <span className="text-xs text-gray-500 italic">Changing this will load POS data for the selected date.</span>
       </div>
 
+      {existingReportWarning && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
+          {existingReportWarning}
+        </div>
+      )}
+
       {/* TABS HEADER */}
       <div className="flex rounded-lg bg-gray-200 p-1 mb-6">
           <button onClick={() => setActiveTab('sod')} className={`flex-1 py-3 text-sm font-bold rounded-md transition-all ${activeTab === 'sod' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -500,7 +521,15 @@ export const EntryForm: React.FC<EntryFormProps> = ({ user, onSuccess }) => {
                     <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2"><ShoppingBag size={20} className="text-blue-600"/> POS Sales Summary</h2>
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Auto-loaded from POS</span>
                 </div>
-                {posAggregated.length === 0 ? <div className="text-center py-6 text-gray-400 bg-gray-50 rounded border border-dashed border-gray-200 italic">No pending POS transactions found for {date}.</div> : (
+                {posAggregated.length === 0 ? (
+                  <div className="text-center py-6 text-gray-400 bg-gray-50 rounded border border-dashed border-gray-200 italic space-y-1">
+                    <div>No pending POS transactions found for {date}.</div>
+                    <div className="text-xs not-italic text-gray-500">
+                      If sales already went into a saved report, open <span className="font-medium">Reports</span> for that date.
+                      New sales after that report will show here.
+                    </div>
+                  </div>
+                ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left"><thead className="bg-gray-50 text-gray-600 text-xs uppercase"><tr><th className="px-3 py-2">Item</th><th className="px-3 py-2 text-center">Qty</th><th className="px-3 py-2 text-right">Cost</th><th className="px-3 py-2 text-right">Price</th><th className="px-3 py-2 text-right">Net</th></tr></thead><tbody className="divide-y divide-gray-100 text-gray-900">{posAggregated.map(item => (<tr key={item.id}><td className="px-3 py-2 font-medium">{item.name}</td><td className="px-3 py-2 text-center">{item.quantity}</td><td className="px-3 py-2 text-right text-gray-500">₱{(item.cost * item.quantity).toFixed(2)}</td><td className="px-3 py-2 text-right font-medium">₱{(item.price * item.quantity).toFixed(2)}</td><td className="px-3 py-2 text-right text-green-600 font-bold">₱{((item.price - item.cost) * item.quantity).toFixed(2)}</td></tr>))}<tr className="bg-blue-50 font-bold border-t border-blue-100"><td className="px-3 py-2 text-blue-900">TOTAL POS</td><td className="px-3 py-2 text-center text-blue-900">{posAggregated.reduce((a, b) => a + b.quantity, 0)}</td><td className="px-3 py-2 text-right text-blue-900">₱{posAggregated.reduce((a, b) => a + (b.cost * b.quantity), 0).toFixed(2)}</td><td className="px-3 py-2 text-right text-blue-900">₱{posAggregated.reduce((a, b) => a + (b.price * b.quantity), 0).toFixed(2)}</td><td className="px-3 py-2 text-right text-blue-900">₱{posAggregated.reduce((a, b) => a + ((b.price - b.cost) * b.quantity), 0).toFixed(2)}</td></tr></tbody></table>
                     </div>

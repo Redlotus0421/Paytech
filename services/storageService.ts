@@ -1,4 +1,4 @@
-import { User, Store, ReportData, UserRole, InventoryItem, InventoryUnit, PosTransaction, GeneralExpense, ActivityLog, UnitStatus } from '../types';
+import { User, Store, ReportData, UserRole, InventoryItem, InventoryUnit, PosTransaction, GeneralExpense, ActivityLog, UnitStatus, CartItem } from '../types';
 import { supabase } from './supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -294,12 +294,62 @@ export const storageService = {
     const { error } = await supabase.from('reports').upsert([dbReport], { onConflict: 'id' });
     if (error) { console.error('Error saving report:', error); throw error; }
 
-    const { error: txError } = await supabase.from('transactions')
-        .update({ report_id: report.id })
-        .eq('store_id', report.storeId)
-        .eq('date', report.date)
-        .is('report_id', null); 
-    if(txError) console.error("Error linking transactions to report:", txError);
+    // IMPORTANT: Do NOT auto-link pending POS txs here.
+    // Editing/saving an existing report used to steal all report_id=null txs for that store+date
+    // without writing them into pos_sales_details — making Create New Report look empty.
+    // Linking is done only by markPosTransactionsAsReported() when submitting a NEW report.
+  },
+  getReportForStoreDate: async (storeId: string, date: string): Promise<ReportData | null> => {
+    const { data, error } = await supabase
+      .from('reports')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('date', date)
+      .order('timestamp', { ascending: false })
+      .limit(1);
+    if (error) { console.error('Error fetching report for store/date:', error); return null; }
+    const r = (data || [])[0];
+    if (!r) return null;
+    return {
+      id: r.id, storeId: r.store_id, userId: r.user_id, date: r.date, timestamp: r.timestamp || Date.parse(r.date),
+      sodGpo: Number(r.sod_gpo || 0), sodGcash: Number(r.sod_gcash || 0), sodPettyCash: Number(r.sod_petty_cash || 0), sodPettyCashNote: r.sod_petty_cash_note,
+      fundIns: 0,
+      fundIn: Number(r.fund_in || 0),
+      cashAtm: Number(r.cash_atm || 0),
+      customSales: r.custom_sales || [], posSalesDetails: r.pos_sales_details || [],
+      bankTransferFees: Number(r.bank_transfer_fees || 0), operationalExpenses: Number(r.operational_expenses || 0), operationalExpensesNote: r.operational_expenses_note,
+      expenses: r.expenses || [],
+      eodGpo: Number(r.eod_gpo || 0), eodGcash: Number(r.eod_gcash || 0), eodActualCash: Number(r.eod_actual_cash || 0),
+      gcashNotebook: r.gcash_notebook !== null && r.gcash_notebook !== undefined ? Number(r.gcash_notebook) : undefined,
+      totalStartFund: Number(r.total_start_fund || 0), totalEndAssets: Number(r.total_end_assets || 0), totalNetSales: Number(r.total_net_sales || 0),
+      totalExpenses: Number(r.total_expenses || 0), theoreticalGrowth: Number(r.theoretical_growth || 0), recordedProfit: Number(r.recorded_profit || 0),
+      discrepancy: Number(r.discrepancy || 0), status: r.status, notes: r.notes
+    };
+  },
+  /** Rebuild report.posSalesDetails from transactions linked to this report (recovers stolen/empty POS). */
+  syncPosSalesDetailsFromLinkedTransactions: async (reportId: string): Promise<CartItem[]> => {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('items')
+      .eq('report_id', reportId)
+      .eq('status', 'COMPLETED');
+    if (error) { console.error('Error loading linked POS txs for report:', error); return []; }
+
+    const items: CartItem[] = [];
+    (data || []).forEach((tx: any) => {
+      if (Array.isArray(tx.items)) {
+        tx.items.forEach((item: CartItem) => items.push({ ...item }));
+      }
+    });
+
+    if (items.length > 0) {
+      const { error: updateError } = await supabase
+        .from('reports')
+        .update({ pos_sales_details: items })
+        .eq('id', reportId);
+      if (updateError) console.error('Error syncing pos_sales_details onto report:', updateError);
+    }
+    return items;
   },
   deleteReport: async (reportId: string) => {
       // Unlink POS transactions first so they reappear as pending when creating a new report.

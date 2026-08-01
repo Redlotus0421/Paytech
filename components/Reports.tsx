@@ -84,17 +84,32 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                 await loadData();
             } else if (adminAction === 'edit') {
                 const r = reports.find(rr => rr.id === adminTargetReportId) || null;
-                if (r) {
-                    setSelectedReport(r);
-                    setIsEditing(true);
-                    setEditReportData({ ...r });
-                }
+                if (r) await openReport(r, true);
             }
         } catch (e: any) {
             alert(e.message || 'Authentication failed');
         } finally {
             setIsAuthenticating(false);
         }
+    };
+
+    const openReport = async (report: ReportData, editMode = false) => {
+        let next = report;
+        // Recover POS sales that were linked to this report but missing from posSalesDetails
+        if (!report.posSalesDetails || report.posSalesDetails.length === 0) {
+            try {
+                const recovered = await storageService.syncPosSalesDetailsFromLinkedTransactions(report.id);
+                if (recovered.length > 0) {
+                    next = { ...report, posSalesDetails: recovered };
+                    setReports(prev => prev.map(r => r.id === report.id ? next : r));
+                }
+            } catch (e) {
+                console.error('Failed to recover POS sales for report:', e);
+            }
+        }
+        setSelectedReport(next);
+        setIsEditing(editMode);
+        setEditReportData(editMode ? { ...next } : null);
     };
 
     const handleDeleteFromModal = async () => {
@@ -507,7 +522,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                   <td className={`px-6 py-4 text-right font-bold ${finalEodNet < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatMoney(finalEodNet)}</td>
                                     <td className="px-6 py-4 text-center flex items-center justify-center gap-3">
                                         <button 
-                                            onClick={() => { setSelectedReport(report); setIsEditing(false); setEditReportData(null); }}
+                                            onClick={() => { void openReport(report, false); }}
                                             className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors"
                                             title="View Report"
                                         >
@@ -516,9 +531,7 @@ export const Reports: React.FC<{ user: User }> = ({ user }) => {
                                         <button
                                             onClick={() => {
                                                 if (user.role === UserRole.EMPLOYEE) {
-                                                    setSelectedReport(report);
-                                                    setIsEditing(true);
-                                                    setEditReportData({ ...report });
+                                                    void openReport(report, true);
                                                 } else {
                                                     openAdminAuth(report.id, 'edit');
                                                 }
